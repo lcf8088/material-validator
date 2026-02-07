@@ -67,6 +67,13 @@ class MaterialValidatorApp:
         """Initialize the main window."""
         if ctk and HAS_DND:
             self.root = TkinterDnD.Tk()
+            # Patch missing CTk methods that customtkinter's scaling tracker expects
+            if not hasattr(self.root, '_block_update_dimensions_event'):
+                self.root._block_update_dimensions_event = False
+            if not hasattr(self.root, 'block_update_dimensions_event'):
+                self.root.block_update_dimensions_event = lambda: setattr(self.root, '_block_update_dimensions_event', True)
+            if not hasattr(self.root, 'unblock_update_dimensions_event'):
+                self.root.unblock_update_dimensions_event = lambda: setattr(self.root, '_block_update_dimensions_event', False)
             ctk.set_appearance_mode(self.config.get('theme', 'dark'))
             ctk.set_default_color_theme('blue')
         elif ctk:
