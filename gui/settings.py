@@ -19,6 +19,7 @@ except ImportError:
 from tkinter import filedialog, messagebox
 
 from .config import Config
+from .theme import COLORS, FONTS
 
 
 class SettingsPanel:
@@ -38,7 +39,7 @@ class SettingsPanel:
         self.saved = False
 
         if HAS_CTK:
-            self.frame = ctk.CTkFrame(parent_frame)
+            self.frame = ctk.CTkFrame(parent_frame, fg_color=COLORS['bg_dark'])
         else:
             self.frame = ttk.Frame(parent_frame, padding=10)
 
@@ -65,10 +66,20 @@ class SettingsPanel:
         # Header
         header = ctk.CTkFrame(self.frame, fg_color="transparent")
         header.pack(fill="x", padx=10, pady=(10, 5))
-        ctk.CTkLabel(header, text="Settings", font=("", 18, "bold")).pack(side="left")
+        ctk.CTkLabel(
+            header, text="Settings", font=FONTS['section_header'],
+            text_color=COLORS['text_primary']
+        ).pack(side="left")
 
         # Tabs
-        tabs = ctk.CTkTabview(self.frame, width=490, height=380)
+        tabs = ctk.CTkTabview(
+            self.frame, width=490, height=380,
+            fg_color=COLORS['bg_card'],
+            segmented_button_selected_color=COLORS['accent'],
+            segmented_button_selected_hover_color=COLORS['accent_hover'],
+            segmented_button_unselected_color=COLORS['bg_dark'],
+            segmented_button_unselected_hover_color=COLORS['surface_hl'],
+        )
         tabs.pack(padx=10, pady=(0, 5), fill="both", expand=True)
 
         tabs.add("Pipeline")
@@ -83,83 +94,141 @@ class SettingsPanel:
         btn_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
         btn_frame.pack(fill="x", padx=10, pady=(5, 10))
 
-        ctk.CTkButton(btn_frame, text="Save", width=100, command=self._on_save).pack(side="right", padx=5)
-        ctk.CTkButton(btn_frame, text="Cancel", width=100, fg_color="gray40", command=self._on_cancel).pack(side="right", padx=5)
+        ctk.CTkButton(
+            btn_frame, text="Save", width=100, command=self._on_save,
+            fg_color=COLORS['accent'], hover_color=COLORS['accent_hover'],
+            text_color=COLORS['bg_darkest'], font=FONTS['badge'],
+        ).pack(side="right", padx=5)
+        ctk.CTkButton(
+            btn_frame, text="Cancel", width=100, command=self._on_cancel,
+            fg_color=COLORS['bg_card'], hover_color=COLORS['surface_hl'],
+            border_color=COLORS['border'], border_width=1,
+            text_color=COLORS['text_primary'], font=FONTS['badge'],
+        ).pack(side="right", padx=5)
+
+    def _entry(self, parent, textvariable, width=290, **kw):
+        """Create a themed CTkEntry."""
+        return ctk.CTkEntry(
+            parent, textvariable=textvariable, width=width,
+            fg_color=COLORS['bg_input'], border_color=COLORS['border'],
+            text_color=COLORS['text_primary'], font=FONTS['body'], **kw
+        )
+
+    def _combo(self, parent, values, variable, width=120, **kw):
+        """Create a themed CTkComboBox."""
+        return ctk.CTkComboBox(
+            parent, values=values, variable=variable, width=width,
+            fg_color=COLORS['bg_input'], border_color=COLORS['border'],
+            button_color=COLORS['accent'], button_hover_color=COLORS['accent_hover'],
+            dropdown_fg_color=COLORS['bg_card'], dropdown_hover_color=COLORS['surface_hl'],
+            dropdown_text_color=COLORS['text_primary'],
+            text_color=COLORS['text_primary'], font=FONTS['body'], **kw
+        )
+
+    def _label(self, parent, text, secondary=False):
+        """Create a themed CTkLabel."""
+        return ctk.CTkLabel(
+            parent, text=text, font=FONTS['label'],
+            text_color=COLORS['text_secondary'] if secondary else COLORS['text_primary']
+        )
+
+    def _browse_button(self, parent, command, text="Browse"):
+        """Create a themed secondary browse button."""
+        return ctk.CTkButton(
+            parent, text=text, width=70, command=command,
+            fg_color=COLORS['bg_card'], hover_color=COLORS['surface_hl'],
+            border_color=COLORS['border'], border_width=1,
+            text_color=COLORS['text_primary'], font=FONTS['label'],
+        )
 
     def _build_pipeline_tab_ctk(self, tab):
         pad = {"padx": 15, "pady": (8, 0)}
 
-        ctk.CTkLabel(tab, text="Anthropic API Key").pack(anchor="w", **pad)
+        self._label(tab, "Anthropic API Key").pack(anchor="w", **pad)
         key_frame = ctk.CTkFrame(tab, fg_color="transparent")
         key_frame.pack(fill="x", padx=15, pady=2)
         self.key_var = ctk.StringVar()
-        self.key_entry = ctk.CTkEntry(key_frame, textvariable=self.key_var, show="*", width=290)
+        self.key_entry = self._entry(key_frame, textvariable=self.key_var, show="*")
         self.key_entry.pack(side="left")
-        self.show_key_btn = ctk.CTkButton(key_frame, text="Show", width=55, command=self._toggle_key)
+        self.show_key_btn = ctk.CTkButton(
+            key_frame, text="Show", width=55, command=self._toggle_key,
+            fg_color=COLORS['bg_card'], hover_color=COLORS['surface_hl'],
+            border_color=COLORS['border'], border_width=1,
+            text_color=COLORS['text_primary'], font=FONTS['label'],
+        )
         self.show_key_btn.pack(side="left", padx=5)
 
-        self.test_btn = ctk.CTkButton(tab, text="Test Connection", width=140, command=self._test_connection)
+        self.test_btn = ctk.CTkButton(
+            tab, text="Test Connection", width=140, command=self._test_connection,
+            fg_color=COLORS['accent'], hover_color=COLORS['accent_hover'],
+            text_color=COLORS['bg_darkest'], font=FONTS['label'],
+        )
         self.test_btn.pack(anchor="w", padx=15, pady=(10, 0))
-        self.test_label = ctk.CTkLabel(tab, text="")
+        self.test_label = ctk.CTkLabel(tab, text="", text_color=COLORS['text_secondary'])
         self.test_label.pack(anchor="w", padx=15, pady=2)
 
-        ctk.CTkLabel(tab, text="Watch Folder (auto-process new files)").pack(anchor="w", **pad)
+        self._label(tab, "Watch Folder (auto-process new files)").pack(anchor="w", **pad)
         wf_frame = ctk.CTkFrame(tab, fg_color="transparent")
         wf_frame.pack(fill="x", padx=15, pady=2)
         self.watch_var = ctk.StringVar()
-        ctk.CTkEntry(wf_frame, textvariable=self.watch_var, width=310).pack(side="left")
-        ctk.CTkButton(wf_frame, text="Browse", width=70, command=self._browse_watch).pack(side="left", padx=5)
+        self._entry(wf_frame, textvariable=self.watch_var, width=310).pack(side="left")
+        self._browse_button(wf_frame, self._browse_watch).pack(side="left", padx=5)
 
-        ctk.CTkLabel(tab, text="Preprocessing DPI").pack(anchor="w", **pad)
+        self._label(tab, "Preprocessing DPI").pack(anchor="w", **pad)
         self.prep_dpi_var = ctk.StringVar()
-        ctk.CTkComboBox(tab, values=["200", "300", "400"], variable=self.prep_dpi_var, width=120, state="readonly").pack(anchor="w", padx=15, pady=2)
+        self._combo(tab, ["200", "300", "400"], self.prep_dpi_var, state="readonly").pack(anchor="w", padx=15, pady=2)
 
-        ctk.CTkLabel(tab, text="PaddleOCR Model Path (optional)").pack(anchor="w", **pad)
+        self._label(tab, "PaddleOCR Model Path (optional)").pack(anchor="w", **pad)
         pm_frame = ctk.CTkFrame(tab, fg_color="transparent")
         pm_frame.pack(fill="x", padx=15, pady=2)
         self.paddle_var = ctk.StringVar()
-        ctk.CTkEntry(pm_frame, textvariable=self.paddle_var, width=310).pack(side="left")
-        ctk.CTkButton(pm_frame, text="Browse", width=70, command=self._browse_paddle).pack(side="left", padx=5)
+        self._entry(pm_frame, textvariable=self.paddle_var, width=310).pack(side="left")
+        self._browse_button(pm_frame, self._browse_paddle).pack(side="left", padx=5)
 
     def _build_archive_tab_ctk(self, tab):
         pad = {"padx": 15, "pady": (8, 0)}
 
-        ctk.CTkLabel(tab, text="Archive Folder").pack(anchor="w", **pad)
+        self._label(tab, "Archive Folder").pack(anchor="w", **pad)
         af_frame = ctk.CTkFrame(tab, fg_color="transparent")
         af_frame.pack(fill="x", padx=15, pady=2)
         self.archive_var = ctk.StringVar()
-        ctk.CTkEntry(af_frame, textvariable=self.archive_var, width=310).pack(side="left")
-        ctk.CTkButton(af_frame, text="Browse", width=70, command=self._browse_archive).pack(side="left", padx=5)
+        self._entry(af_frame, textvariable=self.archive_var, width=310).pack(side="left")
+        self._browse_button(af_frame, self._browse_archive).pack(side="left", padx=5)
 
-        ctk.CTkLabel(tab, text="TIFF DPI").pack(anchor="w", **pad)
+        self._label(tab, "TIFF DPI").pack(anchor="w", **pad)
         self.dpi_var = ctk.StringVar()
-        ctk.CTkComboBox(tab, values=["150", "200", "300"], variable=self.dpi_var, width=120, state="readonly").pack(anchor="w", padx=15, pady=2)
+        self._combo(tab, ["150", "200", "300"], self.dpi_var, state="readonly").pack(anchor="w", padx=15, pady=2)
 
-        ctk.CTkLabel(tab, text="TIFF Compression").pack(anchor="w", **pad)
+        self._label(tab, "TIFF Compression").pack(anchor="w", **pad)
         self.compress_var = ctk.StringVar()
-        ctk.CTkComboBox(tab, values=["lzw", "jpeg", "none", "deflate"], variable=self.compress_var, width=120, state="readonly").pack(anchor="w", padx=15, pady=2)
+        self._combo(tab, ["lzw", "jpeg", "none", "deflate"], self.compress_var, state="readonly").pack(anchor="w", padx=15, pady=2)
 
     def _build_general_tab_ctk(self, tab):
         pad = {"padx": 15, "pady": (8, 0)}
 
-        ctk.CTkLabel(tab, text="Theme").pack(anchor="w", **pad)
+        self._label(tab, "Theme").pack(anchor="w", **pad)
         self.theme_var = ctk.StringVar()
-        ctk.CTkComboBox(tab, values=["dark", "light"], variable=self.theme_var, width=120, state="readonly").pack(anchor="w", padx=15, pady=2)
+        self._combo(tab, ["dark", "light"], self.theme_var, state="readonly").pack(anchor="w", padx=15, pady=2)
 
-        ctk.CTkLabel(tab, text="Specs Folder").pack(anchor="w", **pad)
+        self._label(tab, "Specs Folder").pack(anchor="w", **pad)
         sf_frame = ctk.CTkFrame(tab, fg_color="transparent")
         sf_frame.pack(fill="x", padx=15, pady=2)
         self.specs_var = ctk.StringVar()
-        ctk.CTkEntry(sf_frame, textvariable=self.specs_var, width=310).pack(side="left")
-        ctk.CTkButton(sf_frame, text="Browse", width=70, command=self._browse_specs).pack(side="left", padx=5)
+        self._entry(sf_frame, textvariable=self.specs_var, width=310).pack(side="left")
+        self._browse_button(sf_frame, self._browse_specs).pack(side="left", padx=5)
 
         self.auto_detect_var = ctk.BooleanVar()
-        ctk.CTkCheckBox(tab, text="Auto-detect Spec", variable=self.auto_detect_var).pack(anchor="w", padx=15, pady=(10, 0))
+        ctk.CTkCheckBox(
+            tab, text="Auto-detect Spec", variable=self.auto_detect_var,
+            fg_color=COLORS['accent'], hover_color=COLORS['accent_hover'],
+            border_color=COLORS['border'], text_color=COLORS['text_primary'],
+            font=FONTS['body'],
+        ).pack(anchor="w", padx=15, pady=(10, 0))
 
-        ctk.CTkLabel(tab, text="Default Spec").pack(anchor="w", **pad)
+        self._label(tab, "Default Spec").pack(anchor="w", **pad)
         spec_ids = self.spec_loader.list_ids()
         self.default_spec_var = ctk.StringVar()
-        self.default_spec_combo = ctk.CTkComboBox(tab, values=[""] + spec_ids, variable=self.default_spec_var, width=250)
+        self.default_spec_combo = self._combo(tab, [""] + spec_ids, self.default_spec_var, width=250)
         self.default_spec_combo.pack(anchor="w", padx=15, pady=2)
 
     # ---------- standard tkinter fallback ----------
