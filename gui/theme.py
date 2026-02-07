@@ -61,6 +61,7 @@ ICONS = {
     'watch_off':'\u25CB',    # white circle
     'file':     '\u25A0',    # black square
     'arrow':    '\u25B6',    # right-pointing triangle
+    'batch':    '\u25A6',    # square with orthogonal crosshatch fill
 }
 
 # ------------------------------------------------------------------ Status

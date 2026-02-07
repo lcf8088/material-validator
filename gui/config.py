@@ -21,6 +21,10 @@ DEFAULT_CONFIG = {
     'theme': 'dark',
     'last_input_folder': '',
     'specs_folder': '',
+    'auto_archive': True,
+    'output_folder': '',
+    'organize_by_po': False,
+    'watch_auto_process': True,
 }
 
 
@@ -96,6 +100,11 @@ class Config:
     @watch_folder.setter
     def watch_folder(self, value: str):
         self.set('watch_folder', value)
+
+    @property
+    def effective_output_folder(self) -> str:
+        """Output folder — prefers output_folder, falls back to archive_folder."""
+        return self._config.get('output_folder', '') or self._config.get('archive_folder', '')
 
     def is_configured(self) -> bool:
         """Check if minimum required settings are configured."""

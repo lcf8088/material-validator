@@ -138,9 +138,15 @@ special_requirements:
     note: "ASTM E112"
 ```
 
+## First-Time Setup
+
+See [SETUP.md](SETUP.md) for configuration walkthrough.
+
 ## Future Enhancements
 
-- [ ] Batch processing mode
+- [x] Batch processing mode
+- [x] Auto-archive TIFF after validation
+- [x] Watch folder auto-processing
 - [ ] Multi-heat cert support
 - [ ] Spec revision tracking and comparison
 - [ ] Digital signature for validation integrity

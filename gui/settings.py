@@ -174,6 +174,14 @@ class SettingsPanel:
         self._entry(wf_frame, textvariable=self.watch_var, width=310).pack(side="left")
         self._browse_button(wf_frame, self._browse_watch).pack(side="left", padx=5)
 
+        self.watch_auto_process_var = ctk.BooleanVar()
+        ctk.CTkCheckBox(
+            tab, text="Auto-process watched files", variable=self.watch_auto_process_var,
+            fg_color=COLORS['accent'], hover_color=COLORS['accent_hover'],
+            border_color=COLORS['border'], text_color=COLORS['text_primary'],
+            font=FONTS['body'],
+        ).pack(anchor="w", padx=15, pady=(6, 0))
+
         self._label(tab, "Preprocessing DPI").pack(anchor="w", **pad)
         self.prep_dpi_var = ctk.StringVar()
         self._combo(tab, ["200", "300", "400"], self.prep_dpi_var, state="readonly").pack(anchor="w", padx=15, pady=2)
@@ -194,6 +202,29 @@ class SettingsPanel:
         self.archive_var = ctk.StringVar()
         self._entry(af_frame, textvariable=self.archive_var, width=310).pack(side="left")
         self._browse_button(af_frame, self._browse_archive).pack(side="left", padx=5)
+
+        self._label(tab, "Output Folder (overrides Archive Folder)").pack(anchor="w", **pad)
+        of_frame = ctk.CTkFrame(tab, fg_color="transparent")
+        of_frame.pack(fill="x", padx=15, pady=2)
+        self.output_folder_var = ctk.StringVar()
+        self._entry(of_frame, textvariable=self.output_folder_var, width=310).pack(side="left")
+        self._browse_button(of_frame, self._browse_output_folder).pack(side="left", padx=5)
+
+        self.auto_archive_var = ctk.BooleanVar()
+        ctk.CTkCheckBox(
+            tab, text="Auto-archive TIFF after validation", variable=self.auto_archive_var,
+            fg_color=COLORS['accent'], hover_color=COLORS['accent_hover'],
+            border_color=COLORS['border'], text_color=COLORS['text_primary'],
+            font=FONTS['body'],
+        ).pack(anchor="w", padx=15, pady=(10, 0))
+
+        self.organize_by_po_var = ctk.BooleanVar()
+        ctk.CTkCheckBox(
+            tab, text="Create PO# subfolders", variable=self.organize_by_po_var,
+            fg_color=COLORS['accent'], hover_color=COLORS['accent_hover'],
+            border_color=COLORS['border'], text_color=COLORS['text_primary'],
+            font=FONTS['body'],
+        ).pack(anchor="w", padx=15, pady=(6, 0))
 
         self._label(tab, "TIFF DPI").pack(anchor="w", **pad)
         self.dpi_var = ctk.StringVar()
@@ -281,6 +312,10 @@ class SettingsPanel:
         ttk.Button(wf_frame, text="Browse", command=self._browse_watch).pack(side="left", padx=4)
 
         row += 1
+        self.watch_auto_process_var = tk.BooleanVar()
+        ttk.Checkbutton(tab, text="Auto-process watched files", variable=self.watch_auto_process_var).grid(row=row, column=0, columnspan=2, sticky="w", pady=6)
+
+        row += 1
         ttk.Label(tab, text="Preprocessing DPI").grid(row=row, column=0, sticky="w", pady=4)
         self.prep_dpi_var = tk.StringVar()
         ttk.Combobox(tab, values=["200", "300", "400"], textvariable=self.prep_dpi_var, state="readonly", width=10).grid(row=row, column=1, sticky="w", pady=4)
@@ -301,6 +336,22 @@ class SettingsPanel:
         self.archive_var = tk.StringVar()
         ttk.Entry(af_frame, textvariable=self.archive_var, width=35).pack(side="left")
         ttk.Button(af_frame, text="Browse", command=self._browse_archive).pack(side="left", padx=4)
+
+        row += 1
+        ttk.Label(tab, text="Output Folder (overrides Archive)").grid(row=row, column=0, sticky="w", pady=4)
+        of_frame = ttk.Frame(tab)
+        of_frame.grid(row=row, column=1, sticky="w", pady=4)
+        self.output_folder_var = tk.StringVar()
+        ttk.Entry(of_frame, textvariable=self.output_folder_var, width=35).pack(side="left")
+        ttk.Button(of_frame, text="Browse", command=self._browse_output_folder).pack(side="left", padx=4)
+
+        row += 1
+        self.auto_archive_var = tk.BooleanVar()
+        ttk.Checkbutton(tab, text="Auto-archive TIFF after validation", variable=self.auto_archive_var).grid(row=row, column=0, columnspan=2, sticky="w", pady=6)
+
+        row += 1
+        self.organize_by_po_var = tk.BooleanVar()
+        ttk.Checkbutton(tab, text="Create PO# subfolders", variable=self.organize_by_po_var).grid(row=row, column=0, columnspan=2, sticky="w", pady=4)
 
         row += 1
         ttk.Label(tab, text="TIFF DPI").grid(row=row, column=0, sticky="w", pady=4)
@@ -346,6 +397,10 @@ class SettingsPanel:
         self.paddle_var.set(self.config.get("paddle_model_path", ""))
 
         self.archive_var.set(self.config.get("archive_folder", ""))
+        self.output_folder_var.set(self.config.get("output_folder", ""))
+        self.auto_archive_var.set(self.config.get("auto_archive", True))
+        self.organize_by_po_var.set(self.config.get("organize_by_po", False))
+        self.watch_auto_process_var.set(self.config.get("watch_auto_process", True))
         self.dpi_var.set(str(self.config.get("tiff_dpi", 300)))
         self.compress_var.set(self.config.get("tiff_compression", "lzw"))
 
@@ -370,9 +425,13 @@ class SettingsPanel:
         self.config.update({
             "anthropic_api_key": self.key_var.get().strip(),
             "watch_folder": self.watch_var.get().strip(),
+            "watch_auto_process": self.watch_auto_process_var.get(),
             "preprocessing_dpi": int(prep_dpi_str),
             "paddle_model_path": self.paddle_var.get().strip(),
             "archive_folder": self.archive_var.get().strip(),
+            "output_folder": self.output_folder_var.get().strip(),
+            "auto_archive": self.auto_archive_var.get(),
+            "organize_by_po": self.organize_by_po_var.get(),
             "tiff_dpi": int(dpi_str),
             "tiff_compression": self.compress_var.get(),
             "theme": self.theme_var.get(),
@@ -434,6 +493,11 @@ class SettingsPanel:
         folder = filedialog.askdirectory(title="Select Archive Folder")
         if folder:
             self.archive_var.set(folder)
+
+    def _browse_output_folder(self):
+        folder = filedialog.askdirectory(title="Select Output Folder")
+        if folder:
+            self.output_folder_var.set(folder)
 
     def _browse_watch(self):
         folder = filedialog.askdirectory(title="Select Watch Folder")
