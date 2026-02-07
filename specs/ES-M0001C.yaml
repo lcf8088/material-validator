@@ -1,0 +1,28 @@
+# ES-M0001C - 4140/4142 Standard
+id: ES-M0001C
+revision: null  # Not provided
+date: null
+material: 4140/4142 Alloy Steel
+grades:
+  - "4140"
+  - "4142"
+  - "AISI 4140"
+  - "AISI 4142"
+uns: G41400
+condition: Quench and Tempered
+
+chemistry:
+  C:  { min: 0.38, max: 0.43 }
+  Cr: { min: 0.80, max: 1.10 }
+  Mo: { min: 0.15, max: 0.25 }
+
+mechanical:
+  yield_strength:    { min: 80, unit: ksi }
+  tensile_strength:  { min: 95, unit: ksi }
+  elongation:        { min: 15, unit: '%' }
+  hardness_hrc:      { min: 16, max: 22 }
+
+special_requirements:
+  - type: nace_compliance
+    required: true
+    note: "NACE MR0175 / ISO 15156 compliant"

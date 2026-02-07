@@ -1,0 +1,30 @@
+{
+  "heat_number": "Y75T",
+  "material_grade": "303",
+  "uns": "S30300",
+  "supplier": "North American Stainless",
+  "customer": "DDI",
+  "product_form": "Round Bar",
+  "size": "2.250 inch",
+  "condition": "Annealed",
+  "chemistry": {
+    "C": 0.027,
+    "Mn": 1.79,
+    "P": 0.030,
+    "S": 0.323,
+    "Si": 0.54,
+    "Cr": 17.10,
+    "Ni": 8.61,
+    "Mo": 0.38,
+    "Cu": 0.39,
+    "N": 0.045
+  },
+  "mechanical": {
+    "yield_strength": 42.65,
+    "tensile_strength": 91.79,
+    "elongation": 51.98,
+    "reduction_of_area": 58.72,
+    "hardness_hbw": 170
+  },
+  "_note": "303 SS - should validate against ES-M0003A"
+}

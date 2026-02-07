@@ -1,0 +1,36 @@
+# ES-M0001G - 4140/4142 110 MYS (High Strength)
+id: ES-M0001G
+revision: null
+date: null
+material: 4140/4142 Alloy Steel - 110 MYS
+grades:
+  - "4140"
+  - "4142"
+  - "AISI 4140"
+  - "AISI 4142"
+  - "4140/42"
+  - "AISI 4140/42"
+uns: G41400
+condition: Quench and Tempered
+
+chemistry:
+  C:  { min: 0.38, max: 0.46 }
+  Mn: { min: 0.75, max: 1.00 }
+  Cr: { min: 0.80, max: 1.10 }
+  Mo: { min: 0.15, max: 0.25 }
+  P:  { max: 0.035 }
+  S:  { max: 0.040 }
+  Si: { min: 0.15, max: 0.35 }
+
+mechanical:
+  yield_strength:      { min: 110, unit: ksi }
+  tensile_strength:    { min: 125, unit: ksi }
+  elongation:          { min: 12, unit: '%' }
+  reduction_of_area:   { min: 35, unit: '%' }
+  hardness_hrc:        { max: 36 }
+
+special_requirements:
+  - type: temper_temperature
+    min: 1025
+    unit: "°F"
+    note: "Minimum tempering temperature"

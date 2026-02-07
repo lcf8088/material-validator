@@ -1,0 +1,31 @@
+# ES-M0003E - 13Cr / 420 Stainless Steel
+id: ES-M0003E
+revision: null
+date: null
+material: 13Cr / 420 Stainless Steel
+grades:
+  - "420"
+  - "AISI 420"
+  - "420 SS"
+  - "13Cr"
+  - "Type 420"
+uns: S42000
+condition: Quench and Tempered
+
+chemistry:
+  C:  { min: 0.18, max: 0.22 }
+  Cr: { min: 12.50, max: 14.00 }
+
+mechanical:
+  yield_strength:    { min: 80, max: 95, unit: ksi }
+  tensile_strength:  { min: 95, unit: ksi }
+  elongation:        { min: 18, unit: '%' }
+  hardness_hrc:      { max: 22 }
+
+special_requirements:
+  - type: charpy_impact
+    min_avg: 15
+    unit: "ft-lbs"
+    temperature: 32
+    temp_unit: "°F"
+    note: "Average of 3 specimens at 32°F"

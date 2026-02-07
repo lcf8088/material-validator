@@ -1,0 +1,42 @@
+{
+  "heat_number": "D2213660",
+  "material_grade": "AISI 4140/42",
+  "uns": "G41400",
+  "supplier": "Asil Celik (Turkey) via OSS",
+  "customer": "Downhole & Design Int'l Corp",
+  "product_form": "Round Bar",
+  "size": "3.250 inch",
+  "condition": "Quench and Tempered, Stress Relieved",
+  "specification": "ES-M0001G Rev. 0",
+  "chemistry": {
+    "C": 0.42,
+    "Si": 0.26,
+    "Mn": 0.94,
+    "P": 0.010,
+    "S": 0.007,
+    "Cr": 1.08,
+    "Mo": 0.25,
+    "Ni": 0.18,
+    "Al": 0.023,
+    "Cu": 0.15,
+    "V": 0.025,
+    "Nb": 0.028,
+    "Ti": 0.002
+  },
+  "mechanical": {
+    "yield_strength": 119.73,
+    "tensile_strength": 149.45,
+    "elongation": 13.8,
+    "reduction_of_area": 60.1,
+    "hardness_hrc": 33
+  },
+  "temper_temperature": 1166,
+  "heat_treatment": {
+    "austenitizing_temp_f": 1580,
+    "tempering_temp_f": 1166,
+    "stress_relieve_temp_f": 1103
+  },
+  "grain_size": "7-8",
+  "_source": "Vision extracted from PDF 2026-02-06",
+  "_note": "4140 110MYS - validates against ES-M0001G"
+}

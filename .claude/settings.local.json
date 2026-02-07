@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(dir:*)",
+      "WebSearch",
+      "Bash(del \"C:\\\\Users\\\\LanceSurface\\\\Downloads\\\\material-validator\\\\material-validator\\\\test_settings.py\")",
+      "Bash(git add:*)"
+    ]
+  }
+}

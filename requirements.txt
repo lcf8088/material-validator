@@ -1,0 +1,16 @@
+# Core dependencies
+pyyaml>=6.0
+httpx>=0.25.0
+
+# PDF processing
+pymupdf>=1.23.0
+
+# Image processing / TIFF export
+pillow>=10.0.0
+
+# GUI (Windows desktop)
+customtkinter>=5.2.0
+tkinterdnd2>=0.3.0
+
+# For packaging as standalone .exe
+pyinstaller>=6.0.0
