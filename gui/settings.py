@@ -16,8 +16,7 @@ except ImportError:
 
 from tkinter import filedialog, messagebox
 
-from .config import Config, VISION_PROVIDERS
-from .vision_api import create_vision_provider
+from .config import Config
 
 
 class SettingsDialog:
@@ -36,7 +35,7 @@ class SettingsDialog:
             self.window = tk.Toplevel(parent)
 
         self.window.title("Settings")
-        self.window.geometry("520x480")
+        self.window.geometry("520x520")
         self.window.resizable(False, False)
         self.window.transient(parent)
         self.window.grab_set()
@@ -61,14 +60,14 @@ class SettingsDialog:
 
     # ---------- customtkinter layout ----------
     def _build_ctk(self):
-        tabs = ctk.CTkTabview(self.window, width=490, height=390)
+        tabs = ctk.CTkTabview(self.window, width=490, height=430)
         tabs.pack(padx=10, pady=(10, 0))
 
-        tabs.add("Vision")
+        tabs.add("Pipeline")
         tabs.add("Archive")
         tabs.add("General")
 
-        self._build_vision_tab_ctk(tabs.tab("Vision"))
+        self._build_pipeline_tab_ctk(tabs.tab("Pipeline"))
         self._build_archive_tab_ctk(tabs.tab("Archive"))
         self._build_general_tab_ctk(tabs.tab("General"))
 
@@ -79,19 +78,10 @@ class SettingsDialog:
         ctk.CTkButton(btn_frame, text="Save", width=100, command=self._on_save).pack(side="right", padx=5)
         ctk.CTkButton(btn_frame, text="Cancel", width=100, fg_color="gray40", command=self._on_cancel).pack(side="right", padx=5)
 
-    def _build_vision_tab_ctk(self, tab):
+    def _build_pipeline_tab_ctk(self, tab):
         pad = {"padx": 15, "pady": (8, 0)}
 
-        ctk.CTkLabel(tab, text="Vision Provider").pack(anchor="w", **pad)
-        provider_names = [VISION_PROVIDERS[k]["name"] for k in VISION_PROVIDERS]
-        self.provider_var = ctk.StringVar()
-        self.provider_combo = ctk.CTkComboBox(
-            tab, values=provider_names, variable=self.provider_var,
-            command=self._on_provider_change, state="readonly", width=350
-        )
-        self.provider_combo.pack(anchor="w", padx=15, pady=2)
-
-        ctk.CTkLabel(tab, text="API Key").pack(anchor="w", **pad)
+        ctk.CTkLabel(tab, text="Anthropic API Key").pack(anchor="w", **pad)
         key_frame = ctk.CTkFrame(tab, fg_color="transparent")
         key_frame.pack(fill="x", padx=15, pady=2)
         self.key_var = ctk.StringVar()
@@ -100,15 +90,28 @@ class SettingsDialog:
         self.show_key_btn = ctk.CTkButton(key_frame, text="Show", width=55, command=self._toggle_key)
         self.show_key_btn.pack(side="left", padx=5)
 
-        ctk.CTkLabel(tab, text="Model").pack(anchor="w", **pad)
-        self.model_var = ctk.StringVar()
-        self.model_combo = ctk.CTkComboBox(tab, values=[], variable=self.model_var, width=350)
-        self.model_combo.pack(anchor="w", padx=15, pady=2)
-
         self.test_btn = ctk.CTkButton(tab, text="Test Connection", width=140, command=self._test_connection)
-        self.test_btn.pack(anchor="w", padx=15, pady=(12, 0))
+        self.test_btn.pack(anchor="w", padx=15, pady=(10, 0))
         self.test_label = ctk.CTkLabel(tab, text="")
         self.test_label.pack(anchor="w", padx=15, pady=2)
+
+        ctk.CTkLabel(tab, text="Watch Folder (auto-process new files)").pack(anchor="w", **pad)
+        wf_frame = ctk.CTkFrame(tab, fg_color="transparent")
+        wf_frame.pack(fill="x", padx=15, pady=2)
+        self.watch_var = ctk.StringVar()
+        ctk.CTkEntry(wf_frame, textvariable=self.watch_var, width=310).pack(side="left")
+        ctk.CTkButton(wf_frame, text="Browse", width=70, command=self._browse_watch).pack(side="left", padx=5)
+
+        ctk.CTkLabel(tab, text="Preprocessing DPI").pack(anchor="w", **pad)
+        self.prep_dpi_var = ctk.StringVar()
+        ctk.CTkComboBox(tab, values=["200", "300", "400"], variable=self.prep_dpi_var, width=120, state="readonly").pack(anchor="w", padx=15, pady=2)
+
+        ctk.CTkLabel(tab, text="PaddleOCR Model Path (optional)").pack(anchor="w", **pad)
+        pm_frame = ctk.CTkFrame(tab, fg_color="transparent")
+        pm_frame.pack(fill="x", padx=15, pady=2)
+        self.paddle_var = ctk.StringVar()
+        ctk.CTkEntry(pm_frame, textvariable=self.paddle_var, width=310).pack(side="left")
+        ctk.CTkButton(pm_frame, text="Browse", width=70, command=self._browse_paddle).pack(side="left", padx=5)
 
     def _build_archive_tab_ctk(self, tab):
         pad = {"padx": 15, "pady": (8, 0)}
@@ -156,14 +159,14 @@ class SettingsDialog:
         notebook = ttk.Notebook(self.window)
         notebook.pack(fill="both", expand=True, padx=10, pady=(10, 0))
 
-        vision_tab = ttk.Frame(notebook, padding=10)
+        pipeline_tab = ttk.Frame(notebook, padding=10)
         archive_tab = ttk.Frame(notebook, padding=10)
         general_tab = ttk.Frame(notebook, padding=10)
-        notebook.add(vision_tab, text="Vision")
+        notebook.add(pipeline_tab, text="Pipeline")
         notebook.add(archive_tab, text="Archive")
         notebook.add(general_tab, text="General")
 
-        self._build_vision_tab_tk(vision_tab)
+        self._build_pipeline_tab_tk(pipeline_tab)
         self._build_archive_tab_tk(archive_tab)
         self._build_general_tab_tk(general_tab)
 
@@ -172,17 +175,9 @@ class SettingsDialog:
         ttk.Button(btn_frame, text="Cancel", command=self._on_cancel).pack(side="right", padx=5)
         ttk.Button(btn_frame, text="Save", command=self._on_save).pack(side="right", padx=5)
 
-    def _build_vision_tab_tk(self, tab):
+    def _build_pipeline_tab_tk(self, tab):
         row = 0
-        ttk.Label(tab, text="Vision Provider").grid(row=row, column=0, sticky="w", pady=4)
-        provider_names = [VISION_PROVIDERS[k]["name"] for k in VISION_PROVIDERS]
-        self.provider_var = tk.StringVar()
-        self.provider_combo = ttk.Combobox(tab, values=provider_names, textvariable=self.provider_var, state="readonly", width=40)
-        self.provider_combo.grid(row=row, column=1, sticky="w", pady=4)
-        self.provider_combo.bind("<<ComboboxSelected>>", lambda e: self._on_provider_change(self.provider_var.get()))
-
-        row += 1
-        ttk.Label(tab, text="API Key").grid(row=row, column=0, sticky="w", pady=4)
+        ttk.Label(tab, text="Anthropic API Key").grid(row=row, column=0, sticky="w", pady=4)
         key_frame = ttk.Frame(tab)
         key_frame.grid(row=row, column=1, sticky="w", pady=4)
         self.key_var = tk.StringVar()
@@ -192,16 +187,31 @@ class SettingsDialog:
         self.show_key_btn.pack(side="left", padx=4)
 
         row += 1
-        ttk.Label(tab, text="Model").grid(row=row, column=0, sticky="w", pady=4)
-        self.model_var = tk.StringVar()
-        self.model_combo = ttk.Combobox(tab, values=[], textvariable=self.model_var, width=40)
-        self.model_combo.grid(row=row, column=1, sticky="w", pady=4)
-
-        row += 1
         self.test_btn = ttk.Button(tab, text="Test Connection", command=self._test_connection)
         self.test_btn.grid(row=row, column=0, sticky="w", pady=8)
         self.test_label = ttk.Label(tab, text="")
         self.test_label.grid(row=row, column=1, sticky="w", pady=8)
+
+        row += 1
+        ttk.Label(tab, text="Watch Folder").grid(row=row, column=0, sticky="w", pady=4)
+        wf_frame = ttk.Frame(tab)
+        wf_frame.grid(row=row, column=1, sticky="w", pady=4)
+        self.watch_var = tk.StringVar()
+        ttk.Entry(wf_frame, textvariable=self.watch_var, width=35).pack(side="left")
+        ttk.Button(wf_frame, text="Browse", command=self._browse_watch).pack(side="left", padx=4)
+
+        row += 1
+        ttk.Label(tab, text="Preprocessing DPI").grid(row=row, column=0, sticky="w", pady=4)
+        self.prep_dpi_var = tk.StringVar()
+        ttk.Combobox(tab, values=["200", "300", "400"], textvariable=self.prep_dpi_var, state="readonly", width=10).grid(row=row, column=1, sticky="w", pady=4)
+
+        row += 1
+        ttk.Label(tab, text="PaddleOCR Model Path").grid(row=row, column=0, sticky="w", pady=4)
+        pm_frame = ttk.Frame(tab)
+        pm_frame.grid(row=row, column=1, sticky="w", pady=4)
+        self.paddle_var = tk.StringVar()
+        ttk.Entry(pm_frame, textvariable=self.paddle_var, width=35).pack(side="left")
+        ttk.Button(pm_frame, text="Browse", command=self._browse_paddle).pack(side="left", padx=4)
 
     def _build_archive_tab_tk(self, tab):
         row = 0
@@ -247,28 +257,13 @@ class SettingsDialog:
         self.default_spec_combo = ttk.Combobox(tab, values=[""] + spec_ids, textvariable=self.default_spec_var, width=30)
         self.default_spec_combo.grid(row=row, column=1, sticky="w", pady=4)
 
-    # ----------------------------------------------------------- helpers
-    def _provider_key_from_name(self, display_name: str) -> str:
-        """Map display name back to provider key."""
-        for key, info in VISION_PROVIDERS.items():
-            if info["name"] == display_name:
-                return key
-        return "openai"
-
-    def _provider_name_from_key(self, key: str) -> str:
-        """Map provider key to display name."""
-        info = VISION_PROVIDERS.get(key, {})
-        return info.get("name", key)
-
     # --------------------------------------------------------- load / save
     def _load_values(self):
         """Populate widgets from config."""
-        prov_key = self.config.get("vision_provider", "openai")
-        self.provider_var.set(self._provider_name_from_key(prov_key))
-        self._on_provider_change(self.provider_var.get())
-
-        self.key_var.set(self.config.get("vision_api_key", ""))
-        self.model_var.set(self.config.get("vision_model", ""))
+        self.key_var.set(self.config.get("anthropic_api_key", ""))
+        self.watch_var.set(self.config.get("watch_folder", ""))
+        self.prep_dpi_var.set(str(self.config.get("preprocessing_dpi", 300)))
+        self.paddle_var.set(self.config.get("paddle_model_path", ""))
 
         self.archive_var.set(self.config.get("archive_folder", ""))
         self.dpi_var.set(str(self.config.get("tiff_dpi", 300)))
@@ -285,13 +280,18 @@ class SettingsDialog:
             messagebox.showwarning("Invalid DPI", "TIFF DPI must be a number.", parent=self.window)
             return
 
-        prov_key = self._provider_key_from_name(self.provider_var.get())
+        prep_dpi_str = self.prep_dpi_var.get()
+        if not prep_dpi_str.isdigit():
+            messagebox.showwarning("Invalid DPI", "Preprocessing DPI must be a number.", parent=self.window)
+            return
+
         old_specs_folder = self.config.get("specs_folder", "")
 
         self.config.update({
-            "vision_provider": prov_key,
-            "vision_api_key": self.key_var.get().strip(),
-            "vision_model": self.model_var.get().strip(),
+            "anthropic_api_key": self.key_var.get().strip(),
+            "watch_folder": self.watch_var.get().strip(),
+            "preprocessing_dpi": int(prep_dpi_str),
+            "paddle_model_path": self.paddle_var.get().strip(),
             "archive_folder": self.archive_var.get().strip(),
             "tiff_dpi": int(dpi_str),
             "tiff_compression": self.compress_var.get(),
@@ -324,28 +324,6 @@ class SettingsDialog:
         self.window.destroy()
 
     # --------------------------------------------------------- callbacks
-    def _on_provider_change(self, display_name):
-        """Update model list and key field when provider changes."""
-        prov_key = self._provider_key_from_name(display_name)
-        info = VISION_PROVIDERS.get(prov_key, {})
-        models = info.get("models", [])
-
-        if HAS_CTK:
-            self.model_combo.configure(values=models)
-        else:
-            self.model_combo["values"] = models
-
-        # Pre-select first model if current value not in list
-        if self.model_var.get() not in models and models:
-            self.model_var.set(models[0])
-
-        # Enable/disable API key
-        requires_key = info.get("requires_key", True)
-        if HAS_CTK:
-            self.key_entry.configure(state="normal" if requires_key else "disabled")
-        else:
-            self.key_entry.configure(state="normal" if requires_key else "disabled")
-
     def _toggle_key(self):
         current = self.key_entry.cget("show")
         if current == "*":
@@ -362,9 +340,10 @@ class SettingsDialog:
                 self.show_key_btn.configure(text="Show")
 
     def _test_connection(self):
-        prov_key = self._provider_key_from_name(self.provider_var.get())
         api_key = self.key_var.get().strip()
-        model = self.model_var.get().strip()
+        if not api_key:
+            messagebox.showwarning("Missing Key", "Enter an Anthropic API key first.", parent=self.window)
+            return
 
         if HAS_CTK:
             self.test_btn.configure(state="disabled")
@@ -374,11 +353,8 @@ class SettingsDialog:
             self.test_label.configure(text="Testing...")
 
         def run():
-            try:
-                provider = create_vision_provider(prov_key, api_key, model)
-                ok, msg = provider.test_connection()
-            except Exception as e:
-                ok, msg = False, str(e)
+            from lib.claude_parser import test_connection
+            ok, msg = test_connection(api_key)
 
             def on_done():
                 if HAS_CTK:
@@ -396,6 +372,16 @@ class SettingsDialog:
         folder = filedialog.askdirectory(title="Select Archive Folder", parent=self.window)
         if folder:
             self.archive_var.set(folder)
+
+    def _browse_watch(self):
+        folder = filedialog.askdirectory(title="Select Watch Folder", parent=self.window)
+        if folder:
+            self.watch_var.set(folder)
+
+    def _browse_paddle(self):
+        folder = filedialog.askdirectory(title="Select PaddleOCR Model Directory", parent=self.window)
+        if folder:
+            self.paddle_var.set(folder)
 
     def _browse_specs(self):
         folder = filedialog.askdirectory(title="Select Specs Folder", parent=self.window)
