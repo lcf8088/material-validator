@@ -203,7 +203,7 @@ def process_document(
         # Step 10: PDF -> TIFF
         if output_dir and is_pdf:
             _progress("Converting to TIFF...", 0.85)
-            from .tiff_export import pdf_to_tiff, generate_archive_filename
+            from gui.tiff_export import pdf_to_tiff, generate_archive_filename
 
             heat_number = normalized.get('heat_number', 'UNKNOWN')
             po_number = normalized.get('po_number')
