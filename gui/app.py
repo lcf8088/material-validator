@@ -33,7 +33,7 @@ from lib.watcher import FolderWatcher
 
 from .config import Config
 from .tiff_export import convert_to_archive, generate_archive_filename
-from .settings import SettingsDialog
+from .settings import SettingsPanel
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +54,7 @@ class MaterialValidatorApp:
         self.extracted_data: Optional[Dict[str, Any]] = None
         self.validation_result = None
         self.pipeline_result: Optional[PipelineResult] = None
+        self.settings_panel: Optional[SettingsPanel] = None
 
         self._setup_window()
         self._setup_ui()
@@ -89,15 +90,15 @@ class MaterialValidatorApp:
     def _setup_ui(self):
         """Create the UI layout."""
         if ctk:
-            main_frame = ctk.CTkFrame(self.root)
-            main_frame.pack(fill='both', expand=True, padx=10, pady=10)
+            self.main_frame = ctk.CTkFrame(self.root)
+            self.main_frame.pack(fill='both', expand=True, padx=10, pady=10)
         else:
-            main_frame = ttk.Frame(self.root, padding=10)
-            main_frame.pack(fill='both', expand=True)
+            self.main_frame = ttk.Frame(self.root, padding=10)
+            self.main_frame.pack(fill='both', expand=True)
 
-        self._create_file_section(main_frame)
-        self._create_main_section(main_frame)
-        self._create_action_section(main_frame)
+        self._create_file_section(self.main_frame)
+        self._create_main_section(self.main_frame)
+        self._create_action_section(self.main_frame)
 
     def _create_file_section(self, parent):
         """Create file input section with drag-drop."""
@@ -520,13 +521,30 @@ class MaterialValidatorApp:
     # ------------------------------------------------------------- Settings
 
     def _show_settings(self):
-        """Show settings dialog."""
-        dialog = SettingsDialog(self.root, self.config, self.spec_loader)
-        if dialog.saved:
-            specs = ['Auto-detect'] + self.spec_loader.list_ids()
-            if ctk:
-                self.spec_dropdown.configure(values=specs)
-            self._set_status("Settings saved")
+        """Show settings panel (replaces main content in-place)."""
+        # Hide main content
+        self.main_frame.pack_forget()
+
+        # Create and show settings panel
+        def on_settings_done(saved: bool):
+            # Remove settings panel
+            self.settings_panel.hide()
+            self.settings_panel.frame.destroy()
+            self.settings_panel = None
+
+            # Restore main content
+            self.main_frame.pack(fill='both', expand=True, padx=10, pady=10)
+
+            if saved:
+                specs = ['Auto-detect'] + self.spec_loader.list_ids()
+                if ctk:
+                    self.spec_dropdown.configure(values=specs)
+                self._set_status("Settings saved")
+
+        self.settings_panel = SettingsPanel(
+            self.root, self.config, self.spec_loader, on_done=on_settings_done
+        )
+        self.settings_panel.show()
 
     # ------------------------------------------------------------- Helpers
 

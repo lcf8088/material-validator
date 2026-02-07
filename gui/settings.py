@@ -1,5 +1,7 @@
 """
-Settings dialog for Material Validator GUI.
+Settings panel for Material Validator GUI.
+
+Embedded in the main window as a swappable frame (avoids CTkToplevel bugs).
 """
 
 import threading
@@ -19,37 +21,37 @@ from tkinter import filedialog, messagebox
 from .config import Config
 
 
-class SettingsDialog:
-    """Modal settings dialog with tabbed sections."""
+class SettingsPanel:
+    """Settings panel that embeds in the main window, replacing main content."""
 
-    def __init__(self, parent, config: Config, spec_loader):
+    def __init__(self, parent_frame, config: Config, spec_loader, on_done=None):
+        """
+        Args:
+            parent_frame: The parent frame to pack into (typically root or main container).
+            config: Config instance.
+            spec_loader: SpecLoader instance.
+            on_done: Callback(saved: bool) when settings panel is closed.
+        """
         self.config = config
         self.spec_loader = spec_loader
-        self.parent = parent
+        self.on_done = on_done
         self.saved = False
 
-        # Create modal toplevel
         if HAS_CTK:
-            self.window = ctk.CTkToplevel(parent)
+            self.frame = ctk.CTkFrame(parent_frame)
         else:
-            self.window = tk.Toplevel(parent)
-
-        self.window.title("Settings")
-        self.window.geometry("520x520")
-        self.window.resizable(False, False)
-        self.window.transient(parent)
-        self.window.grab_set()
-        self.window.protocol("WM_DELETE_WINDOW", self._on_cancel)
+            self.frame = ttk.Frame(parent_frame, padding=10)
 
         self._build_ui()
         self._load_values()
 
-        self.window.wait_window()
+    def show(self):
+        """Show the settings panel."""
+        self.frame.pack(fill='both', expand=True, padx=10, pady=10)
 
-        # Workaround: CTkToplevel.destroy() can hide the parent window
-        self.parent.deiconify()
-        self.parent.lift()
-        self.parent.focus_force()
+    def hide(self):
+        """Hide the settings panel."""
+        self.frame.pack_forget()
 
     # ------------------------------------------------------------------ UI
     def _build_ui(self):
@@ -60,8 +62,14 @@ class SettingsDialog:
 
     # ---------- customtkinter layout ----------
     def _build_ctk(self):
-        tabs = ctk.CTkTabview(self.window, width=490, height=430)
-        tabs.pack(padx=10, pady=(10, 0))
+        # Header
+        header = ctk.CTkFrame(self.frame, fg_color="transparent")
+        header.pack(fill="x", padx=10, pady=(10, 5))
+        ctk.CTkLabel(header, text="Settings", font=("", 18, "bold")).pack(side="left")
+
+        # Tabs
+        tabs = ctk.CTkTabview(self.frame, width=490, height=380)
+        tabs.pack(padx=10, pady=(0, 5), fill="both", expand=True)
 
         tabs.add("Pipeline")
         tabs.add("Archive")
@@ -72,8 +80,8 @@ class SettingsDialog:
         self._build_general_tab_ctk(tabs.tab("General"))
 
         # Bottom buttons
-        btn_frame = ctk.CTkFrame(self.window, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=10, pady=10)
+        btn_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=10, pady=(5, 10))
 
         ctk.CTkButton(btn_frame, text="Save", width=100, command=self._on_save).pack(side="right", padx=5)
         ctk.CTkButton(btn_frame, text="Cancel", width=100, fg_color="gray40", command=self._on_cancel).pack(side="right", padx=5)
@@ -156,8 +164,11 @@ class SettingsDialog:
 
     # ---------- standard tkinter fallback ----------
     def _build_tk(self):
-        notebook = ttk.Notebook(self.window)
-        notebook.pack(fill="both", expand=True, padx=10, pady=(10, 0))
+        # Header
+        ttk.Label(self.frame, text="Settings", font=("", 14, "bold")).pack(anchor="w", padx=10, pady=(10, 5))
+
+        notebook = ttk.Notebook(self.frame)
+        notebook.pack(fill="both", expand=True, padx=10, pady=(0, 5))
 
         pipeline_tab = ttk.Frame(notebook, padding=10)
         archive_tab = ttk.Frame(notebook, padding=10)
@@ -170,8 +181,8 @@ class SettingsDialog:
         self._build_archive_tab_tk(archive_tab)
         self._build_general_tab_tk(general_tab)
 
-        btn_frame = ttk.Frame(self.window)
-        btn_frame.pack(fill="x", padx=10, pady=10)
+        btn_frame = ttk.Frame(self.frame)
+        btn_frame.pack(fill="x", padx=10, pady=(5, 10))
         ttk.Button(btn_frame, text="Cancel", command=self._on_cancel).pack(side="right", padx=5)
         ttk.Button(btn_frame, text="Save", command=self._on_save).pack(side="right", padx=5)
 
@@ -277,12 +288,12 @@ class SettingsDialog:
     def _on_save(self):
         dpi_str = self.dpi_var.get()
         if not dpi_str.isdigit():
-            messagebox.showwarning("Invalid DPI", "TIFF DPI must be a number.", parent=self.window)
+            messagebox.showwarning("Invalid DPI", "TIFF DPI must be a number.")
             return
 
         prep_dpi_str = self.prep_dpi_var.get()
         if not prep_dpi_str.isdigit():
-            messagebox.showwarning("Invalid DPI", "Preprocessing DPI must be a number.", parent=self.window)
+            messagebox.showwarning("Invalid DPI", "Preprocessing DPI must be a number.")
             return
 
         old_specs_folder = self.config.get("specs_folder", "")
@@ -312,78 +323,64 @@ class SettingsDialog:
             self.spec_loader.reload()
 
         self.saved = True
-        self._close()
+        if self.on_done:
+            self.on_done(True)
 
     def _on_cancel(self):
-        self._close()
-
-    def _close(self):
-        """Release grab, restore focus to parent, then destroy."""
-        self.window.grab_release()
-        self.parent.focus_set()
-        self.window.destroy()
+        if self.on_done:
+            self.on_done(False)
 
     # --------------------------------------------------------- callbacks
     def _toggle_key(self):
         current = self.key_entry.cget("show")
         if current == "*":
             self.key_entry.configure(show="")
-            if HAS_CTK:
-                self.show_key_btn.configure(text="Hide")
-            else:
-                self.show_key_btn.configure(text="Hide")
+            self.show_key_btn.configure(text="Hide")
         else:
             self.key_entry.configure(show="*")
-            if HAS_CTK:
-                self.show_key_btn.configure(text="Show")
-            else:
-                self.show_key_btn.configure(text="Show")
+            self.show_key_btn.configure(text="Show")
 
     def _test_connection(self):
         api_key = self.key_var.get().strip()
         if not api_key:
-            messagebox.showwarning("Missing Key", "Enter an Anthropic API key first.", parent=self.window)
+            messagebox.showwarning("Missing Key", "Enter an Anthropic API key first.")
             return
 
-        if HAS_CTK:
-            self.test_btn.configure(state="disabled")
-            self.test_label.configure(text="Testing...")
-        else:
-            self.test_btn.configure(state="disabled")
-            self.test_label.configure(text="Testing...")
+        self.test_btn.configure(state="disabled")
+        self.test_label.configure(text="Testing...")
 
         def run():
             from lib.claude_parser import test_connection
             ok, msg = test_connection(api_key)
 
             def on_done():
-                if HAS_CTK:
-                    self.test_btn.configure(state="normal")
-                    self.test_label.configure(text=msg)
-                else:
-                    self.test_btn.configure(state="normal")
-                    self.test_label.configure(text=msg)
+                self.test_btn.configure(state="normal")
+                self.test_label.configure(text=msg)
 
-            self.window.after(0, on_done)
+            self.frame.after(0, on_done)
 
         threading.Thread(target=run, daemon=True).start()
 
     def _browse_archive(self):
-        folder = filedialog.askdirectory(title="Select Archive Folder", parent=self.window)
+        folder = filedialog.askdirectory(title="Select Archive Folder")
         if folder:
             self.archive_var.set(folder)
 
     def _browse_watch(self):
-        folder = filedialog.askdirectory(title="Select Watch Folder", parent=self.window)
+        folder = filedialog.askdirectory(title="Select Watch Folder")
         if folder:
             self.watch_var.set(folder)
 
     def _browse_paddle(self):
-        folder = filedialog.askdirectory(title="Select PaddleOCR Model Directory", parent=self.window)
+        folder = filedialog.askdirectory(title="Select PaddleOCR Model Directory")
         if folder:
             self.paddle_var.set(folder)
 
     def _browse_specs(self):
-        folder = filedialog.askdirectory(title="Select Specs Folder", parent=self.window)
+        folder = filedialog.askdirectory(title="Select Specs Folder")
         if folder:
             self.specs_var.set(folder)
+
+
+# Backward-compatible alias
+SettingsDialog = SettingsPanel
