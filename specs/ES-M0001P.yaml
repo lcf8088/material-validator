@@ -1,0 +1,46 @@
+# ============================================================
+# DDIC Material Specification: ES-M0001P
+# ============================================================
+
+id: "ES-M0001P"
+revision: 0
+date: "2025-05-16"
+material: "4130 Chromium Molybdenum Low Alloy Steel 80MYS 22HRc Max - API 6A PSL3"
+grades:
+  - "4130"
+  - "AISI 4130"
+uns: "G41300"
+condition: "Hardened and Tempered"
+
+chemistry:
+  C:  { min: 0.28, max: 0.33 }
+  Mn: { min: 0.40, max: 0.60 }
+  P:  { max: 0.025 }
+  S:  { max: 0.025 }
+  Si: { min: 0.15, max: 0.35 }
+  Cr: { min: 0.80, max: 1.10 }
+  Mo: { min: 0.15, max: 0.25 }
+  Ni: { max: 1.00 }
+
+mechanical:
+  yield_strength:    { min: 80, unit: ksi }
+  tensile_strength:  { min: 100, unit: ksi }
+  elongation:        { min: 17, unit: '%' }
+  reduction_of_area: { min: 40, unit: '%' }
+  hardness_hbw:      { min: 217, max: 237 }
+  hardness_hrc:      { min: 18, max: 22 }
+
+special_requirements:
+  - type: nace_compliance
+    required: true
+    note: "NACE MR0175 / ISO 15156 compliant"
+  - type: temper_temperature
+    min: 1220
+    unit: "°F"
+    note: "Minimum tempering temperature 660°C (1220°F)"
+  - type: charpy_impact
+    min_avg: 20
+    unit: "ft-lbs"
+    temperature: -40
+    temp_unit: "°F"
+    note: "Average of 3 specimens at -40°F (-40°C); 20 ft-lb longitudinal or 15 ft-lb transverse"

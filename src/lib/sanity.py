@@ -53,7 +53,12 @@ def check_chemistry_sanity(chemistry: Dict[str, float]) -> List[Tuple[str, str, 
     for element, value in chemistry.items():
         if value is None:
             continue
-            
+
+        try:
+            value = float(value)
+        except (ValueError, TypeError):
+            continue
+
         element_title = element.strip().capitalize()
 
         # Check if value is negative
@@ -80,8 +85,14 @@ def check_chemistry_sanity(chemistry: Dict[str, float]) -> List[Tuple[str, str, 
     
     # Check for common extraction mistakes
     # e.g., Cr and Ni swapped, decimal point errors
-    cr = chemistry.get('Cr', 0)
-    ni = chemistry.get('Ni', 0)
+    try:
+        cr = float(chemistry.get('Cr', 0))
+    except (ValueError, TypeError):
+        cr = 0
+    try:
+        ni = float(chemistry.get('Ni', 0))
+    except (ValueError, TypeError):
+        ni = 0
     
     # For stainless steels, Cr should be > Ni typically (except some austenitics)
     # Flag if Ni >> Cr which might indicate a swap
@@ -106,13 +117,18 @@ def check_mechanical_sanity(mechanical: Dict[str, Any]) -> List[Tuple[str, str, 
     for prop, value in mechanical.items():
         if value is None:
             continue
-        
+
         # Handle dict values (with units)
         if isinstance(value, dict):
             value = value.get('value')
             if value is None:
                 continue
-        
+
+        try:
+            value = float(value)
+        except (ValueError, TypeError):
+            continue
+
         prop_lower = prop.lower()
         
         # Check against known ranges
@@ -141,7 +157,11 @@ def check_mechanical_sanity(mechanical: Dict[str, Any]) -> List[Tuple[str, str, 
             value = value.get('value')
         if value is None:
             continue
-            
+        try:
+            value = float(value)
+        except (ValueError, TypeError):
+            continue
+
         if 'yield' in prop.lower():
             ys = value
         elif 'tensile' in prop.lower():
@@ -190,7 +210,11 @@ def check_borderline_values(mtr_data: Dict[str, Any], spec: Dict[str, Any]) -> L
         actual = mtr_chem.get(element)
         if actual is None:
             continue
-        
+        try:
+            actual = float(actual)
+        except (ValueError, TypeError):
+            continue
+
         spec_min = limits.get('min')
         spec_max = limits.get('max')
         
@@ -224,7 +248,11 @@ def check_borderline_values(mtr_data: Dict[str, Any], spec: Dict[str, Any]) -> L
             actual = actual.get('value')
         if actual is None:
             continue
-        
+        try:
+            actual = float(actual)
+        except (ValueError, TypeError):
+            continue
+
         spec_min = limits.get('min')
         spec_max = limits.get('max')
         

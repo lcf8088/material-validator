@@ -1,0 +1,38 @@
+# ============================================================
+# DDIC Material Specification: ES-M0003B
+# ============================================================
+
+id: "ES-M0003B"
+revision: 0
+date: "2024-04-01"
+material: "304 Stainless Steel 30MYS 22HRc Max"
+grades:
+  - "304"
+  - "AISI 304"
+  - "304 SS"
+  - "Type 304"
+  - "UNS S30400"
+uns: "S30400"
+condition: "Annealed"
+
+chemistry:
+  C:  { max: 0.08 }
+  Mn: { max: 2.00 }
+  P:  { max: 0.045 }
+  S:  { max: 0.030 }
+  Si: { max: 1.00 }
+  Cr: { min: 18.00, max: 20.00 }
+  Ni: { min: 8.00, max: 11.00 }
+
+mechanical:
+  yield_strength:    { min: 30, unit: ksi }
+  tensile_strength:  { min: 75, unit: ksi }
+  elongation:        { min: 35, unit: '%' }
+  reduction_of_area: { min: 40, unit: '%' }
+  hardness_hbw:      { max: 237 }
+  hardness_hrc:      { max: 22 }
+
+special_requirements:
+  - type: nace_compliance
+    required: true
+    note: "NACE MR0175-2021 / ISO 15156-1:2020 compliant"

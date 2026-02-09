@@ -1,0 +1,22 @@
+# ============================================================
+# DDIC Material Specification: ES-M2201C
+# ============================================================
+
+id: "ES-M2201C"
+revision: 0
+date: "2024-04-01"
+material: "PEEK Reconstituted (Polyetheretherketone)"
+grades:
+  - "PEEK"
+  - "Reconstituted PEEK"
+  - "PEEK Reconstituted"
+uns: null
+condition: "Reconstituted"
+
+chemistry: {}
+
+mechanical:
+  tensile_strength: { min: 12000, unit: psi }
+  elongation:       { min: 10, unit: '%' }
+
+special_requirements: []

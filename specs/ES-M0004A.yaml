@@ -1,0 +1,42 @@
+# ============================================================
+# DDIC Material Specification: ES-M0004A
+# ============================================================
+
+id: "ES-M0004A"
+revision: 0
+date: "2024-04-01"
+material: "9Cr-1Mo Martensitic Stainless Steel 80MYS 22HRc Max"
+grades:
+  - "9Cr-1Mo"
+  - "L80 9Cr"
+  - "9Cr-1Mo-V"
+uns: "K90941"
+condition: "Quench and Tempered"
+
+chemistry:
+  C:  { max: 0.15 }
+  Mn: { min: 0.30, max: 0.60 }
+  P:  { max: 0.020 }
+  S:  { max: 0.010 }
+  Si: { min: 0.25, max: 1.00 }
+  Cr: { min: 8.00, max: 10.00 }
+  Mo: { min: 0.90, max: 1.10 }
+  Ni: { max: 0.50 }
+  Cu: { max: 0.25 }
+
+mechanical:
+  yield_strength:    { min: 80, max: 95, unit: ksi }
+  tensile_strength:  { min: 95, unit: ksi }
+  elongation:        { min: 20, unit: '%' }
+  reduction_of_area: { min: 40, unit: '%' }
+  hardness_hbw:      { max: 237 }
+  hardness_hrc:      { max: 22 }
+
+special_requirements:
+  - type: nace_compliance
+    required: true
+    note: "NACE MR0175-2021 / ISO 15156-1:2020 compliant"
+  - type: temper_temperature
+    min: 1200
+    unit: "°F"
+    note: "Minimum tempering temperature 649°C (1200°F)"

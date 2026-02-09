@@ -1,0 +1,33 @@
+# ============================================================
+# DDIC Material Specification: ES-M0003C
+# ============================================================
+
+id: "ES-M0003C"
+revision: 0
+date: "2024-04-01"
+material: "316 Stainless Steel Spring Wire"
+grades:
+  - "316"
+  - "AISI 316"
+  - "316 SS"
+  - "Type 316"
+uns: "S31600"
+condition: "Spring Temper"
+
+chemistry:
+  C:  { max: 0.08 }
+  Mn: { max: 2.00 }
+  P:  { max: 0.045 }
+  S:  { max: 0.030 }
+  Si: { max: 1.00 }
+  Cr: { min: 16.00, max: 18.00 }
+  Ni: { min: 10.00, max: 14.00 }
+  Mo: { min: 2.00, max: 3.00 }
+
+mechanical:
+  tensile_strength:  { max: 228, unit: ksi }
+
+special_requirements:
+  - type: nace_compliance
+    required: true
+    note: "NACE MR0175-2021 / ISO 15156-1:2020 compliant"

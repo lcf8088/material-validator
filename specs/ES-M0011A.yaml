@@ -1,0 +1,22 @@
+# ============================================================
+# DDIC Material Specification: ES-M0011A
+# ============================================================
+
+id: "ES-M0011A"
+revision: 0
+date: "2024-04-01"
+material: "Nylatron GS PA66 + MoS2 Extruded Nylon"
+grades:
+  - "Nylatron GS"
+  - "Nylatron GS PA66"
+  - "PA66 + MoS2"
+uns: null
+condition: "Extruded"
+
+chemistry: {}
+
+mechanical:
+  tensile_strength: { min: 12500, unit: psi }
+  elongation:       { min: 20, unit: '%' }
+
+special_requirements: []

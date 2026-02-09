@@ -1,0 +1,35 @@
+# ============================================================
+# DDIC Material Specification: ES-M0009E
+# ============================================================
+
+id: "ES-M0009E"
+revision: 0
+date: "2024-04-01"
+material: "Elgiloy Cobalt-Chromium-Nickel-Molybdenum Alloy"
+grades:
+  - "Elgiloy"
+  - "R30003"
+  - "UNS R30003"
+uns: "R30003"
+condition: "Spring Temper / Aged"
+
+chemistry:
+  C:  { max: 0.15 }
+  Mn: { min: 1.50, max: 2.50 }
+  P:  { max: 0.015 }
+  S:  { max: 0.015 }
+  Si: { max: 1.20 }
+  Cr: { min: 19.00, max: 21.00 }
+  Ni: { min: 14.00, max: 16.00 }
+  Co: { min: 39.00, max: 41.00 }
+  Mo: { min: 6.00, max: 8.00 }
+
+mechanical:
+  yield_strength:    { min: 70, unit: ksi }
+  tensile_strength:  { min: 140, unit: ksi }
+  hardness_hrc:      { min: 19 }
+
+special_requirements:
+  - type: nace_compliance
+    required: true
+    note: "ANSI-NACE MR0175-2021-ISO 15156-2020 compliant"

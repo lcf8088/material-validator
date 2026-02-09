@@ -1,0 +1,23 @@
+# ============================================================
+# DDIC Material Specification: ES-M0008B
+# ============================================================
+
+id: "ES-M0008B"
+revision: 0
+date: "2024-04-01"
+material: "Tungsten Carbide Balls Grade C2"
+grades:
+  - "Tungsten Carbide"
+  - "WC"
+  - "Grade C2"
+  - "TC Balls"
+uns: null
+condition: "Hardened"
+
+chemistry: {}
+
+mechanical:
+  tensile_strength: { min: 220, unit: ksi }
+  hardness_hrc:     { min: 75, max: 80 }
+
+special_requirements: []

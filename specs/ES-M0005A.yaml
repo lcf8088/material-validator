@@ -1,0 +1,31 @@
+# ============================================================
+# DDIC Material Specification: ES-M0005A
+# ============================================================
+
+id: "ES-M0005A"
+revision: 0
+date: "2024-04-01"
+material: "6061-T6 Aluminum"
+grades:
+  - "6061"
+  - "6061-T6"
+  - "6061-T651"
+  - "6061-T6511"
+uns: "A96061"
+condition: "T6 Temper"
+
+chemistry:
+  Si: { min: 0.40, max: 0.80 }
+  Cu: { min: 0.15, max: 0.40 }
+  Mn: { max: 0.15 }
+  Mg: { min: 0.80, max: 1.20 }
+  Cr: { min: 0.04, max: 0.35 }
+  Zn: { max: 0.25 }
+  Ti: { max: 0.15 }
+
+mechanical:
+  yield_strength:    { min: 35, unit: ksi }
+  tensile_strength:  { min: 38, unit: ksi }
+  elongation:        { min: 8, unit: '%' }
+
+special_requirements: []

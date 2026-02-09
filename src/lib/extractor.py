@@ -11,10 +11,16 @@ Structured parsing is handled by lib/claude_parser.py.
 """
 
 import json
+import logging
+import re
 import sys
 import tempfile
 from pathlib import Path
 from typing import Optional, Dict, Any
+
+from lib.converters import convert_stress
+
+logger = logging.getLogger(__name__)
 
 
 def pdf_to_images(pdf_path: str, dpi: int = 150) -> list:
@@ -118,10 +124,16 @@ def normalize_extracted_data(data: Dict[str, Any]) -> Dict[str, Any]:
     normalized = {}
     
     # Copy header fields
-    for field in ['heat_number', 'material_grade', 'uns', 'supplier', 
+    for field in ['heat_number', 'material_grade', 'uns', 'supplier',
                   'customer', 'po_number', 'product_form', 'size', 'condition']:
         if field in data and data[field]:
             normalized[field] = data[field]
+
+    # Validate PO number format: must start with "PO" (case-insensitive)
+    po = normalized.get('po_number')
+    if po and not str(po).upper().startswith('PO'):
+        logger.warning("Ignoring extracted PO '%s' — does not start with 'PO'", po)
+        del normalized['po_number']
     
     # Normalize chemistry
     if 'chemistry' in data and data['chemistry']:
@@ -142,22 +154,30 @@ def normalize_extracted_data(data: Dict[str, Any]) -> Dict[str, Any]:
             val = mech['yield_strength']
             unit = mech.get('yield_strength_unit', 'ksi')
             if isinstance(val, dict):
-                normalized['mechanical']['yield_strength'] = val.get('value')
-            else:
-                normalized['mechanical']['yield_strength'] = val
-            if unit and unit.lower() != 'ksi':
-                normalized['mechanical']['yield_strength_unit'] = unit
-        
+                val = val.get('value')
+            if val is not None and unit and unit.lower() != 'ksi':
+                try:
+                    val = round(convert_stress(float(val), unit, 'ksi'), 1)
+                    logger.info("Converted yield_strength from %s to ksi: %.1f", unit, val)
+                    unit = 'ksi'
+                except (ValueError, TypeError):
+                    pass
+            normalized['mechanical']['yield_strength'] = val
+
         # Tensile strength
         if 'tensile_strength' in mech:
             val = mech['tensile_strength']
             unit = mech.get('tensile_strength_unit', 'ksi')
             if isinstance(val, dict):
-                normalized['mechanical']['tensile_strength'] = val.get('value')
-            else:
-                normalized['mechanical']['tensile_strength'] = val
-            if unit and unit.lower() != 'ksi':
-                normalized['mechanical']['tensile_strength_unit'] = unit
+                val = val.get('value')
+            if val is not None and unit and unit.lower() != 'ksi':
+                try:
+                    val = round(convert_stress(float(val), unit, 'ksi'), 1)
+                    logger.info("Converted tensile_strength from %s to ksi: %.1f", unit, val)
+                    unit = 'ksi'
+                except (ValueError, TypeError):
+                    pass
+            normalized['mechanical']['tensile_strength'] = val
         
         # Other mechanical properties (simple copy)
         for field in ['elongation', 'reduction_of_area', 'hardness_hbw', 
@@ -170,7 +190,13 @@ def normalize_extracted_data(data: Dict[str, Any]) -> Dict[str, Any]:
         normalized['charpy_impact'] = data['charpy_impact']
     
     if 'temper_temperature' in data and data['temper_temperature']:
-        normalized['temper_temperature'] = data['temper_temperature']
+        raw_temper = str(data['temper_temperature']).strip()
+        # Strip unit suffixes (e.g. "1140F", "1140 °F", "620C")
+        temper_match = re.match(r'^([0-9.]+)', raw_temper)
+        if temper_match:
+            normalized['temper_temperature'] = float(temper_match.group(1))
+        else:
+            normalized['temper_temperature'] = raw_temper
     
     if 'nace_compliant' in data and data['nace_compliant'] is not None:
         normalized['nace_compliant'] = data['nace_compliant']

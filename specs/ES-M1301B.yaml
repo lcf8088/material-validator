@@ -1,0 +1,23 @@
+# ============================================================
+# DDIC Material Specification: ES-M1301B
+# ============================================================
+
+id: "ES-M1301B"
+revision: 0
+date: "2024-04-01"
+material: "HNBR - HSN 80 Durometer"
+grades:
+  - "HNBR"
+  - "HSN"
+  - "HNBR 80"
+  - "HSN 80"
+uns: null
+condition: "80 Durometer"
+
+chemistry: {}
+
+mechanical:
+  tensile_strength: { min: 1450, unit: psi }
+  elongation:       { min: 175, unit: '%' }
+
+special_requirements: []

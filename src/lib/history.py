@@ -19,7 +19,7 @@ class ValidationHistory:
     
     def __init__(self, history_dir: Optional[str] = None):
         if history_dir is None:
-            history_dir = Path(__file__).parent.parent / 'history'
+            history_dir = Path(__file__).parent.parent.parent / 'history'
         self.history_dir = Path(history_dir)
         self.history_dir.mkdir(parents=True, exist_ok=True)
         
@@ -148,9 +148,9 @@ class ValidationHistory:
         """Get validation statistics."""
         if not self.history_file.exists():
             return {'total': 0, 'pass': 0, 'fail': 0, 'incomplete': 0}
-        
+
         stats = {'total': 0, 'pass': 0, 'fail': 0, 'incomplete': 0}
-        
+
         with open(self.history_file) as f:
             for line in f:
                 record = json.loads(line)
@@ -160,9 +160,9 @@ class ValidationHistory:
                     stats['pass'] += 1
                 elif result == 'FAIL':
                     stats['fail'] += 1
-                elif result == 'INCOMPLETE':
+                elif result in ('INCOMPLETE', 'UNKNOWN'):
                     stats['incomplete'] += 1
-        
+
         return stats
     
     def format_recent(self, limit: int = 5) -> str:

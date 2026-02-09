@@ -5,7 +5,15 @@
       "Bash(dir:*)",
       "WebSearch",
       "Bash(del \"C:\\\\Users\\\\LanceSurface\\\\Downloads\\\\material-validator\\\\material-validator\\\\test_settings.py\")",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(pip install:*)",
+      "Bash(git -C \"C:\\\\Users\\\\qascanner\\\\Documents\\\\GitHub\\\\material-validator\" rm --cached config.json)",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "Bash(ls:*)",
+      "Bash(git status:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }

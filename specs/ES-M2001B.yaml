@@ -1,0 +1,22 @@
+# ============================================================
+# DDIC Material Specification: ES-M2001B
+# ============================================================
+
+id: "ES-M2001B"
+revision: 0
+date: "2024-04-01"
+material: "Re-Processed Polytetrafluoroethylene (PTFE)"
+grades:
+  - "PTFE"
+  - "Re-Processed PTFE"
+  - "Reprocessed PTFE"
+uns: null
+condition: "Re-Processed"
+
+chemistry: {}
+
+mechanical:
+  tensile_strength: { min: 1450, unit: psi }
+  elongation:       { min: 75, unit: '%' }
+
+special_requirements: []

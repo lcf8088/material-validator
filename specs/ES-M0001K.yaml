@@ -1,0 +1,34 @@
+# ============================================================
+# DDIC Material Specification: ES-M0001K
+# ============================================================
+
+id: "ES-M0001K"
+revision: 0
+date: "2024-04-01"
+material: "Nitriding #3 (135 Modified) Chromium Molybdenum Aluminum Alloy Steel"
+grades:
+  - "Nitriding #3"
+  - "135 Modified"
+  - "Nitralloy 135 Modified"
+uns: null
+condition: "Hardened and Tempered"
+
+chemistry:
+  C:  { min: 0.38, max: 0.43 }
+  Mn: { min: 0.50, max: 0.70 }
+  P:  { max: 0.025 }
+  S:  { max: 0.025 }
+  Si: { min: 0.20, max: 0.40 }
+  Cr: { min: 1.40, max: 1.80 }
+  Mo: { min: 0.30, max: 0.40 }
+  Al: { min: 0.95, max: 1.30 }
+
+mechanical:
+  yield_strength:    { min: 90, unit: ksi }
+  tensile_strength:  { min: 112, unit: ksi }
+  elongation:        { min: 16, unit: '%' }
+  reduction_of_area: { min: 50, unit: '%' }
+  hardness_hrc:      { min: 20, max: 30 }
+  hardness_hbw:      { min: 229, max: 285 }
+
+special_requirements: []

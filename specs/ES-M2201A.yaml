@@ -1,0 +1,21 @@
+# ============================================================
+# DDIC Material Specification: ES-M2201A
+# ============================================================
+
+id: "ES-M2201A"
+revision: 0
+date: "2024-04-01"
+material: "Virgin PEEK (Polyetheretherketone)"
+grades:
+  - "PEEK"
+  - "Virgin PEEK"
+uns: null
+condition: "Virgin"
+
+chemistry: {}
+
+mechanical:
+  tensile_strength: { min: 13200, unit: psi }
+  elongation:       { min: 30, unit: '%' }
+
+special_requirements: []

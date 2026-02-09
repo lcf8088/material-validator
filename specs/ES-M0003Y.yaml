@@ -1,48 +1,50 @@
 # ============================================================
-# DDIC Material Specification: ES-M0003E
+# DDIC Material Specification: ES-M0003Y
 # ============================================================
 
-id: "ES-M0003E"
+id: "ES-M0003Y"
 revision: 0
 date: "2024-04-01"
-material: "420 Modified Martensitic Stainless Steel 80MYS 22HRc Max"
+material: "API 5CT 13Cr L80 Martensitic Stainless Steel 80MYS 22HRc Max"
 grades:
+  - "13Cr L80"
+  - "API 5CT L80 13Cr"
+  - "L80 Type 13Cr"
   - "420"
-  - "420 Modified"
   - "420 MOD"
-  - "13Cr"
   - "AISI 420"
-  - "Type 420"
-  - "UNS S42000"
 uns: "S42000"
 condition: "Quench and Tempered"
 
 chemistry:
-  C:  { min: 0.18, max: 0.22 }
+  C:  { min: 0.15, max: 0.22 }
   Mn: { min: 0.25, max: 1.00 }
-  P:  { max: 0.025 }
-  S:  { max: 0.006 }
-  Si: { max: 1.20 }
-  Cr: { min: 12.50, max: 14.00 }
-  Ni: { max: 0.25 }
+  P:  { max: 0.020 }
+  S:  { max: 0.010 }
+  Si: { max: 1.00 }
+  Cr: { min: 12.00, max: 14.00 }
+  Mo: { max: 0.50 }
+  Ni: { max: 0.50 }
   Cu: { max: 0.25 }
 
 mechanical:
   yield_strength:    { min: 80, max: 95, unit: ksi }
   tensile_strength:  { min: 95, unit: ksi }
-  elongation:        { min: 18, unit: '%' }
-  reduction_of_area: { min: 35, unit: '%' }
-  hardness_hbw:      { max: 239 }
-  hardness_hrc:      { max: 22 }
+  elongation:        { min: 13, unit: '%' }
+  hardness_hrc:      { max: 23 }
+  hardness_hbw:      { max: 241 }
 
 special_requirements:
+  - type: nace_compliance
+    required: true
+    note: "ANSI/NACE MR0175/ISO 15156 compliant"
   - type: temper_temperature
     min: 1100
     unit: "°F"
     note: "Minimum tempering temperature 593°C (1100°F)"
   - type: charpy_impact
-    min_avg: 15
+    min_avg: 30
     unit: "ft-lbs"
     temperature: 32
     temp_unit: "°F"
-    note: "Average of 3 specimens at 32°F (0°C); no individual below 11 ft-lbs"
+    note: "Per API 5CT; 30 ft-lb longitudinal at 0°C (32°F) or lower"

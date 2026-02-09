@@ -1,0 +1,23 @@
+# ============================================================
+# DDIC Material Specification: ES-M1001D
+# ============================================================
+
+id: "ES-M1001D"
+revision: 0
+date: "2024-04-01"
+material: "FKM - Viton 80 Durometer Molded"
+grades:
+  - "FKM"
+  - "Viton"
+  - "FKM 80 Molded"
+  - "Viton 80 Molded"
+uns: null
+condition: "80 Durometer Molded"
+
+chemistry: {}
+
+mechanical:
+  tensile_strength: { min: 850, unit: psi }
+  elongation:       { min: 150, unit: '%' }
+
+special_requirements: []

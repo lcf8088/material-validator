@@ -1,0 +1,32 @@
+# ============================================================
+# DDIC Material Specification: ES-M0007B
+# ============================================================
+
+id: "ES-M0007B"
+revision: 0
+date: "2025-04-01"
+material: "Copper Nickel-Tin Bronze Alloy C72900 (Toughmet 3 AT110)"
+grades:
+  - "C72900"
+  - "Cu-15Ni-8Sn"
+  - "Toughmet 3"
+  - "Toughmet 3 AT110"
+uns: "C72900"
+condition: "Spinodal Hardened AT110"
+
+chemistry:
+  Pb: { max: 0.02 }
+  Sn: { min: 7.50, max: 8.50 }
+  Zn: { max: 0.50 }
+  Fe: { max: 0.50 }
+  Ni: { min: 14.50, max: 15.50 }
+  Mn: { max: 0.30 }
+
+mechanical:
+  yield_strength:    { min: 110, unit: ksi }
+  tensile_strength:  { min: 132, unit: ksi }
+  elongation:        { min: 10, unit: '%' }
+  hardness_hbw:      { min: 277 }
+  hardness_hrc:      { min: 30 }
+
+special_requirements: []

@@ -1,0 +1,23 @@
+# ============================================================
+# DDIC Material Specification: ES-M1001A
+# ============================================================
+
+id: "ES-M1001A"
+revision: 0
+date: "2024-04-01"
+material: "FKM - Viton 75 Durometer"
+grades:
+  - "FKM"
+  - "Viton"
+  - "FKM 75"
+  - "Viton 75"
+uns: null
+condition: "75 Durometer"
+
+chemistry: {}
+
+mechanical:
+  tensile_strength: { min: 1015, unit: psi }
+  elongation:       { min: 150, unit: '%' }
+
+special_requirements: []

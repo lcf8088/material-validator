@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 # Ensure we can import from the package
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent / 'src'))
 
 def check_dependencies():
     """Check if required dependencies are installed."""

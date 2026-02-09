@@ -1,0 +1,23 @@
+# ============================================================
+# DDIC Material Specification: ES-M1101C
+# ============================================================
+
+id: "ES-M1101C"
+revision: 0
+date: "2024-04-01"
+material: "FEPM - AFLAS 90 Durometer"
+grades:
+  - "FEPM"
+  - "AFLAS"
+  - "FEPM 90"
+  - "AFLAS 90"
+uns: null
+condition: "90 Durometer"
+
+chemistry: {}
+
+mechanical:
+  tensile_strength: { min: 1450, unit: psi }
+  elongation:       { min: 100, unit: '%' }
+
+special_requirements: []

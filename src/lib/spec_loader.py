@@ -17,7 +17,7 @@ class SpecLoader:
     
     def __init__(self, specs_dir: Optional[str] = None):
         if specs_dir is None:
-            specs_dir = Path(__file__).parent.parent / 'specs'
+            specs_dir = Path(__file__).parent.parent.parent / 'specs'
         self.specs_dir = Path(specs_dir)
         self._specs: Dict[str, dict] = {}
         self._load_all()

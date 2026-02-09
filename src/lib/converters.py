@@ -5,33 +5,50 @@ Unit and scale converters for material property values.
 # Stress conversions
 MPA_TO_KSI = 0.145038
 KSI_TO_MPA = 6.89476
+PSI_TO_KSI = 0.001
+KSI_TO_PSI = 1000
 
 
 def convert_stress(value: float, from_unit: str, to_unit: str) -> float:
     """Convert stress values between units."""
     from_unit = from_unit.lower().strip()
     to_unit = to_unit.lower().strip()
-    
-    if from_unit == to_unit:
-        return value
-    
+
     # Normalize unit names
     unit_map = {
         'ksi': 'ksi',
         'mpa': 'mpa',
         'n/mm2': 'mpa',
         'n/mm²': 'mpa',
+        'psi': 'psi',
     }
-    
+
     from_unit = unit_map.get(from_unit, from_unit)
     to_unit = unit_map.get(to_unit, to_unit)
-    
-    if from_unit == 'mpa' and to_unit == 'ksi':
-        return value * MPA_TO_KSI
-    elif from_unit == 'ksi' and to_unit == 'mpa':
-        return value * KSI_TO_MPA
+
+    if from_unit == to_unit:
+        return value
+
+    # Convert everything through ksi as the pivot unit
+    # Step 1: convert from_unit → ksi
+    if from_unit == 'ksi':
+        value_ksi = value
+    elif from_unit == 'mpa':
+        value_ksi = value * MPA_TO_KSI
+    elif from_unit == 'psi':
+        value_ksi = value * PSI_TO_KSI
     else:
-        raise ValueError(f"Unknown conversion: {from_unit} -> {to_unit}")
+        raise ValueError(f"Unknown source unit: {from_unit}")
+
+    # Step 2: convert ksi → to_unit
+    if to_unit == 'ksi':
+        return value_ksi
+    elif to_unit == 'mpa':
+        return value_ksi * KSI_TO_MPA
+    elif to_unit == 'psi':
+        return value_ksi * KSI_TO_PSI
+    else:
+        raise ValueError(f"Unknown target unit: {to_unit}")
 
 
 # Hardness conversions (approximate - ASTM E140)

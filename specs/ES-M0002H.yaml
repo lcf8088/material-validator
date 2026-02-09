@@ -1,0 +1,23 @@
+# ============================================================
+# DDIC Material Specification: ES-M0002H
+# ============================================================
+
+id: "ES-M0002H"
+revision: 0
+date: "2024-04-01"
+material: "1075 High Carbon Steel"
+grades:
+  - "1075"
+  - "AISI 1075"
+uns: null
+condition: "As Required"
+
+chemistry:
+  C:  { min: 0.70, max: 0.80 }
+  Mn: { min: 0.40, max: 0.70 }
+  P:  { max: 0.040 }
+  S:  { max: 0.050 }
+
+mechanical: {}
+
+special_requirements: []

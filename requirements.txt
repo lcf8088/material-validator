@@ -17,7 +17,7 @@ pyinstaller>=6.0.0
 
 # OCR pipeline (new)
 anthropic>=0.40.0           # Claude API SDK
-paddlepaddle-gpu>=3.0.0     # PaddlePaddle GPU backend
+paddlepaddle>=3.0.0         # PaddlePaddle (CPU); use paddlepaddle-gpu for GPU
 paddleocr>=2.9.0            # PaddleOCR with table structure
 opencv-python>=4.9.0        # Image preprocessing
 watchdog>=4.0.0             # Folder monitoring

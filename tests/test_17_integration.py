@@ -137,12 +137,7 @@ class TestEdgeCases:
         assert result.heat_number == "X"
 
     def test_mechanical_with_mpa_units(self, specs_dir):
-        """MTR data in MPa should be stored with unit key by normalize_extracted_data.
-        Note: The validator reads {prop}_unit convention from the mechanical dict
-        via _find_property_value which returns (value, None) for plain numbers.
-        The unit convention `{prop}_unit` as a sibling key is a known limitation -
-        validator only converts when the value is a dict with 'unit' key.
-        """
+        """MTR data in MPa should be auto-converted to ksi during normalization."""
         data = {
             "heat_number": "X",
             "material_grade": "4140",
@@ -155,6 +150,6 @@ class TestEdgeCases:
             },
         }
         normalized = normalize_extracted_data(data)
-        # Verify that normalize preserves the MPa unit annotation
-        assert normalized["mechanical"].get("yield_strength_unit") == "MPa"
-        assert normalized["mechanical"]["yield_strength"] == 827
+        # MPa values should be converted to ksi (1 decimal place)
+        assert normalized["mechanical"]["yield_strength"] == 119.9
+        assert normalized["mechanical"]["tensile_strength"] == 150.0

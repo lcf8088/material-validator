@@ -1,0 +1,23 @@
+# ============================================================
+# DDIC Material Specification: ES-M1101D
+# ============================================================
+
+id: "ES-M1101D"
+revision: 0
+date: "2024-04-01"
+material: "FEPM - AFLAS 80 Durometer Molded"
+grades:
+  - "FEPM"
+  - "AFLAS"
+  - "FEPM 80 Molded"
+  - "AFLAS 80 Molded"
+uns: null
+condition: "80 Durometer Molded"
+
+chemistry: {}
+
+mechanical:
+  tensile_strength: { min: 2550, unit: psi }
+  elongation:       { min: 150, unit: '%' }
+
+special_requirements: []

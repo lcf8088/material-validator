@@ -57,28 +57,37 @@ python3 validate.py --manual --spec ES-M0001G
 material-validator/
 ├── validate.py          # CLI entry point
 ├── run_gui.py           # GUI launcher
+├── run.bat              # Windows launcher
 ├── build_exe.spec       # PyInstaller build config
+├── requirements.txt     # Dependencies
+├── README.md
+├── docs/                # Documentation
+│   ├── SETUP.md         # First-time setup guide
+│   ├── ROADMAP.md       # Feature roadmap
+│   └── extract-mtr.md   # Extraction prompt reference
+├── src/                 # Source code
+│   ├── lib/             # Core library
+│   │   ├── validator.py     # Core validation engine
+│   │   ├── spec_loader.py   # Specification loader (singleton)
+│   │   ├── matcher.py       # Spec auto-detection
+│   │   ├── extractor.py     # MTR data extraction (vision LLM)
+│   │   ├── pipeline.py      # End-to-end OCR pipeline
+│   │   ├── paddle_ocr.py    # PaddleOCR wrapper
+│   │   ├── claude_parser.py # Claude vision parsing
+│   │   ├── converters.py    # Unit/scale conversions
+│   │   ├── sanity.py        # Data quality checks
+│   │   ├── history.py       # Validation audit trail
+│   │   └── watcher.py       # Folder watch auto-process
+│   └── gui/             # Desktop GUI
+│       ├── app.py           # Main application (customtkinter)
+│       ├── config.py        # Configuration management
+│       ├── settings.py      # Settings panel
+│       ├── theme.py         # D&D brand theme
+│       └── tiff_export.py   # TIFF archive export
 ├── specs/               # Engineering specifications (YAML)
-│   ├── ES-M0001C.yaml   # 4140/4142 standard (80 ksi min YS)
-│   ├── ES-M0001G.yaml   # 4140/4142 110 MYS (high strength)
-│   ├── ES-M0003A.yaml   # 303 Stainless Steel
-│   └── ES-M0003E.yaml   # 13Cr / 420 Stainless Steel
-├── lib/
-│   ├── validator.py     # Core validation engine
-│   ├── spec_loader.py   # Specification loader (singleton)
-│   ├── matcher.py       # Spec auto-detection
-│   ├── extractor.py     # MTR data extraction (vision LLM)
-│   ├── converters.py    # Unit/scale conversions
-│   ├── sanity.py        # Data quality checks
-│   └── history.py       # Validation audit trail
-├── gui/
-│   ├── app.py           # Main desktop GUI (customtkinter)
-│   ├── config.py        # Configuration management
-│   ├── vision_api.py    # Vision LLM integration
-│   └── tiff_export.py   # TIFF archive export
-├── history/             # Validation records
-└── tests/
-    └── mtrs/            # Test MTR data files
+├── tests/               # Test suite
+│   └── mtrs/            # Test MTR data files
+└── history/             # Validation records (git-ignored)
 ```
 
 ## Specifications
@@ -140,7 +149,11 @@ special_requirements:
 
 ## First-Time Setup
 
-See [SETUP.md](SETUP.md) for configuration walkthrough.
+See [SETUP.md](docs/SETUP.md) for configuration walkthrough.
+
+## Adding Specifications
+
+See [SPEC-AUTHORING.md](docs/SPEC-AUTHORING.md) for the full guide on converting DDIC material specification PDFs into YAML spec files, including templates, worked examples, and batch processing workflow.
 
 ## Future Enhancements
 

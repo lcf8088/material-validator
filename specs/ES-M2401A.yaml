@@ -1,0 +1,19 @@
+# ============================================================
+# DDIC Material Specification: ES-M2401A
+# ============================================================
+
+id: "ES-M2401A"
+revision: 0
+date: "2024-04-01"
+material: "iglide T500 Plastic Bushing"
+grades:
+  - "iglide T500"
+  - "T500"
+uns: null
+condition: "As Supplied"
+
+chemistry: {}
+
+mechanical: {}
+
+special_requirements: []

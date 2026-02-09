@@ -10,13 +10,13 @@ from pathlib import Path
 
 # Paths
 BASE_DIR = Path(SPECPATH)
-GUI_DIR = BASE_DIR / 'gui'
-LIB_DIR = BASE_DIR / 'lib'
+GUI_DIR = BASE_DIR / 'src' / 'gui'
+LIB_DIR = BASE_DIR / 'src' / 'lib'
 SPECS_DIR = BASE_DIR / 'specs'
 
 a = Analysis(
     ['run_gui.py'],
-    pathex=[str(BASE_DIR)],
+    pathex=[str(BASE_DIR), str(BASE_DIR / 'src')],
     binaries=[],
     datas=[
         # Include spec YAML files

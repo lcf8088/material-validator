@@ -1,0 +1,47 @@
+# ============================================================
+# DDIC Material Specification: ES-M0009D
+# ============================================================
+
+id: "ES-M0009D"
+revision: 0
+date: "2024-04-01"
+material: "Nickel Chrome Alloy 925"
+grades:
+  - "925"
+  - "Alloy 925"
+  - "Incoloy 925"
+  - "N09925"
+uns: "N09925"
+condition: "Solution Annealed and Aged"
+
+chemistry:
+  C:  { max: 0.030 }
+  Mn: { max: 1.00 }
+  P:  { max: 0.020 }
+  S:  { max: 0.030 }
+  Si: { max: 0.50 }
+  Ni: { min: 42.00, max: 46.00 }
+  Cr: { min: 19.50, max: 22.50 }
+  Mo: { min: 2.50, max: 3.50 }
+  Al: { min: 0.10, max: 0.50 }
+  Ti: { min: 1.90, max: 2.40 }
+  Cu: { min: 1.50, max: 3.00 }
+  Nb: { max: 0.50 }
+
+mechanical:
+  yield_strength:    { min: 110, unit: ksi }
+  tensile_strength:  { min: 140, unit: ksi }
+  elongation:        { min: 18, unit: '%' }
+  reduction_of_area: { min: 25, unit: '%' }
+  hardness_hrc:      { max: 38 }
+
+special_requirements:
+  - type: nace_compliance
+    required: true
+    note: "NACE MR0175 / ISO 15156 compliant"
+  - type: charpy_impact
+    min_avg: 35
+    unit: "ft-lbs"
+    temperature: -75
+    temp_unit: "°F"
+    note: "Average of 3 specimens at -75°F (-60°C); no individual below 32 ft-lbs"

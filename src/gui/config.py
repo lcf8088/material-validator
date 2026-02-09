@@ -34,7 +34,7 @@ class Config:
     def __init__(self, config_path: Optional[str] = None):
         if config_path is None:
             # Default to project root (next to validate.py)
-            config_path = Path(__file__).parent.parent / 'config.json'
+            config_path = Path(__file__).parent.parent.parent / 'config.json'
 
         self.config_path = Path(config_path)
         self._config = self._load()

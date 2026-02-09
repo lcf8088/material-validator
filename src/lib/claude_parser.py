@@ -21,8 +21,9 @@ Below is raw OCR text extracted from an MTR document. Parse it into structured J
 **RULES**:
 - Extract ONLY what is explicitly stated in the text. Do not guess or infer values.
 - Chemistry values are percentages by weight (e.g., 0.04 means 0.04%).
-- Stress values: note whether they are in ksi or MPa.
+- Stress values: note whether they are in ksi, MPa, or psi. Report the unit exactly as shown on the document.
 - If a field is not present in the OCR text, use null.
+- For po_number: the customer PO always starts with "PO" (e.g., PO001533). Ignore supplier order numbers, internal references, or any number that does not start with "PO".
 - For multiple specimens/tests, use averages for mechanical properties.
 - Element symbols should be standard (C, Mn, P, S, Si, Cr, Ni, Mo, Cu, V, Nb, Ti, Al, N, B, W, Co).
 

@@ -1,0 +1,30 @@
+# ============================================================
+# DDIC Material Specification: ES-M0002B
+# ============================================================
+
+id: "ES-M0002B"
+revision: 0
+date: "2024-04-01"
+material: "1026 Drawn Over Mandrel (DOM) Tubing"
+grades:
+  - "1026"
+  - "1020"
+  - "AISI 1026"
+  - "1026 DOM"
+  - "1026 CDS"
+  - "1026 HFS"
+uns: null
+condition: "DOM / Cold Drawn Seamless / Hot Finished Seamless"
+
+chemistry:
+  C:  { min: 0.22, max: 0.28 }
+  Mn: { min: 0.60, max: 0.90 }
+  P:  { max: 0.040 }
+  S:  { max: 0.050 }
+
+mechanical:
+  yield_strength:    { min: 60, unit: ksi }
+  tensile_strength:  { min: 70, unit: ksi }
+  elongation:        { min: 10, unit: '%' }
+
+special_requirements: []

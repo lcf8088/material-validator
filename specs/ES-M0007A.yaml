@@ -1,0 +1,27 @@
+# ============================================================
+# DDIC Material Specification: ES-M0007A
+# ============================================================
+
+id: "ES-M0007A"
+revision: 0
+date: "2024-04-01"
+material: "Yellow Brass C36000 Half Hard"
+grades:
+  - "C36000"
+  - "360 Brass"
+  - "Yellow Brass"
+  - "Free Cutting Brass"
+uns: "C36000"
+condition: "Half Hard"
+
+chemistry:
+  Cu: { min: 60.0, max: 63.0 }
+  Pb: { min: 2.5, max: 3.7 }
+  Fe: { max: 0.35 }
+
+mechanical:
+  yield_strength:    { min: 15, max: 50, unit: ksi }
+  tensile_strength:  { min: 40, max: 65, unit: ksi }
+  elongation:        { min: 7, unit: '%' }
+
+special_requirements: []

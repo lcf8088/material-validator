@@ -1,0 +1,22 @@
+# ============================================================
+# DDIC Material Specification: ES-M2001A
+# ============================================================
+
+id: "ES-M2001A"
+revision: 0
+date: "2024-04-01"
+material: "Virgin Polytetrafluoroethylene (PTFE)"
+grades:
+  - "PTFE"
+  - "Virgin PTFE"
+  - "Teflon"
+uns: null
+condition: "Virgin"
+
+chemistry: {}
+
+mechanical:
+  tensile_strength: { min: 2900, max: 5076, unit: psi }
+  elongation:       { min: 210, max: 400, unit: '%' }
+
+special_requirements: []

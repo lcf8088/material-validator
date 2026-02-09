@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 # Add lib to path
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent / 'src'))
 
 from lib.spec_loader import SpecLoader
 from lib.validator import SpecValidator, format_validation_report

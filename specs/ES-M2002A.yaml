@@ -1,0 +1,22 @@
+# ============================================================
+# DDIC Material Specification: ES-M2002A
+# ============================================================
+
+id: "ES-M2002A"
+revision: 0
+date: "2024-04-01"
+material: "PTFE 15% Glass 5% Moly Filled"
+grades:
+  - "PTFE Glass Moly"
+  - "PTFE 15% Glass 5% Moly"
+  - "Filled PTFE"
+uns: null
+condition: "Filled"
+
+chemistry: {}
+
+mechanical:
+  tensile_strength: { min: 2321, unit: psi }
+  elongation:       { min: 155, unit: '%' }
+
+special_requirements: []

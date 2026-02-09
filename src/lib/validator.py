@@ -171,12 +171,12 @@ class SpecValidator:
 
         if not all_results:
             return 'UNKNOWN'
-        
+
         statuses = [r.status for r in all_results]
-        
+
         if 'FAIL' in statuses:
             return 'FAIL'
-        elif 'MISSING' in statuses:
+        elif 'MISSING' in statuses or 'INCOMPLETE' in statuses:
             return 'INCOMPLETE'
         elif all(s in ('PASS', 'SKIP') for s in statuses):
             return 'PASS'
@@ -201,8 +201,15 @@ class SpecValidator:
                 vr.status = 'MISSING'
                 vr.note = f"{element} not found in MTR"
             else:
+                try:
+                    actual = float(actual)
+                except (ValueError, TypeError):
+                    vr.status = 'INCOMPLETE'
+                    vr.note = f"Could not parse value: {actual}"
+                    results.append(vr)
+                    continue
                 self._check_range(vr, actual, fmt=".4f")
-            
+
             results.append(vr)
         
         return results
@@ -231,6 +238,14 @@ class SpecValidator:
                 results.append(vr)
                 continue
             
+            try:
+                actual = float(actual)
+            except (ValueError, TypeError):
+                vr.status = 'INCOMPLETE'
+                vr.note = f"Could not parse value: {actual}"
+                results.append(vr)
+                continue
+
             # Unit conversion for stress values
             spec_unit = limits.get('unit', '').lower()
             if actual_unit and spec_unit in ('ksi', 'mpa'):
@@ -239,7 +254,7 @@ class SpecValidator:
                     actual = convert_stress(actual, actual_unit, spec_unit)
                     if not vr.note:
                         vr.note = f"Converted from {original:.2f} {actual_unit}"
-            
+
             self._check_range(vr, actual, fmt=".2f")
             
             results.append(vr)
@@ -317,6 +332,12 @@ class SpecValidator:
         """Validate tempering temperature requirement."""
         temper = mtr_data.get('temper_temperature')
         if temper is not None:
+            try:
+                temper = float(temper)
+            except (ValueError, TypeError):
+                vr.status = 'INCOMPLETE'
+                vr.note = f'Could not parse temper temperature: {temper}'
+                return vr
             vr.actual_value = temper
             vr.spec_min = req.get('min')
             vr.unit = req.get('unit', '°F')
@@ -334,10 +355,17 @@ class SpecValidator:
         """Validate Charpy impact requirement."""
         charpy = mtr_data.get('charpy_impact')
         if charpy is not None:
-            vr.actual_value = charpy.get('avg') if isinstance(charpy, dict) else charpy
+            actual = charpy.get('avg') if isinstance(charpy, dict) else charpy
+            try:
+                actual = float(actual)
+            except (ValueError, TypeError):
+                vr.status = 'INCOMPLETE'
+                vr.note = f'Could not parse Charpy value: {actual}'
+                return vr
+            vr.actual_value = actual
             vr.spec_min = req.get('min_avg')
             vr.unit = req.get('unit', 'ft-lbs')
-            if vr.actual_value >= req.get('min_avg', 0):
+            if actual >= req.get('min_avg', 0):
                 vr.status = 'PASS'
             else:
                 vr.status = 'FAIL'

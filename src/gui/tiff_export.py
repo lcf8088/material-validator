@@ -2,18 +2,22 @@
 TIFF export functionality for archiving validated MTRs.
 
 Converts PDFs to TIFF format with proper naming convention.
+Uses 1-bit bilevel + CCITT Group 4 compression for fast, compact document TIFFs.
 """
 
+import logging
 import re
 from pathlib import Path
 from typing import Optional, Tuple
 
+logger = logging.getLogger(__name__)
 
 COMPRESSION_MAP = {
     'lzw': 'tiff_lzw',
     'jpeg': 'jpeg',
     'none': None,
     'deflate': 'tiff_deflate',
+    'ccitt': 'group4',
 }
 
 
@@ -55,73 +59,69 @@ def pdf_to_tiff(
 ) -> Tuple[bool, str]:
     """
     Convert PDF to multi-page TIFF.
-    
+
+    Renders pages as grayscale, thresholds to 1-bit bilevel, and saves
+    with CCITT Group 4 compression for fast, compact document TIFFs.
+
     Args:
         pdf_path: Input PDF file path
         output_path: Output TIFF file path
         dpi: Resolution (default 300)
-        compression: TIFF compression (lzw, jpeg, none)
-    
+        compression: TIFF compression (lzw, jpeg, none, ccitt)
+
     Returns:
         (success, message)
     """
     try:
         import fitz  # pymupdf
         from PIL import Image
-        
+
         pdf_path = Path(pdf_path)
         output_path = Path(output_path)
-        
+
         if not pdf_path.exists():
             return False, f"PDF not found: {pdf_path}"
-        
+
         # Open PDF
         doc = fitz.open(pdf_path)
-        
+
         if len(doc) == 0:
             return False, "PDF has no pages"
-        
-        # Convert each page to PIL Image
+
+        # Render each page as grayscale and convert to 1-bit bilevel
         images = []
-        scale = dpi / 72.0  # PDF default is 72 DPI
+        scale = dpi / 72.0
         mat = fitz.Matrix(scale, scale)
-        
+
         for page_num in range(len(doc)):
             page = doc[page_num]
-            pix = page.get_pixmap(matrix=mat)
-            
-            # Convert to PIL Image
-            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            pix = page.get_pixmap(matrix=mat, colorspace=fitz.csGRAY)
+
+            img = Image.frombytes("L", [pix.width, pix.height], pix.samples)
+            # Threshold to 1-bit bilevel (text documents)
+            img = img.point(lambda x: 0 if x < 180 else 255, '1')
             images.append(img)
-        
+            logger.debug("Rendered page %d: %dx%d", page_num + 1, pix.width, pix.height)
+
         doc.close()
-        
-        # Determine compression
-        tiff_compression = COMPRESSION_MAP.get(compression.lower(), 'tiff_lzw')
-        
+
+        # Use CCITT Group 4 for bilevel images (fast + compact)
+        tiff_compression = 'group4'
+
         # Save as multi-page TIFF
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        if len(images) == 1:
-            images[0].save(
-                output_path,
-                format='TIFF',
-                compression=tiff_compression,
-                dpi=(dpi, dpi)
-            )
-        else:
-            # Multi-page TIFF
-            images[0].save(
-                output_path,
-                format='TIFF',
-                compression=tiff_compression,
-                dpi=(dpi, dpi),
-                save_all=True,
-                append_images=images[1:]
-            )
-        
+
+        images[0].save(
+            output_path,
+            format='TIFF',
+            compression=tiff_compression,
+            dpi=(dpi, dpi),
+            save_all=True,
+            append_images=images[1:],
+        )
+
         return True, f"Saved {len(images)} page(s) to {output_path}"
-        
+
     except ImportError as e:
         return False, f"Missing dependency: {e}. Install with: pip install pymupdf pillow"
     except Exception as e:

@@ -1,0 +1,47 @@
+# ============================================================
+# DDIC Material Specification: ES-M0001L
+# ============================================================
+
+id: "ES-M0001L"
+revision: 0
+date: "2024-05-03"
+material: "4140 Chromium Molybdenum Low Alloy Steel 80MYS 22HRc Max - API 6A PSL3"
+grades:
+  - "4140"
+  - "AISI 4140"
+uns: "G41400"
+condition: "Quench and Tempered"
+
+chemistry:
+  C:  { min: 0.38, max: 0.43 }
+  Mn: { min: 0.75, max: 1.10 }
+  P:  { max: 0.025 }
+  S:  { max: 0.025 }
+  Si: { min: 0.15, max: 0.35 }
+  Cr: { min: 0.80, max: 1.20 }
+  Mo: { min: 0.15, max: 0.35 }
+  Ni: { max: 0.25 }
+  Cu: { max: 0.35 }
+
+mechanical:
+  yield_strength:    { min: 80, unit: ksi }
+  tensile_strength:  { min: 100, unit: ksi }
+  elongation:        { min: 17, unit: '%' }
+  reduction_of_area: { min: 40, unit: '%' }
+  hardness_hbw:      { min: 217, max: 237 }
+  hardness_hrc:      { min: 18, max: 22 }
+
+special_requirements:
+  - type: nace_compliance
+    required: true
+    note: "NACE MR0175 / ISO 15156 compliant"
+  - type: temper_temperature
+    min: 1220
+    unit: "°F"
+    note: "Minimum tempering temperature 660°C (1220°F)"
+  - type: charpy_impact
+    min_avg: 20
+    unit: "ft-lbs"
+    temperature: -26
+    temp_unit: "°F"
+    note: "Average of 3 specimens at -26°F (-32°C); 20 ft-lb longitudinal or 15 ft-lb transverse"

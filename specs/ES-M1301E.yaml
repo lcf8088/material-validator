@@ -1,0 +1,23 @@
+# ============================================================
+# DDIC Material Specification: ES-M1301E
+# ============================================================
+
+id: "ES-M1301E"
+revision: 0
+date: "2024-04-01"
+material: "HNBR - HSN 90 Durometer Molded"
+grades:
+  - "HNBR"
+  - "HSN"
+  - "HNBR 90 Molded"
+  - "HSN 90 Molded"
+uns: null
+condition: "90 Durometer Molded"
+
+chemistry: {}
+
+mechanical:
+  tensile_strength: { min: 2800, unit: psi }
+  elongation:       { min: 125, unit: '%' }
+
+special_requirements: []
