@@ -8,9 +8,11 @@ Uses PaddleOCR + Claude pipeline for extraction and validation.
 
 import json
 import logging
+import os
+import shutil
 import threading
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 try:
     import customtkinter as ctk
@@ -29,11 +31,11 @@ from lib.validator import SpecValidator, format_validation_report
 from lib.matcher import SpecMatcher
 from lib.sanity import run_all_sanity_checks, format_sanity_report
 from lib.history import ValidationHistory
-from lib.pipeline import process_document, process_batch, PipelineResult, BatchResult
+from lib.pipeline import process_document, PipelineResult
 from lib.watcher import FolderWatcher
 
 from .config import Config
-from .tiff_export import convert_to_archive, generate_archive_filename
+from .tiff_export import generate_archive_filename, sanitize_filename
 from .settings import SettingsPanel
 from .theme import COLORS, FONTS, ICONS, SIDEBAR_WIDTH, status_color
 
@@ -100,7 +102,7 @@ class MaterialValidatorApp:
 
     def __init__(self):
         self.config = Config()
-        self.spec_loader = SpecLoader.get_instance(str(Path(__file__).parent.parent / 'specs'))
+        self.spec_loader = SpecLoader.get_instance(str(Path(__file__).parent.parent.parent / 'specs'))
         self.validator = SpecValidator()
         self.matcher = SpecMatcher()
         self.history = ValidationHistory()
@@ -113,9 +115,9 @@ class MaterialValidatorApp:
         self.pipeline_result: Optional[PipelineResult] = None
         self.settings_panel: Optional[SettingsPanel] = None
 
-        # Batch / watch state
-        self._batch_cancel = False
-        self._batch_panel = None
+        # Approval queue state
+        self._approval_queue: List[PipelineResult] = []
+        self.staging_tiff_path: Optional[str] = None
         self._pipeline_lock = threading.Lock()
 
         # View navigation state
@@ -471,25 +473,31 @@ class MaterialValidatorApp:
         )
         self.validate_btn.pack(side='left', padx=4)
 
-        self.archive_btn = ctk.CTkButton(
-            btn_frame, text="Archive", width=90,
+        self.preview_btn = ctk.CTkButton(
+            btn_frame, text="Preview", width=90,
             font=FONTS['badge'], state='disabled',
             fg_color=COLORS['bg_card'], hover_color=COLORS['surface_hl'],
             border_color=COLORS['border'], border_width=1,
             text_color=COLORS['text_primary'],
-            command=self._archive,
+            command=self._preview_tiff,
         )
-        self.archive_btn.pack(side='left', padx=4)
+        self.preview_btn.pack(side='left', padx=4)
 
-        self.batch_btn = ctk.CTkButton(
-            btn_frame, text=f"{ICONS['batch']} Batch", width=100,
-            font=FONTS['badge'],
-            fg_color=COLORS['bg_card'], hover_color=COLORS['surface_hl'],
-            border_color=COLORS['border'], border_width=1,
-            text_color=COLORS['text_primary'],
-            command=self._batch_process,
+        self.approve_btn = ctk.CTkButton(
+            btn_frame, text="Approve", width=110,
+            font=FONTS['badge'], state='disabled',
+            fg_color=COLORS['success'], hover_color='#4A9A3A',
+            text_color='#FFFFFF',
+            command=self._approve,
         )
-        self.batch_btn.pack(side='left', padx=4)
+        self.approve_btn.pack(side='left', padx=4)
+
+        # Queue indicator (visible when watch queues items)
+        self.queue_label = ctk.CTkLabel(
+            btn_frame, text="", font=FONTS['small'],
+            text_color=COLORS['orange'],
+        )
+        self.queue_label.pack(side='left', padx=(8, 0))
 
         # -- Bottom row: data card + result card --
         cards = ctk.CTkFrame(view, fg_color='transparent')
@@ -673,7 +681,7 @@ class MaterialValidatorApp:
             ).pack(pady=30)
             return
 
-        for record in records:
+        for record in reversed(records):
             self._create_history_row(self.history_scroll, record)
 
     def _create_history_row(self, parent, record: dict):
@@ -1050,6 +1058,9 @@ class MaterialValidatorApp:
 
     def _load_file(self, file_path: str):
         """Load a file for processing."""
+        # Clean up previous staging TIFF if it wasn't approved
+        self._cleanup_staging()
+
         self.current_file = file_path
         self.extracted_data = None
         self.validation_result = None
@@ -1065,7 +1076,8 @@ class MaterialValidatorApp:
             self._update_header_status('Ready', filename)
             self.extract_btn.configure(state='normal')
             self.validate_btn.configure(state='disabled')
-            self.archive_btn.configure(state='disabled')
+            self.preview_btn.configure(state='disabled')
+            self.approve_btn.configure(state='disabled')
         else:
             self.file_label.configure(text=filename)
             self.extract_btn.configure(state='normal')
@@ -1105,9 +1117,8 @@ class MaterialValidatorApp:
                     self.root.after(0, lambda: self._set_progress(pct))
                     self.root.after(0, lambda: self._set_status(f"Pipeline: {step}"))
 
-                # Auto-archive: pass output_dir when enabled
-                auto_archive = self.config.get('auto_archive', True)
-                output_dir = self.config.effective_output_folder if auto_archive else ""
+                # Always generate staging TIFF when archive folder is configured
+                output_dir = self.config.effective_output_folder
 
                 # PO from sticky field
                 po_from_field = ''
@@ -1136,10 +1147,13 @@ class MaterialValidatorApp:
         threading.Thread(target=do_pipeline, daemon=True).start()
 
     def _on_pipeline_complete(self, result: PipelineResult):
-        """Handle pipeline completion."""
+        """Handle pipeline completion — display results for review (no archiving yet)."""
         self.pipeline_result = result
         self.extracted_data = result.normalized_data or result.extracted_data
         self.validation_result = result.validation
+
+        # Store staging TIFF path for preview/approve
+        self.staging_tiff_path = result.output_tiff_path
 
         self._set_progress(1.0)
 
@@ -1177,13 +1191,13 @@ class MaterialValidatorApp:
             status = result.validation.overall_status
             if result.validation.heat_number and result.validation.heat_number != 'N/A':
                 id_value = result.validation.heat_number
-            self._set_status(f"{status} - {id_label}# {id_value} (Spec: {result.spec_id})")
+            self._set_status(f"{status} - {id_label}# {id_value} (Spec: {result.spec_id}) — Review & Approve")
             if ctk:
                 self._update_header_status(status, f"{id_label}# {id_value} | {result.spec_id}")
         else:
             if result.sanity and any(result.sanity.values()):
                 self._insert_text(self.result_text, format_sanity_report(result.sanity))
-            self._set_status(f"Extracted: {id_label}# {id_value}")
+            self._set_status(f"Extracted: {id_label}# {id_value} — Review & Approve")
             if ctk:
                 self._update_header_status('INCOMPLETE', f"{id_label}# {id_value}")
 
@@ -1206,19 +1220,20 @@ class MaterialValidatorApp:
 
         self._set_button_state(self.extract_btn, 'normal')
 
-        if not result.validation and self.extracted_data:
+        # Enable Re-Validate when we have extracted data
+        if self.extracted_data:
             self._set_button_state(self.validate_btn, 'normal')
 
-        # Auto-archive result handling
-        if result.output_tiff_path:
-            tiff_name = Path(result.output_tiff_path).name
-            self._set_status(f"Archived: {tiff_name}")
-            # Archive already done — disable the manual button
-            self._set_button_state(self.archive_btn, 'disabled')
-        elif result.validation and result.validation.overall_status in ('PASS', 'INCOMPLETE'):
-            self._set_button_state(self.archive_btn, 'normal')
-        elif self.extracted_data:
-            self._set_button_state(self.archive_btn, 'normal')
+        # Update spec dropdown to show which spec was used
+        if result.spec_id and hasattr(self, 'spec_var'):
+            self.spec_var.set(result.spec_id)
+
+        # Enable approve/preview buttons for the approval gate
+        if ctk:
+            if self.staging_tiff_path and Path(self.staging_tiff_path).exists():
+                self._set_button_state(self.preview_btn, 'normal')
+            self._set_button_state(self.approve_btn, 'normal')
+        self._update_queue_indicator()
 
     def _on_extract_error(self, error: str):
         """Handle extraction error."""
@@ -1230,7 +1245,7 @@ class MaterialValidatorApp:
         messagebox.showerror("Pipeline Failed", error)
 
     def _validate(self):
-        """Run validation on extracted data (if not done by pipeline)."""
+        """Re-validate extracted data against the currently selected spec."""
         if not self.extracted_data:
             return
 
@@ -1239,6 +1254,7 @@ class MaterialValidatorApp:
             match = self.matcher.select_best_spec(self.extracted_data)
             if match:
                 spec_id, confidence, reason = match
+                self.spec_var.set(spec_id)
                 self._set_status(f"Auto-detected: {spec_id} ({confidence:.0%})")
             else:
                 messagebox.showwarning("No Match", "Could not auto-detect specification. Please select manually.")
@@ -1253,22 +1269,23 @@ class MaterialValidatorApp:
 
         if ctk:
             self._display_validation_results(result)
-            self._update_header_status(result.overall_status, f"{id_label}# {id_value}")
+            self._update_header_status(result.overall_status, f"{id_label}# {id_value} | {spec_id}")
         else:
             self._clear_text(self.result_text)
             self._insert_text(self.result_text, format_validation_report(result, use_color=False))
 
-        self._set_status(f"{result.overall_status} - {id_label}# {id_value}")
+        self._set_status(f"{result.overall_status} - {id_label}# {id_value} (Spec: {spec_id}) — Review & Approve")
 
-        spec = self.spec_loader.get(spec_id)
-        self.history.record(result, self.extracted_data, spec, self.current_file)
+    def _preview_tiff(self):
+        """Open the staging TIFF in the system's default viewer."""
+        if self.staging_tiff_path and Path(self.staging_tiff_path).exists():
+            os.startfile(self.staging_tiff_path)
+        else:
+            messagebox.showwarning("No Preview", "No staging TIFF available to preview.")
 
-        if result.overall_status in ('PASS', 'INCOMPLETE'):
-            self._set_button_state(self.archive_btn, 'normal')
-
-    def _archive(self):
-        """Convert and save to archive folder."""
-        if not self.current_file or not self.extracted_data:
+    def _approve(self):
+        """Approve the current result: move staging TIFF to archive, record history."""
+        if not self.extracted_data:
             return
 
         archive_folder = self.config.effective_output_folder
@@ -1277,7 +1294,11 @@ class MaterialValidatorApp:
             self._navigate_to('settings')
             return
 
-        # Use PO from the entry field first, then extracted data, then prompt
+        # Get identifier (heat/batch number)
+        _, id_value = _get_identifier(self.extracted_data)
+        heat_number = id_value if id_value != 'N/A' else 'UNKNOWN'
+
+        # Get PO from the entry field first, then extracted data, then prompt
         po_number = None
         if ctk and hasattr(self, 'po_var'):
             po_number = self.po_var.get().strip()
@@ -1286,24 +1307,90 @@ class MaterialValidatorApp:
         if not po_number:
             po_number = self._prompt_for_po()
 
-        _, id_value = _get_identifier(self.extracted_data)
-        heat_number = id_value if id_value != 'N/A' else 'UNKNOWN'
-
-        success, message, output_path = convert_to_archive(
-            self.current_file,
-            archive_folder,
-            heat_number,
-            po_number,
-            self.config.get('tiff_dpi', 300),
-            self.config.get('tiff_compression', 'lzw')
-        )
-
-        if success:
-            self._set_status(f"Archived: {Path(output_path).name}")
-            messagebox.showinfo("Archived", f"Saved to:\n{output_path}")
+        # Compute final filename and destination
+        archive_name = generate_archive_filename(heat_number, po_number)
+        effective_output_dir = Path(archive_folder)
+        if self.config.get('organize_by_po', False) and po_number:
+            effective_output_dir = effective_output_dir / sanitize_filename(po_number)
+            effective_output_dir.mkdir(parents=True, exist_ok=True)
         else:
-            self._set_status(f"Archive failed: {message}")
-            messagebox.showerror("Archive Failed", message)
+            effective_output_dir.mkdir(parents=True, exist_ok=True)
+
+        final_path = effective_output_dir / archive_name
+
+        # Handle filename conflicts
+        if final_path.exists():
+            base = final_path.stem
+            counter = 1
+            while final_path.exists():
+                final_path = effective_output_dir / f"{base}_{counter}.tiff"
+                counter += 1
+
+        # Move staging TIFF to archive
+        if self.staging_tiff_path and Path(self.staging_tiff_path).exists():
+            shutil.move(self.staging_tiff_path, str(final_path))
+            self.staging_tiff_path = None
+            logger.info("Approved: %s -> %s", archive_name, final_path)
+        else:
+            # No staging TIFF (e.g. non-PDF input) — nothing to move
+            logger.info("Approved (no TIFF): %s", heat_number)
+
+        # Record to history
+        if self.validation_result:
+            spec_id = self.spec_var.get() if hasattr(self, 'spec_var') else None
+            if spec_id == 'Auto-detect':
+                spec_id = self.pipeline_result.spec_id if self.pipeline_result else None
+            spec = self.spec_loader.get(spec_id) if spec_id else {}
+            self.history.record(
+                self.validation_result, self.extracted_data,
+                spec, self.current_file
+            )
+
+        # Update UI
+        self._set_status(f"Approved: {final_path.name}")
+        if ctk:
+            self._update_header_status('PASS', f"Approved: {final_path.name}")
+            self._set_button_state(self.approve_btn, 'disabled')
+            self._set_button_state(self.preview_btn, 'disabled')
+
+        # Load next queued item if any
+        if self._approval_queue:
+            self.root.after(500, self._load_queued_result)
+
+    def _load_queued_result(self):
+        """Pop the next result from the approval queue and display it."""
+        if not self._approval_queue:
+            return
+        next_result = self._approval_queue.pop(0)
+        # Set the source file so _approve knows the origin
+        self.current_file = next_result.source_file
+        if ctk:
+            filename = Path(next_result.source_file).name
+            self.drop_zone.configure(
+                text=f"{ICONS['file']}  {filename}\n(click to change)",
+                text_color=COLORS['text_primary'],
+            )
+            self.header_file_label.configure(text=filename, text_color=COLORS['text_primary'])
+        self._on_pipeline_complete(next_result)
+
+    def _update_queue_indicator(self):
+        """Update the queue count label."""
+        if ctk and hasattr(self, 'queue_label'):
+            count = len(self._approval_queue)
+            if count > 0:
+                self.queue_label.configure(text=f"Queue: {count} pending")
+            else:
+                self.queue_label.configure(text="")
+
+    def _cleanup_staging(self):
+        """Remove the current staging TIFF if it exists (unapproved)."""
+        if self.staging_tiff_path and Path(self.staging_tiff_path).exists():
+            try:
+                os.remove(self.staging_tiff_path)
+                logger.info("Cleaned up staging TIFF: %s", self.staging_tiff_path)
+            except OSError:
+                pass
+        self.staging_tiff_path = None
 
     def _prompt_for_po(self) -> Optional[str]:
         """Prompt user for PO number."""
@@ -1370,18 +1457,23 @@ class MaterialValidatorApp:
 
     # ============================================================= Watch Auto-Process
     def _auto_process_watched_file(self, file_path: str):
-        """Auto-process a file detected by the watcher (full pipeline + archive)."""
-        self._load_file(file_path)
-
+        """Auto-process a file detected by the watcher — queues if a review is active."""
         if not self.config.is_configured():
             self._set_status("Watch: skipping — not configured")
             return
 
+        # Check if currently reviewing (approve_btn enabled means active review)
+        currently_reviewing = (
+            ctk and hasattr(self, 'approve_btn')
+            and self.approve_btn.cget('state') == 'normal'
+        )
+
         self._set_status(f"Watch: processing {Path(file_path).name}...")
-        self._set_button_state(self.extract_btn, 'disabled')
-        self._set_progress(0)
-        if ctk:
-            self._update_header_status('INCOMPLETE', "Processing...")
+        if not currently_reviewing:
+            self._set_button_state(self.extract_btn, 'disabled')
+            self._set_progress(0)
+            if ctk:
+                self._update_header_status('INCOMPLETE', "Processing...")
 
         spec_id = self.spec_var.get()
         if spec_id == 'Auto-detect':
@@ -1392,14 +1484,14 @@ class MaterialValidatorApp:
                 logger.info("Watch: pipeline busy, queueing %s", file_path)
                 self._pipeline_lock.acquire()
             try:
-                auto_archive = self.config.get('auto_archive', True)
-                output_dir = self.config.effective_output_folder if auto_archive else ""
+                output_dir = self.config.effective_output_folder
                 po_from_field = ''
                 if hasattr(self, 'po_var'):
                     po_from_field = self.po_var.get().strip()
 
                 def on_progress(step, pct):
-                    self.root.after(0, lambda: self._set_progress(pct))
+                    if not currently_reviewing:
+                        self.root.after(0, lambda: self._set_progress(pct))
                     self.root.after(0, lambda: self._set_status(f"Watch: {step}"))
 
                 result = process_document(
@@ -1417,235 +1509,41 @@ class MaterialValidatorApp:
                 )
 
                 self.watcher.mark_processed(file_path)
-                self.root.after(0, lambda: self._on_pipeline_complete(result))
+
+                def handle_result():
+                    if currently_reviewing:
+                        # Queue the result — don't overwrite the current review
+                        self._approval_queue.append(result)
+                        self._update_queue_indicator()
+                        self._set_status(
+                            f"Watch: queued {Path(file_path).name} "
+                            f"(Queue: {len(self._approval_queue)} pending)"
+                        )
+                    else:
+                        # No active review — display directly
+                        self.current_file = file_path
+                        if ctk:
+                            filename = Path(file_path).name
+                            self.drop_zone.configure(
+                                text=f"{ICONS['file']}  {filename}\n(click to change)",
+                                text_color=COLORS['text_primary'],
+                            )
+                            self.header_file_label.configure(
+                                text=filename, text_color=COLORS['text_primary']
+                            )
+                        self._on_pipeline_complete(result)
+
+                self.root.after(0, handle_result)
 
             except Exception as e:
                 logger.exception("Watch auto-process error: %s", e)
                 self.watcher.mark_processed(file_path)
-                self.root.after(0, lambda: self._on_extract_error(str(e)))
+                if not currently_reviewing:
+                    self.root.after(0, lambda: self._on_extract_error(str(e)))
             finally:
                 self._pipeline_lock.release()
 
         threading.Thread(target=do_auto, daemon=True).start()
-
-    # ============================================================= Batch Processing
-    def _batch_process(self):
-        """Open folder picker and start batch processing."""
-        if not self.config.is_configured():
-            messagebox.showwarning(
-                "Setup Required",
-                "Please configure Anthropic API key and archive folder in Settings first."
-            )
-            self._navigate_to('settings')
-            return
-
-        folder = filedialog.askdirectory(
-            title="Select Folder with MTR Files",
-            initialdir=self.config.get('last_input_folder', '')
-        )
-        if not folder:
-            return
-
-        # Count supported files
-        from lib.pipeline import BATCH_EXTENSIONS
-        files = [
-            f for f in Path(folder).iterdir()
-            if f.is_file() and f.suffix.lower() in BATCH_EXTENSIONS
-        ]
-        if not files:
-            messagebox.showinfo("No Files", "No supported files (PDF, PNG, JPG) found in the selected folder.")
-            return
-
-        self.config.set('last_input_folder', folder)
-        self._show_batch_progress(folder, len(files))
-
-    def _show_batch_progress(self, folder: str, file_count: int):
-        """Show the batch progress panel overlaying the validate view."""
-        if not ctk:
-            return
-
-        self._batch_cancel = False
-
-        # Create overlay panel
-        panel = ctk.CTkFrame(
-            self.content_frames['validate'],
-            fg_color=COLORS['bg_card'], corner_radius=10,
-            border_color=COLORS['orange'], border_width=1,
-        )
-        panel.place(relx=0.05, rely=0.02, relwidth=0.9, relheight=0.96)
-        self._batch_panel = panel
-
-        # Header
-        header = ctk.CTkFrame(panel, fg_color='transparent')
-        header.pack(fill='x', padx=16, pady=(12, 4))
-
-        ctk.CTkLabel(
-            header, text=f"{ICONS['batch']}  Batch Processing",
-            font=FONTS['section_header'], text_color=COLORS['text_primary'],
-        ).pack(side='left')
-
-        self.batch_status_label = ctk.CTkLabel(
-            header, text=f"Processing {file_count} files...",
-            font=FONTS['label'], text_color=COLORS['text_secondary'],
-        )
-        self.batch_status_label.pack(side='right')
-
-        # Progress bar
-        self.batch_progress = ctk.CTkProgressBar(
-            panel, height=6, corner_radius=3,
-            fg_color=COLORS['bg_dark'], progress_color=COLORS['orange'],
-        )
-        self.batch_progress.pack(fill='x', padx=16, pady=(8, 4))
-        self.batch_progress.set(0)
-
-        # Log area
-        self.batch_log = ctk.CTkTextbox(
-            panel, font=FONTS['mono'],
-            fg_color=COLORS['bg_darkest'], text_color=COLORS['text_primary'],
-            border_color=COLORS['border'], border_width=1, corner_radius=6,
-        )
-        self.batch_log.pack(fill='both', expand=True, padx=16, pady=(4, 8))
-
-        # Configure tags on underlying text widget
-        btw = self.batch_log._textbox
-        btw.tag_configure('pass', foreground=COLORS['success'])
-        btw.tag_configure('fail', foreground=COLORS['error'])
-        btw.tag_configure('error', foreground=COLORS['error'])
-        btw.tag_configure('info', foreground=COLORS['text_secondary'])
-        btw.tag_configure('file', foreground=COLORS['accent_light'])
-
-        # Button row
-        btn_row = ctk.CTkFrame(panel, fg_color='transparent')
-        btn_row.pack(fill='x', padx=16, pady=(0, 12))
-
-        self.batch_cancel_btn = ctk.CTkButton(
-            btn_row, text="Cancel", width=100,
-            font=FONTS['badge'],
-            fg_color=COLORS['error'], hover_color='#B03030',
-            text_color='#FFFFFF',
-            command=self._cancel_batch,
-        )
-        self.batch_cancel_btn.pack(side='left', padx=4)
-
-        self.batch_done_btn = ctk.CTkButton(
-            btn_row, text="Done", width=100,
-            font=FONTS['badge'], state='disabled',
-            fg_color=COLORS['accent'], hover_color=COLORS['accent_hover'],
-            text_color='#FFFFFF',
-            command=self._close_batch_view,
-        )
-        self.batch_done_btn.pack(side='right', padx=4)
-
-        # Start processing
-        self._run_batch(folder)
-
-    def _run_batch(self, folder: str):
-        """Run batch processing in a background thread."""
-        spec_id = self.spec_var.get()
-        if spec_id == 'Auto-detect':
-            spec_id = None
-
-        po_from_field = ''
-        if hasattr(self, 'po_var'):
-            po_from_field = self.po_var.get().strip()
-
-        auto_archive = self.config.get('auto_archive', True)
-        output_dir = self.config.effective_output_folder if auto_archive else ""
-
-        def on_file_start(filename, idx, total):
-            self.root.after(0, lambda: self._on_batch_file_start(filename, idx, total))
-
-        def on_file_complete(filename, result, idx, total):
-            self.root.after(0, lambda: self._on_batch_file_complete(filename, result, idx, total))
-
-        def cancel_flag():
-            return self._batch_cancel
-
-        def do_batch():
-            batch_result = process_batch(
-                folder_path=folder,
-                output_dir=output_dir,
-                spec_id=spec_id,
-                anthropic_api_key=self.config.anthropic_api_key,
-                po_number=po_from_field or None,
-                organize_by_po=self.config.get('organize_by_po', False),
-                tiff_dpi=self.config.get('tiff_dpi', 300),
-                tiff_compression=self.config.get('tiff_compression', 'lzw'),
-                preprocessing_dpi=self.config.get('preprocessing_dpi', 300),
-                paddle_model_path=self.config.get('paddle_model_path', '') or None,
-                on_file_start=on_file_start,
-                on_file_complete=on_file_complete,
-                cancel_flag=cancel_flag,
-            )
-            self.root.after(0, lambda: self._on_batch_complete(batch_result))
-
-        threading.Thread(target=do_batch, daemon=True).start()
-
-    def _on_batch_file_start(self, filename: str, idx: int, total: int):
-        """Update batch UI when a file starts processing."""
-        if not self._batch_panel:
-            return
-        self.batch_status_label.configure(text=f"File {idx + 1} of {total}")
-        self.batch_progress.set((idx) / total)
-        btw = self.batch_log._textbox
-        btw.insert('end', f"\n[{idx + 1}/{total}] ", 'info')
-        btw.insert('end', f"{filename}", 'file')
-        btw.insert('end', " ...\n", 'info')
-        btw.see('end')
-
-    def _on_batch_file_complete(self, filename: str, result: PipelineResult, idx: int, total: int):
-        """Update batch UI when a file completes."""
-        if not self._batch_panel:
-            return
-        self.batch_progress.set((idx + 1) / total)
-        btw = self.batch_log._textbox
-
-        if not result.success:
-            btw.insert('end', f"  ERROR: {'; '.join(result.errors)}\n", 'error')
-        elif result.validation:
-            status = result.validation.overall_status
-            tag = 'pass' if status == 'PASS' else 'fail'
-            btw.insert('end', f"  {status}", tag)
-            if result.output_tiff_path:
-                btw.insert('end', f"  -> {Path(result.output_tiff_path).name}", 'info')
-            btw.insert('end', "\n")
-        else:
-            btw.insert('end', "  Processed (no validation)\n", 'info')
-
-        btw.see('end')
-
-    def _on_batch_complete(self, batch_result: BatchResult):
-        """Handle batch completion."""
-        if not self._batch_panel:
-            return
-        self.batch_progress.set(1.0)
-        self.batch_cancel_btn.configure(state='disabled')
-        self.batch_done_btn.configure(state='normal')
-
-        btw = self.batch_log._textbox
-        btw.insert('end', "\n" + "=" * 40 + "\n", 'info')
-        btw.insert('end', f"  Total: {batch_result.total}  |  ", 'info')
-        btw.insert('end', f"Pass: {batch_result.success_count}  ", 'pass')
-        btw.insert('end', f"Fail: {batch_result.fail_count}  ", 'fail')
-        btw.insert('end', f"Error: {batch_result.error_count}\n", 'error')
-        btw.see('end')
-
-        self.batch_status_label.configure(
-            text=f"Done: {batch_result.success_count} pass, "
-                 f"{batch_result.fail_count} fail, {batch_result.error_count} error"
-        )
-
-    def _cancel_batch(self):
-        """Signal batch cancellation."""
-        self._batch_cancel = True
-        self.batch_cancel_btn.configure(state='disabled')
-        self.batch_status_label.configure(text="Cancelling...")
-
-    def _close_batch_view(self):
-        """Close batch progress panel and restore normal validate view."""
-        if self._batch_panel:
-            self._batch_panel.destroy()
-            self._batch_panel = None
 
     # ============================================================= Helpers
     def _set_status(self, text: str):
@@ -1673,6 +1571,16 @@ class MaterialValidatorApp:
         """Handle window close."""
         if self.watcher.is_watching():
             self.watcher.stop_watching()
+        # Clean up any unapproved staging files
+        self._cleanup_staging()
+        # Clean up queued staging files too
+        for queued in self._approval_queue:
+            if queued.output_tiff_path and Path(queued.output_tiff_path).exists():
+                try:
+                    os.remove(queued.output_tiff_path)
+                except OSError:
+                    pass
+        self._approval_queue.clear()
         self.config.update({
             'window_width': self.root.winfo_width(),
             'window_height': self.root.winfo_height(),
@@ -1719,14 +1627,17 @@ class MaterialValidatorApp:
         self.validate_btn = ttk.Button(frame, text="Validate", command=self._validate, state='disabled')
         self.validate_btn.pack(side='left', padx=5)
 
-        self.archive_btn = ttk.Button(frame, text="Archive", command=self._archive, state='disabled')
-        self.archive_btn.pack(side='left', padx=5)
+        self.preview_btn = ttk.Button(frame, text="Preview", command=self._preview_tiff, state='disabled')
+        self.preview_btn.pack(side='left', padx=5)
 
-        self.batch_btn = ttk.Button(frame, text="Batch", command=self._batch_process)
-        self.batch_btn.pack(side='left', padx=5)
+        self.approve_btn = ttk.Button(frame, text="Approve", command=self._approve, state='disabled')
+        self.approve_btn.pack(side='left', padx=5)
 
         self.watch_btn = ttk.Button(frame, text="Watch: OFF", command=self._toggle_watch)
         self.watch_btn.pack(side='left', padx=10)
+
+        self.queue_label = ttk.Label(frame, text="")
+        self.queue_label.pack(side='left', padx=5)
 
         self.status_label = ttk.Label(frame, text="Ready")
         self.status_label.pack(side='right', padx=10)

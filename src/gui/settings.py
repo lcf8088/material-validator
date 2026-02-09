@@ -210,14 +210,6 @@ class SettingsPanel:
         self._entry(of_frame, textvariable=self.output_folder_var, width=310).pack(side="left")
         self._browse_button(of_frame, self._browse_output_folder).pack(side="left", padx=5)
 
-        self.auto_archive_var = ctk.BooleanVar()
-        ctk.CTkCheckBox(
-            tab, text="Auto-archive TIFF after validation", variable=self.auto_archive_var,
-            fg_color=COLORS['accent'], hover_color=COLORS['accent_hover'],
-            border_color=COLORS['border'], text_color=COLORS['text_primary'],
-            font=FONTS['body'],
-        ).pack(anchor="w", padx=15, pady=(10, 0))
-
         self.organize_by_po_var = ctk.BooleanVar()
         ctk.CTkCheckBox(
             tab, text="Create PO# subfolders", variable=self.organize_by_po_var,
@@ -346,10 +338,6 @@ class SettingsPanel:
         ttk.Button(of_frame, text="Browse", command=self._browse_output_folder).pack(side="left", padx=4)
 
         row += 1
-        self.auto_archive_var = tk.BooleanVar()
-        ttk.Checkbutton(tab, text="Auto-archive TIFF after validation", variable=self.auto_archive_var).grid(row=row, column=0, columnspan=2, sticky="w", pady=6)
-
-        row += 1
         self.organize_by_po_var = tk.BooleanVar()
         ttk.Checkbutton(tab, text="Create PO# subfolders", variable=self.organize_by_po_var).grid(row=row, column=0, columnspan=2, sticky="w", pady=4)
 
@@ -398,7 +386,6 @@ class SettingsPanel:
 
         self.archive_var.set(self.config.get("archive_folder", ""))
         self.output_folder_var.set(self.config.get("output_folder", ""))
-        self.auto_archive_var.set(self.config.get("auto_archive", True))
         self.organize_by_po_var.set(self.config.get("organize_by_po", False))
         self.watch_auto_process_var.set(self.config.get("watch_auto_process", True))
         self.dpi_var.set(str(self.config.get("tiff_dpi", 300)))
@@ -430,7 +417,6 @@ class SettingsPanel:
             "paddle_model_path": self.paddle_var.get().strip(),
             "archive_folder": self.archive_var.get().strip(),
             "output_folder": self.output_folder_var.get().strip(),
-            "auto_archive": self.auto_archive_var.get(),
             "organize_by_po": self.organize_by_po_var.get(),
             "tiff_dpi": int(dpi_str),
             "tiff_compression": self.compress_var.get(),
