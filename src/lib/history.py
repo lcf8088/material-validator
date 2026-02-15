@@ -51,11 +51,12 @@ class ValidationHistory:
         mtr_data: Dict[str, Any],
         spec_data: Dict[str, Any],
         source_file: Optional[str] = None,
-        validated_by: str = ""
+        validated_by: str = "",
+        staging_tiff_path: Optional[str] = None,
     ) -> str:
         """
         Record a validation result.
-        
+
         Returns validation_id.
         """
         validation_id = str(uuid.uuid4())[:8]
@@ -79,6 +80,10 @@ class ValidationHistory:
             'source_file': source_file,
             'mtr_data': mtr_data,
             'validation_details': validation.to_dict(),
+            'approved': False,
+            'approved_by': '',
+            'approved_at': '',
+            'staging_tiff_path': staging_tiff_path or '',
         }
         
         # Append to history file
@@ -104,6 +109,61 @@ class ValidationHistory:
         
         return validation_id
     
+    def record_error(
+        self,
+        source_file: Optional[str] = None,
+        error_type: str = "UNKNOWN_ERROR",
+        error_message: str = "",
+        validated_by: str = "",
+    ) -> str:
+        """
+        Record a failed extraction/validation attempt.
+
+        Every file that enters the pipeline gets a history entry,
+        even if it fails. Returns the validation_id.
+        """
+        validation_id = str(uuid.uuid4())[:8]
+        timestamp = datetime.now(timezone.utc).isoformat()
+        date_str = timestamp[:10]
+
+        record = {
+            'validation_id': validation_id,
+            'timestamp': timestamp,
+            'validated_by': validated_by or getpass.getuser(),
+            'heat_number': '',
+            'material_grade': '',
+            'spec_id': '',
+            'spec_revision': None,
+            'result': 'ERROR',
+            'error_type': error_type,
+            'error_message': error_message,
+            'summary': {
+                'pass_count': 0,
+                'fail_count': 0,
+                'missing_count': 0,
+            },
+            'source_file': source_file,
+            'mtr_data': None,
+            'validation_details': None,
+            'approved': False,
+            'approved_by': '',
+            'approved_at': '',
+            'staging_tiff_path': '',
+        }
+
+        # Append to history file
+        with open(self.history_file, 'a') as f:
+            f.write(json.dumps(record) + '\n')
+
+        # Update date index
+        if date_str not in self._index['by_date']:
+            self._index['by_date'][date_str] = []
+        self._index['by_date'][date_str].append(validation_id)
+
+        self._save_index()
+
+        return validation_id
+
     def get(self, validation_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific validation by ID."""
         if not self.history_file.exists():
@@ -144,12 +204,66 @@ class ValidationHistory:
         # Return last N
         return records[-limit:]
     
+    def approve(self, validation_id: str, approved_by: str) -> bool:
+        """Mark a record as approved. Returns True on success."""
+        return self.update(
+            validation_id,
+            approved=True,
+            approved_by=approved_by,
+            approved_at=datetime.now(timezone.utc).isoformat(),
+        )
+
+    def update(self, validation_id: str, **fields) -> bool:
+        """Update arbitrary fields on a history record. Rewrites the JSONL file."""
+        if not self.history_file.exists():
+            return False
+
+        records = []
+        found = False
+        with open(self.history_file) as f:
+            for line in f:
+                record = json.loads(line)
+                if record['validation_id'] == validation_id:
+                    record.update(fields)
+                    found = True
+                records.append(record)
+
+        if not found:
+            return False
+
+        with open(self.history_file, 'w') as f:
+            for record in records:
+                f.write(json.dumps(record) + '\n')
+
+        return True
+
+    def pending(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Return records where approved == False, most recent first."""
+        if not self.history_file.exists():
+            return []
+
+        records = []
+        with open(self.history_file) as f:
+            for line in f:
+                record = json.loads(line)
+                if not record.get('approved', False):
+                    records.append(record)
+
+        return list(reversed(records[-limit:]))
+
+    def clear(self):
+        """Delete all history records and reset the index."""
+        if self.history_file.exists():
+            self.history_file.unlink()
+        self._index = {'by_heat': {}, 'by_spec': {}, 'by_date': {}}
+        self._save_index()
+
     def stats(self) -> Dict[str, Any]:
         """Get validation statistics."""
         if not self.history_file.exists():
-            return {'total': 0, 'pass': 0, 'fail': 0, 'incomplete': 0}
+            return {'total': 0, 'pass': 0, 'fail': 0, 'incomplete': 0, 'pending': 0}
 
-        stats = {'total': 0, 'pass': 0, 'fail': 0, 'incomplete': 0}
+        stats = {'total': 0, 'pass': 0, 'fail': 0, 'incomplete': 0, 'pending': 0}
 
         with open(self.history_file) as f:
             for line in f:
@@ -162,6 +276,8 @@ class ValidationHistory:
                     stats['fail'] += 1
                 elif result in ('INCOMPLETE', 'UNKNOWN'):
                     stats['incomplete'] += 1
+                if not record.get('approved', False):
+                    stats['pending'] += 1
 
         return stats
     

@@ -27,7 +27,7 @@ except ImportError:
 from tkinter import filedialog, messagebox
 
 from lib.spec_loader import SpecLoader
-from lib.validator import SpecValidator, format_validation_report
+from lib.validator import SpecValidator, CertValidation, format_validation_report
 from lib.matcher import SpecMatcher
 from lib.sanity import run_all_sanity_checks, format_sanity_report
 from lib.history import ValidationHistory
@@ -37,6 +37,7 @@ from lib.watcher import FolderWatcher
 from .config import Config
 from .tiff_export import generate_archive_filename, sanitize_filename
 from .settings import SettingsPanel
+from .override_dialog import OverrideDialog
 from .theme import COLORS, FONTS, ICONS, SIDEBAR_WIDTH, status_color
 
 logger = logging.getLogger(__name__)
@@ -119,6 +120,11 @@ class MaterialValidatorApp:
         self._approval_queue: List[PipelineResult] = []
         self.staging_tiff_path: Optional[str] = None
         self._pipeline_lock = threading.Lock()
+        self._override_operator: str = ""
+        self._current_history_id: Optional[str] = None
+
+        # History filter state
+        self._history_filter: str = "all"
 
         # View navigation state
         self.current_view = 'validate'
@@ -450,6 +456,21 @@ class MaterialValidatorApp:
             command=lambda: self.po_var.set(''),
         ).pack(side='left', padx=(4, 0))
 
+        # Approved By field (sticky — persists between validations)
+        ctk.CTkLabel(
+            left_controls, text="Approved By:", font=FONTS['label'],
+            text_color=COLORS['text_secondary'],
+        ).pack(side='left', padx=(16, 6))
+
+        self.approved_by_var = ctk.StringVar(value='')
+        self.approved_by_entry = ctk.CTkEntry(
+            left_controls, textvariable=self.approved_by_var, width=150,
+            placeholder_text="Your name",
+            fg_color=COLORS['bg_input'], border_color=COLORS['border'],
+            text_color=COLORS['text_primary'], font=FONTS['body'],
+        )
+        self.approved_by_entry.pack(side='left')
+
         # -- Right group: action buttons --
         btn_frame = ctk.CTkFrame(controls_row, fg_color='transparent')
         btn_frame.pack(side='right')
@@ -472,6 +493,15 @@ class MaterialValidatorApp:
             command=self._validate,
         )
         self.validate_btn.pack(side='left', padx=4)
+
+        self.override_btn = ctk.CTkButton(
+            btn_frame, text="Override", width=100,
+            font=FONTS['badge'], state='disabled',
+            fg_color=COLORS['orange'], hover_color=COLORS['orange_hover'],
+            text_color='#FFFFFF',
+            command=self._open_override_dialog,
+        )
+        self.override_btn.pack(side='left', padx=4)
 
         self.preview_btn = ctk.CTkButton(
             btn_frame, text="Preview", width=90,
@@ -621,6 +651,7 @@ class MaterialValidatorApp:
         tw.tag_configure('header', foreground=COLORS['accent_light'])
         tw.tag_configure('label', foreground=COLORS['text_secondary'])
         tw.tag_configure('value', foreground=COLORS['text_primary'])
+        tw.tag_configure('override', foreground=COLORS['orange'], font=('Consolas', 11, 'italic'))
 
         dtw = self.data_text._textbox
         dtw.tag_configure('key', foreground=COLORS['accent_light'])
@@ -629,7 +660,7 @@ class MaterialValidatorApp:
 
     # ============================================================= History View
     def _create_history_view(self):
-        """Build the history view with stats bar and scrollable rows."""
+        """Build the history view with stats bar, filter bar, and scrollable rows."""
         view = ctk.CTkFrame(self.content_area, fg_color=COLORS['bg_darkest'])
         self.content_frames['history'] = view
 
@@ -637,6 +668,33 @@ class MaterialValidatorApp:
         self.history_stats_frame = ctk.CTkFrame(view, fg_color=COLORS['bg_card'], corner_radius=8, height=60)
         self.history_stats_frame.pack(fill='x', padx=8, pady=(8, 4))
         self.history_stats_frame.pack_propagate(False)
+
+        # Filter bar
+        filter_frame = ctk.CTkFrame(view, fg_color='transparent', height=36)
+        filter_frame.pack(fill='x', padx=8, pady=(4, 0))
+        filter_frame.pack_propagate(False)
+
+        self._history_filter_buttons: Dict[str, Any] = {}
+        for filter_name in ['All', 'Pending', 'Approved', 'Pass', 'Fail', 'Incomplete']:
+            btn = ctk.CTkButton(
+                filter_frame, text=filter_name, width=90, height=28,
+                font=FONTS['label'], corner_radius=14,
+                fg_color=COLORS['bg_card'], hover_color=COLORS['surface_hl'],
+                border_color=COLORS['border'], border_width=1,
+                text_color=COLORS['text_secondary'],
+                command=lambda f=filter_name.lower(): self._set_history_filter(f),
+            )
+            btn.pack(side='left', padx=2)
+            self._history_filter_buttons[filter_name.lower()] = btn
+
+        # Clear history button (right-aligned)
+        ctk.CTkButton(
+            filter_frame, text="Clear History", width=110, height=28,
+            font=FONTS['label'], corner_radius=14,
+            fg_color=COLORS['error'], hover_color='#c0392b',
+            text_color='#ffffff',
+            command=self._clear_history,
+        ).pack(side='right', padx=2)
 
         # Scrollable history list
         self.history_scroll = ctk.CTkScrollableFrame(
@@ -646,8 +704,28 @@ class MaterialValidatorApp:
         )
         self.history_scroll.pack(fill='both', expand=True, padx=8, pady=(4, 8))
 
+    def _clear_history(self):
+        """Clear all history after user confirmation."""
+        stats = self.history.stats()
+        if stats['total'] == 0:
+            messagebox.showinfo("Clear History", "History is already empty.")
+            return
+        confirmed = messagebox.askyesno(
+            "Clear History",
+            f"This will permanently delete all {stats['total']} history records.\n\nAre you sure?",
+        )
+        if confirmed:
+            self.history.clear()
+            self._refresh_history_view()
+            self._set_status("History cleared")
+
+    def _set_history_filter(self, filter_name: str):
+        """Update the active history filter and refresh the view."""
+        self._history_filter = filter_name
+        self._refresh_history_view()
+
     def _refresh_history_view(self):
-        """Populate history view from history data."""
+        """Populate history view from history data with active filter applied."""
         for w in self.history_stats_frame.winfo_children():
             w.destroy()
 
@@ -657,9 +735,10 @@ class MaterialValidatorApp:
 
         for label_text, count, color in [
             ("Total", stats.get('total', 0), COLORS['text_primary']),
+            ("Pending", stats.get('pending', 0), COLORS['orange']),
             ("Pass", stats.get('pass', 0), COLORS['success']),
             ("Fail", stats.get('fail', 0), COLORS['error']),
-            ("Incomplete", stats.get('incomplete', 0), COLORS['orange']),
+            ("Incomplete", stats.get('incomplete', 0), COLORS['text_secondary']),
         ]:
             col = ctk.CTkFrame(stats_inner, fg_color='transparent')
             col.pack(side='left', expand=True)
@@ -670,10 +749,24 @@ class MaterialValidatorApp:
                 col, text=label_text, font=FONTS['label'], text_color=COLORS['text_secondary'],
             ).pack()
 
+        # Update filter button styling
+        if hasattr(self, '_history_filter_buttons'):
+            for name, btn in self._history_filter_buttons.items():
+                if name == self._history_filter:
+                    btn.configure(
+                        fg_color=COLORS['accent'], text_color='#FFFFFF',
+                        border_color=COLORS['accent'],
+                    )
+                else:
+                    btn.configure(
+                        fg_color=COLORS['bg_card'], text_color=COLORS['text_secondary'],
+                        border_color=COLORS['border'],
+                    )
+
         for w in self.history_scroll.winfo_children():
             w.destroy()
 
-        records = self.history.recent(limit=50)
+        records = self.history.recent(limit=100)
         if not records:
             ctk.CTkLabel(
                 self.history_scroll, text="No validation history yet.",
@@ -681,14 +774,46 @@ class MaterialValidatorApp:
             ).pack(pady=30)
             return
 
-        for record in reversed(records):
+        # Apply filter
+        active_filter = self._history_filter
+        filtered = []
+        for record in records:
+            if active_filter == 'all':
+                filtered.append(record)
+            elif active_filter == 'pending':
+                if not record.get('approved', False):
+                    filtered.append(record)
+            elif active_filter == 'approved':
+                if record.get('approved', False):
+                    filtered.append(record)
+            elif active_filter == 'pass':
+                if record.get('result', '').upper() == 'PASS':
+                    filtered.append(record)
+            elif active_filter == 'fail':
+                if record.get('result', '').upper() == 'FAIL':
+                    filtered.append(record)
+            elif active_filter == 'incomplete':
+                if record.get('result', '').upper() in ('INCOMPLETE', 'UNKNOWN'):
+                    filtered.append(record)
+
+        if not filtered:
+            ctk.CTkLabel(
+                self.history_scroll, text=f"No {active_filter} records.",
+                font=FONTS['body'], text_color=COLORS['text_secondary'],
+            ).pack(pady=30)
+            return
+
+        for record in reversed(filtered):
             self._create_history_row(self.history_scroll, record)
 
     def _create_history_row(self, parent, record: dict):
-        """Create a single history row with info, copy heat#, and view report buttons."""
+        """Create a single history row — pending items show Review, approved show View Report."""
+        is_approved = record.get('approved', False)
+
         row = ctk.CTkFrame(
             parent, fg_color=COLORS['bg_card'], corner_radius=6, height=44,
-            border_color=COLORS['border'], border_width=1,
+            border_color=COLORS['orange'] if not is_approved else COLORS['border'],
+            border_width=1,
         )
         row.pack(fill='x', pady=2)
         row.pack_propagate(False)
@@ -696,15 +821,34 @@ class MaterialValidatorApp:
         inner = ctk.CTkFrame(row, fg_color='transparent')
         inner.pack(fill='both', expand=True, padx=12, pady=4)
 
-        # -- Left side: status badge + identifier + spec --
+        # -- Left side: result badge + approval badge + identifier + spec --
         result_status = record.get('result', 'UNKNOWN')
         badge = self._create_status_badge(inner, result_status, result_status)
-        badge.pack(side='left', padx=(0, 10))
+        badge.pack(side='left', padx=(0, 6))
+
+        # Approval status badge
+        if is_approved:
+            ctk.CTkLabel(
+                inner, text=" APPROVED ", font=FONTS['badge'],
+                fg_color=COLORS['success'], text_color=COLORS['bg_darkest'],
+                corner_radius=12, height=22,
+            ).pack(side='left', padx=(0, 4))
+            approver = record.get('approved_by', '')
+            if approver:
+                ctk.CTkLabel(
+                    inner, text=approver, font=FONTS['small'],
+                    text_color=COLORS['text_secondary'],
+                ).pack(side='left', padx=(0, 6))
+        else:
+            ctk.CTkLabel(
+                inner, text=" PENDING ", font=FONTS['badge'],
+                fg_color=COLORS['orange'], text_color=COLORS['bg_darkest'],
+                corner_radius=12, height=22,
+            ).pack(side='left', padx=(0, 6))
 
         # Determine Heat# vs Batch# from the stored mtr_data
         mtr = record.get('mtr_data', {})
         id_label, id_value = _get_identifier(mtr)
-        # Fallback to heat_number stored at top level
         if id_value == 'N/A':
             id_value = record.get('heat_number', 'N/A')
 
@@ -720,25 +864,46 @@ class MaterialValidatorApp:
         ).pack(side='left', padx=(0, 8))
 
         # -- Right side: timestamp + action buttons --
-        # View Report button
-        ctk.CTkButton(
-            inner, text="View Report", width=90, height=28,
-            font=FONTS['label'],
-            fg_color=COLORS['accent'], hover_color=COLORS['accent_hover'],
-            text_color='#FFFFFF',
-            command=lambda r=record: self._view_history_report(r),
-        ).pack(side='right', padx=(4, 0))
+        if is_approved:
+            # View Report button for approved records
+            ctk.CTkButton(
+                inner, text="View Report", width=90, height=28,
+                font=FONTS['label'],
+                fg_color=COLORS['accent'], hover_color=COLORS['accent_hover'],
+                text_color='#FFFFFF',
+                command=lambda r=record: self._view_history_report(r),
+            ).pack(side='right', padx=(4, 0))
+        else:
+            # Review button for pending records
+            ctk.CTkButton(
+                inner, text="Review", width=80, height=28,
+                font=FONTS['label'],
+                fg_color=COLORS['orange'], hover_color=COLORS['orange_hover'],
+                text_color='#FFFFFF',
+                command=lambda r=record: self._review_from_history(r),
+            ).pack(side='right', padx=(4, 0))
+
+        # Copy PO# button (if PO available)
+        po_number = mtr.get('po_number', '') or ''
+        if po_number:
+            ctk.CTkButton(
+                inner, text="Copy PO#", width=80, height=28,
+                font=FONTS['label'],
+                fg_color=COLORS['bg_dark'], hover_color=COLORS['surface_hl'],
+                border_color=COLORS['border'], border_width=1,
+                text_color=COLORS['text_primary'],
+                command=lambda v=po_number: self._copy_identifier(v, "PO"),
+            ).pack(side='right', padx=(4, 0))
 
         # Copy identifier button (Heat# or Batch#)
-        copy_btn = ctk.CTkButton(
+        ctk.CTkButton(
             inner, text=f"Copy {id_label}#", width=90, height=28,
             font=FONTS['label'],
             fg_color=COLORS['bg_dark'], hover_color=COLORS['surface_hl'],
             border_color=COLORS['border'], border_width=1,
             text_color=COLORS['text_primary'],
             command=lambda v=id_value, lbl=id_label: self._copy_identifier(v, lbl),
-        )
-        copy_btn.pack(side='right', padx=(4, 0))
+        ).pack(side='right', padx=(4, 0))
 
         # Timestamp
         ts = record.get('timestamp', '')
@@ -826,6 +991,8 @@ class MaterialValidatorApp:
                 st = r.get('status', 'UNKNOWN')
                 stag = st.lower() if st.lower() in ('pass', 'fail', 'missing', 'skip') else 'warn'
                 tw.insert('end', f"{st}\n", stag)
+                if r.get('original_status'):
+                    tw.insert('end', f"         ^^ OVERRIDDEN from {r['original_status']} by {r.get('override_by', '?')}: {r.get('override_reason', '')}\n", 'override')
 
         # Mechanical
         mech = details.get('mechanical', [])
@@ -841,6 +1008,8 @@ class MaterialValidatorApp:
                 st = r.get('status', 'UNKNOWN')
                 stag = st.lower() if st.lower() in ('pass', 'fail', 'missing', 'skip') else 'warn'
                 tw.insert('end', f"{st}\n", stag)
+                if r.get('original_status'):
+                    tw.insert('end', f"         ^^ OVERRIDDEN from {r['original_status']} by {r.get('override_by', '?')}: {r.get('override_reason', '')}\n", 'override')
 
         # Special
         special = details.get('special', [])
@@ -854,6 +1023,8 @@ class MaterialValidatorApp:
                 if r.get('note'):
                     tw.insert('end', f"  ({r['note']})", 'label')
                 tw.insert('end', "\n")
+                if r.get('original_status'):
+                    tw.insert('end', f"         ^^ OVERRIDDEN from {r['original_status']} by {r.get('override_by', '?')}: {r.get('override_reason', '')}\n", 'override')
 
         # Errors / Warnings
         for section, label_tag in [('errors', 'fail'), ('warnings', 'warn')]:
@@ -877,6 +1048,69 @@ class MaterialValidatorApp:
         # Update header with smart identifier
         self._update_header_status(overall, f"{id_label}# {id_value} | {record.get('spec_id', '')}")
         self._set_status(f"Viewing history: {id_label}# {id_value} ({overall})")
+
+    def _review_from_history(self, record: dict):
+        """Load a pending history record into the validate view for review/override/approval."""
+        # Reconstruct CertValidation from stored details
+        details = record.get('validation_details', {})
+        if details:
+            self.validation_result = CertValidation.from_dict(details)
+        else:
+            self.validation_result = None
+
+        self.extracted_data = record.get('mtr_data', {})
+        self.current_file = record.get('source_file')
+        self._current_history_id = record.get('validation_id')
+        self.staging_tiff_path = record.get('staging_tiff_path') or None
+
+        # Switch to validate view
+        self._navigate_to('validate')
+
+        # Populate extracted data panel
+        if ctk and self.extracted_data:
+            self._display_extracted_data(self.extracted_data)
+
+        # Populate validation result panel
+        if self.validation_result and ctk:
+            self._display_validation_results(self.validation_result)
+        elif details:
+            self._view_history_report(record)
+            # Re-set the history id after _view_history_report
+            self._current_history_id = record.get('validation_id')
+            self.staging_tiff_path = record.get('staging_tiff_path') or None
+
+        # Update header
+        mtr = record.get('mtr_data', {})
+        id_label, id_value = _get_identifier(mtr)
+        if id_value == 'N/A':
+            id_value = record.get('heat_number', 'N/A')
+        overall = record.get('result', 'UNKNOWN')
+        if ctk:
+            filename = Path(self.current_file).name if self.current_file else 'History review'
+            self.drop_zone.configure(
+                text=f"{ICONS['file']}  {filename}\n(reviewing from history)",
+                text_color=COLORS['text_primary'],
+            )
+            self.header_file_label.configure(text=filename, text_color=COLORS['text_primary'])
+            self._update_header_status(overall, f"{id_label}# {id_value} | {record.get('spec_id', '')}")
+
+        # Update spec dropdown
+        spec_id = record.get('spec_id', '')
+        if spec_id and hasattr(self, 'spec_var'):
+            self.spec_var.set(spec_id)
+
+        # Enable buttons
+        if ctk:
+            self._set_button_state(self.approve_btn, 'normal')
+            if self.validation_result:
+                self._set_button_state(self.override_btn, 'normal')
+                self._set_button_state(self.validate_btn, 'normal')
+            if self.staging_tiff_path and Path(self.staging_tiff_path).exists():
+                self._set_button_state(self.preview_btn, 'normal')
+            else:
+                self._set_button_state(self.preview_btn, 'disabled')
+
+        self._set_status(f"Reviewing: {id_label}# {id_value} ({overall}) — Override or Approve")
 
     # ============================================================= Settings View
     def _create_settings_view(self):
@@ -1001,6 +1235,8 @@ class MaterialValidatorApp:
                 tw.insert('end', f"  {r.property_name:<10}{smin:>8}{smax:>8}{actual:>10}  ", 'value')
                 tag = r.status.lower() if r.status.lower() in ('pass', 'fail', 'missing', 'skip') else 'warn'
                 tw.insert('end', f"{r.status}\n", tag)
+                if r.is_overridden:
+                    tw.insert('end', f"         ^^ OVERRIDDEN from {r.original_status} by {r.override_by}: {r.override_reason}\n", 'override')
 
         if result.mechanical_results:
             tw.insert('end', "\n  Mechanical Properties\n", 'header')
@@ -1013,6 +1249,8 @@ class MaterialValidatorApp:
                 tw.insert('end', f"  {r.property_name:<20}{smin:>8}{smax:>8}{actual:>10}  ", 'value')
                 tag = r.status.lower() if r.status.lower() in ('pass', 'fail', 'missing', 'skip') else 'warn'
                 tw.insert('end', f"{r.status}\n", tag)
+                if r.is_overridden:
+                    tw.insert('end', f"         ^^ OVERRIDDEN from {r.original_status} by {r.override_by}: {r.override_reason}\n", 'override')
 
         if result.special_results:
             tw.insert('end', "\n  Special Requirements\n", 'header')
@@ -1023,6 +1261,8 @@ class MaterialValidatorApp:
                 if r.note:
                     tw.insert('end', f"  ({r.note})", 'label')
                 tw.insert('end', "\n")
+                if r.is_overridden:
+                    tw.insert('end', f"         ^^ OVERRIDDEN from {r.original_status} by {r.override_by}: {r.override_reason}\n", 'override')
 
         if result.errors:
             tw.insert('end', "\n  Errors\n", 'fail')
@@ -1058,8 +1298,9 @@ class MaterialValidatorApp:
 
     def _load_file(self, file_path: str):
         """Load a file for processing."""
-        # Clean up previous staging TIFF if it wasn't approved
-        self._cleanup_staging()
+        # Don't delete staging TIFF — it's now tracked in history for pending records
+        self.staging_tiff_path = None
+        self._current_history_id = None
 
         self.current_file = file_path
         self.extracted_data = None
@@ -1076,6 +1317,7 @@ class MaterialValidatorApp:
             self._update_header_status('Ready', filename)
             self.extract_btn.configure(state='normal')
             self.validate_btn.configure(state='disabled')
+            self.override_btn.configure(state='disabled')
             self.preview_btn.configure(state='disabled')
             self.approve_btn.configure(state='disabled')
         else:
@@ -1228,11 +1470,24 @@ class MaterialValidatorApp:
         if result.spec_id and hasattr(self, 'spec_var'):
             self.spec_var.set(result.spec_id)
 
-        # Enable approve/preview buttons for the approval gate
+        # Record to history immediately as PENDING
+        if result.validation:
+            spec_id = result.spec_id
+            spec = self.spec_loader.get(spec_id) if spec_id else {}
+            vid = self.history.record(
+                result.validation, self.extracted_data, spec,
+                self.current_file,
+                staging_tiff_path=self.staging_tiff_path,
+            )
+            self._current_history_id = vid
+
+        # Enable approve/preview/override buttons for the approval gate
         if ctk:
             if self.staging_tiff_path and Path(self.staging_tiff_path).exists():
                 self._set_button_state(self.preview_btn, 'normal')
             self._set_button_state(self.approve_btn, 'normal')
+            if self.validation_result:
+                self._set_button_state(self.override_btn, 'normal')
         self._update_queue_indicator()
 
     def _on_extract_error(self, error: str):
@@ -1242,6 +1497,17 @@ class MaterialValidatorApp:
         self._set_progress(0)
         if ctk:
             self._update_header_status('ERROR')
+
+        # Record the error in history so every file has an audit trail
+        try:
+            self.history.record_error(
+                source_file=getattr(self, 'current_file', None),
+                error_type="PIPELINE_FAILED",
+                error_message=error,
+            )
+        except Exception:
+            logger.debug("Could not record error to history", exc_info=True)
+
         messagebox.showerror("Pipeline Failed", error)
 
     def _validate(self):
@@ -1274,7 +1540,57 @@ class MaterialValidatorApp:
             self._clear_text(self.result_text)
             self._insert_text(self.result_text, format_validation_report(result, use_color=False))
 
+        # Update pending history record with new validation
+        if self._current_history_id:
+            self.history.update(
+                self._current_history_id,
+                validation_details=result.to_dict(),
+                result=result.overall_status,
+                spec_id=spec_id,
+                summary={
+                    'pass_count': result.pass_count,
+                    'fail_count': result.fail_count,
+                    'missing_count': result.missing_count,
+                },
+            )
+
         self._set_status(f"{result.overall_status} - {id_label}# {id_value} (Spec: {spec_id}) — Review & Approve")
+
+    def _open_override_dialog(self):
+        """Open the override dialog for the current validation result."""
+        if not self.validation_result:
+            return
+        # Pre-fill operator from Approved By field or previous override
+        operator = ''
+        if ctk and hasattr(self, 'approved_by_var'):
+            operator = self.approved_by_var.get().strip()
+        if not operator:
+            operator = self._override_operator
+        dialog = OverrideDialog(self.root, self.validation_result, operator)
+        self.root.wait_window(dialog)
+        if dialog.applied:
+            self._override_operator = dialog.operator_name
+            # Sync back to Approved By field
+            if ctk and hasattr(self, 'approved_by_var'):
+                self.approved_by_var.set(dialog.operator_name)
+            self._display_validation_results(self.validation_result)
+            self._update_header_status(
+                self.validation_result.overall_status,
+                self.header_file_label.cget('text'),
+            )
+            # Persist overrides to pending history record
+            if self._current_history_id:
+                self.history.update(
+                    self._current_history_id,
+                    validation_details=self.validation_result.to_dict(),
+                    result=self.validation_result.overall_status,
+                    summary={
+                        'pass_count': self.validation_result.pass_count,
+                        'fail_count': self.validation_result.fail_count,
+                        'missing_count': self.validation_result.missing_count,
+                    },
+                )
+            self._set_status(f"Applied {dialog.override_count} override(s) by {dialog.operator_name}")
 
     def _preview_tiff(self):
         """Open the staging TIFF in the system's default viewer."""
@@ -1284,9 +1600,50 @@ class MaterialValidatorApp:
             messagebox.showwarning("No Preview", "No staging TIFF available to preview.")
 
     def _approve(self):
-        """Approve the current result: move staging TIFF to archive, record history."""
+        """Approve the current result: move staging TIFF to archive, record history, generate report."""
         if not self.extracted_data:
             return
+
+        # Material-type guardrail: block metal-vs-polymer cross-approval
+        if self.validation_result and self.extracted_data:
+            mismatch = self._check_material_spec_mismatch()
+            if mismatch:
+                messagebox.showerror(
+                    "Material / Spec Type Mismatch",
+                    mismatch + "\n\nApproval blocked. Select the correct spec and re-validate.",
+                )
+                return
+
+        # Block approval unless validation is PASS
+        if self.validation_result:
+            overall = self.validation_result.overall_status.upper()
+            if overall != 'PASS':
+                messagebox.showwarning(
+                    "Cannot Approve",
+                    f"Overall status is {overall}.\n\n"
+                    "Only PASS results can be approved.\n"
+                    "Use Override to correct any incorrect results first.",
+                )
+                return
+
+        # Require "Approved By" name
+        approved_by = ''
+        if ctk and hasattr(self, 'approved_by_var'):
+            approved_by = self.approved_by_var.get().strip()
+        if not approved_by:
+            # Fall back to override operator if set
+            approved_by = self._override_operator
+        if not approved_by:
+            messagebox.showwarning(
+                "Name Required",
+                "Please enter your name in the 'Approved By' field before approving.",
+            )
+            if ctk and hasattr(self, 'approved_by_entry'):
+                self.approved_by_entry.focus_set()
+            return
+
+        # Keep override operator in sync
+        self._override_operator = approved_by
 
         archive_folder = self.config.effective_output_folder
         if not archive_folder:
@@ -1335,22 +1692,58 @@ class MaterialValidatorApp:
             # No staging TIFF (e.g. non-PDF input) — nothing to move
             logger.info("Approved (no TIFF): %s", heat_number)
 
-        # Record to history
-        if self.validation_result:
+        # Generate verification report alongside the TIFF
+        report_path = final_path.with_suffix('').with_name(
+            final_path.stem + '_APPROVAL REPORT.txt'
+        )
+        try:
+            from lib.report import generate_verification_report
+            report_text = generate_verification_report(
+                validation=self.validation_result,
+                mtr_data=self.extracted_data,
+                approved_by=approved_by,
+                source_file=self.current_file,
+                po_number=po_number,
+            )
+            report_path.write_text(report_text, encoding='utf-8')
+            logger.info("Verification report: %s", report_path)
+        except Exception as e:
+            logger.error("Failed to write verification report: %s", e)
+
+        # Approve the existing pending history record (or create one if missing)
+        if self._current_history_id:
+            # Update validation_details in case overrides were applied
+            if self.validation_result:
+                self.history.update(
+                    self._current_history_id,
+                    validation_details=self.validation_result.to_dict(),
+                    result=self.validation_result.overall_status,
+                    summary={
+                        'pass_count': self.validation_result.pass_count,
+                        'fail_count': self.validation_result.fail_count,
+                        'missing_count': self.validation_result.missing_count,
+                    },
+                )
+            self.history.approve(self._current_history_id, approved_by)
+            self._current_history_id = None
+        elif self.validation_result:
+            # Fallback: no pending record exists — create an approved one
             spec_id = self.spec_var.get() if hasattr(self, 'spec_var') else None
             if spec_id == 'Auto-detect':
                 spec_id = self.pipeline_result.spec_id if self.pipeline_result else None
             spec = self.spec_loader.get(spec_id) if spec_id else {}
-            self.history.record(
+            vid = self.history.record(
                 self.validation_result, self.extracted_data,
-                spec, self.current_file
+                spec, self.current_file,
             )
+            self.history.approve(vid, approved_by)
 
         # Update UI
         self._set_status(f"Approved: {final_path.name}")
         if ctk:
             self._update_header_status('PASS', f"Approved: {final_path.name}")
             self._set_button_state(self.approve_btn, 'disabled')
+            self._set_button_state(self.override_btn, 'disabled')
             self._set_button_state(self.preview_btn, 'disabled')
 
         # Load next queued item if any
@@ -1512,7 +1905,14 @@ class MaterialValidatorApp:
 
                 def handle_result():
                     if currently_reviewing:
-                        # Queue the result — don't overwrite the current review
+                        # Record to history immediately even when queuing
+                        if result.validation:
+                            ed = result.normalized_data or result.extracted_data
+                            spec = self.spec_loader.get(result.spec_id) if result.spec_id else {}
+                            self.history.record(
+                                result.validation, ed, spec, file_path,
+                                staging_tiff_path=result.output_tiff_path,
+                            )
                         self._approval_queue.append(result)
                         self._update_queue_indicator()
                         self._set_status(
@@ -1538,12 +1938,53 @@ class MaterialValidatorApp:
             except Exception as e:
                 logger.exception("Watch auto-process error: %s", e)
                 self.watcher.mark_processed(file_path)
+                # Record error in history for audit trail
+                try:
+                    self.history.record_error(
+                        source_file=file_path,
+                        error_type="WATCH_PIPELINE_FAILED",
+                        error_message=str(e),
+                    )
+                except Exception:
+                    logger.debug("Could not record watcher error to history", exc_info=True)
                 if not currently_reviewing:
                     self.root.after(0, lambda: self._on_extract_error(str(e)))
             finally:
                 self._pipeline_lock.release()
 
         threading.Thread(target=do_auto, daemon=True).start()
+
+    # ============================================= Material / Spec Guard
+    def _check_material_spec_mismatch(self) -> str:
+        """Return a warning string if extracted material type doesn't match spec type, else ''."""
+        if not self.validation_result or not self.extracted_data:
+            return ''
+
+        spec_id = self.validation_result.spec_id or ''
+        chem = self.extracted_data.get('chemistry', {})
+
+        # Determine if the extracted material is metallic
+        from lib.matcher import SpecMatcher
+        has_metals = SpecMatcher._is_metallic(self.extracted_data)
+
+        # Determine if the spec is non-metal using the DDIC family number convention
+        spec_data = self.spec_loader.get(spec_id) if spec_id else {}
+        is_non_metal_spec = SpecMatcher._is_non_metal_spec(spec_id, spec_data or {})
+
+        if has_metals and is_non_metal_spec:
+            return (
+                f"The extracted material has metallic chemistry (Fe, Cr, Ni, etc.) "
+                f"but is being validated against a non-metal spec ({spec_id}).\n"
+                f"This is almost certainly wrong."
+            )
+        if not has_metals and not is_non_metal_spec and chem:
+            return (
+                f"The extracted material has no metallic chemistry "
+                f"but is being validated against a metal spec ({spec_id}).\n"
+                f"This is almost certainly wrong."
+            )
+
+        return ''
 
     # ============================================================= Helpers
     def _set_status(self, text: str):
@@ -1568,18 +2009,23 @@ class MaterialValidatorApp:
         widget.insert('end', text)
 
     def _on_close(self):
-        """Handle window close."""
+        """Handle window close.
+
+        Staging TIFFs for pending history records are kept — they'll be needed
+        when the user reviews them later.  Only TIFFs that were never recorded
+        to history (e.g. error cases with no _current_history_id) are removed.
+        """
         if self.watcher.is_watching():
             self.watcher.stop_watching()
-        # Clean up any unapproved staging files
-        self._cleanup_staging()
-        # Clean up queued staging files too
-        for queued in self._approval_queue:
-            if queued.output_tiff_path and Path(queued.output_tiff_path).exists():
-                try:
-                    os.remove(queued.output_tiff_path)
-                except OSError:
-                    pass
+        # Only clean up staging TIFF if it was never persisted to history
+        if self.staging_tiff_path and not self._current_history_id:
+            try:
+                if Path(self.staging_tiff_path).exists():
+                    os.remove(self.staging_tiff_path)
+            except OSError:
+                pass
+        self.staging_tiff_path = None
+        # Queued items are already in history — don't delete their TIFFs
         self._approval_queue.clear()
         self.config.update({
             'window_width': self.root.winfo_width(),
@@ -1627,11 +2073,19 @@ class MaterialValidatorApp:
         self.validate_btn = ttk.Button(frame, text="Validate", command=self._validate, state='disabled')
         self.validate_btn.pack(side='left', padx=5)
 
+        self.override_btn = ttk.Button(frame, text="Override", command=self._open_override_dialog, state='disabled')
+        self.override_btn.pack(side='left', padx=5)
+
         self.preview_btn = ttk.Button(frame, text="Preview", command=self._preview_tiff, state='disabled')
         self.preview_btn.pack(side='left', padx=5)
 
         self.approve_btn = ttk.Button(frame, text="Approve", command=self._approve, state='disabled')
         self.approve_btn.pack(side='left', padx=5)
+
+        ttk.Label(frame, text="Approved By:").pack(side='left', padx=(10, 2))
+        self.approved_by_var = tk.StringVar(value='')
+        self.approved_by_entry = ttk.Entry(frame, textvariable=self.approved_by_var, width=15)
+        self.approved_by_entry.pack(side='left', padx=2)
 
         self.watch_btn = ttk.Button(frame, text="Watch: OFF", command=self._toggle_watch)
         self.watch_btn.pack(side='left', padx=10)

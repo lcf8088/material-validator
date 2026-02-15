@@ -20,12 +20,19 @@ class ValidationResult:
     unit: str = ""
     status: str = "UNKNOWN"  # PASS, FAIL, MISSING, SKIP
     note: str = ""
-    
+    original_status: str = ""
+    override_by: str = ""
+    override_reason: str = ""
+
     def is_pass(self) -> bool:
         return self.status == "PASS"
-    
+
     def is_fail(self) -> bool:
         return self.status == "FAIL"
+
+    @property
+    def is_overridden(self) -> bool:
+        return bool(self.original_status)
 
 
 @dataclass
@@ -53,6 +60,35 @@ class CertValidation:
             'errors': self.errors,
             'warnings': self.warnings,
         }
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> 'CertValidation':
+        """Reconstruct a CertValidation from a dict produced by to_dict()."""
+        def _make_result(r: dict) -> ValidationResult:
+            return ValidationResult(
+                property_name=r.get('property_name', ''),
+                spec_min=r.get('spec_min'),
+                spec_max=r.get('spec_max'),
+                actual_value=r.get('actual_value'),
+                unit=r.get('unit', ''),
+                status=r.get('status', 'UNKNOWN'),
+                note=r.get('note', ''),
+                original_status=r.get('original_status', ''),
+                override_by=r.get('override_by', ''),
+                override_reason=r.get('override_reason', ''),
+            )
+
+        return cls(
+            spec_id=d.get('spec_id', ''),
+            heat_number=d.get('heat_number', ''),
+            material_grade=d.get('material_grade', ''),
+            overall_status=d.get('overall_status', 'UNKNOWN'),
+            chemistry_results=[_make_result(r) for r in d.get('chemistry', [])],
+            mechanical_results=[_make_result(r) for r in d.get('mechanical', [])],
+            special_results=[_make_result(r) for r in d.get('special', [])],
+            errors=d.get('errors', []),
+            warnings=d.get('warnings', []),
+        )
     
     @property
     def all_results(self) -> List['ValidationResult']:
@@ -69,6 +105,40 @@ class CertValidation:
     @property
     def missing_count(self) -> int:
         return sum(1 for r in self.all_results if r.status == "MISSING")
+
+    def apply_override(self, category: str, index: int, new_status: str,
+                       operator: str, reason: str):
+        """Override a single result's status, preserving the original."""
+        lists = {
+            'chemistry': self.chemistry_results,
+            'mechanical': self.mechanical_results,
+            'special': self.special_results,
+        }
+        results = lists.get(category)
+        if results is None or index < 0 or index >= len(results):
+            return
+        r = results[index]
+        if not r.original_status:
+            r.original_status = r.status
+        r.status = new_status
+        r.override_by = operator
+        r.override_reason = reason
+
+    def recalculate_overall(self):
+        """Recompute overall_status from current individual statuses."""
+        all_results = self.all_results
+        if not all_results:
+            self.overall_status = 'UNKNOWN'
+            return
+        statuses = [r.status for r in all_results]
+        if 'FAIL' in statuses:
+            self.overall_status = 'FAIL'
+        elif 'MISSING' in statuses or 'INCOMPLETE' in statuses:
+            self.overall_status = 'INCOMPLETE'
+        elif all(s in ('PASS', 'SKIP') for s in statuses):
+            self.overall_status = 'PASS'
+        else:
+            self.overall_status = 'UNKNOWN'
 
 
 # Property name aliases for flexible matching
@@ -338,6 +408,14 @@ class SpecValidator:
                 vr.status = 'INCOMPLETE'
                 vr.note = f'Could not parse temper temperature: {temper}'
                 return vr
+
+            # Convert °C to °F if needed (spec limits are in °F)
+            temper_unit = mtr_data.get('temper_temperature_unit', 'F')
+            if isinstance(temper_unit, str) and temper_unit.upper() == 'C':
+                temper_f = temper * 9 / 5 + 32
+                vr.note = f"Converted from {temper:.0f}°C to {temper_f:.0f}°F"
+                temper = temper_f
+
             vr.actual_value = temper
             vr.spec_min = req.get('min')
             vr.unit = req.get('unit', '°F')
@@ -345,7 +423,7 @@ class SpecValidator:
                 vr.status = 'PASS'
             else:
                 vr.status = 'FAIL'
-                vr.note = f"Below minimum ({temper} < {req['min']})"
+                vr.note = f"Below minimum ({temper:.0f} < {req['min']})"
         else:
             vr.status = 'MISSING'
             vr.note = 'Temper temperature not stated'

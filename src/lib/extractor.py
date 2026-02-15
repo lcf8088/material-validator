@@ -22,6 +22,12 @@ from lib.converters import convert_stress
 
 logger = logging.getLogger(__name__)
 
+# Legacy element name aliases → standard symbols
+ELEMENT_ALIASES = {
+    "Cb": "Nb",          # Columbium → Niobium
+    "Columbium": "Nb",
+}
+
 
 def pdf_to_images(pdf_path: str, dpi: int = 150) -> list:
     """
@@ -141,8 +147,24 @@ def normalize_extracted_data(data: Dict[str, Any]) -> Dict[str, Any]:
         for elem, val in data['chemistry'].items():
             # Normalize element names (title case, strip) - e.g. "cr" → "Cr"
             elem_norm = elem.strip().capitalize()
+            # Map legacy element names to standard symbols
+            elem_norm = ELEMENT_ALIASES.get(elem_norm, elem_norm)
             if isinstance(val, (int, float)):
                 normalized['chemistry'][elem_norm] = float(val)
+            elif isinstance(val, str):
+                # Try to parse string values (e.g. "0.04")
+                try:
+                    normalized['chemistry'][elem_norm] = float(val)
+                except ValueError:
+                    pass
+
+    # Preserve chemistry qualifiers (e.g. {"Ta": "<"})
+    if 'chemistry_qualifiers' in data and data['chemistry_qualifiers']:
+        normalized['chemistry_qualifiers'] = {}
+        for elem, qual in data['chemistry_qualifiers'].items():
+            elem_norm = elem.strip().capitalize()
+            elem_norm = ELEMENT_ALIASES.get(elem_norm, elem_norm)
+            normalized['chemistry_qualifiers'][elem_norm] = qual
     
     # Normalize mechanical properties
     if 'mechanical' in data and data['mechanical']:
@@ -191,12 +213,39 @@ def normalize_extracted_data(data: Dict[str, Any]) -> Dict[str, Any]:
     
     if 'temper_temperature' in data and data['temper_temperature']:
         raw_temper = str(data['temper_temperature']).strip()
-        # Strip unit suffixes (e.g. "1140F", "1140 °F", "620C")
-        temper_match = re.match(r'^([0-9.]+)', raw_temper)
+        # Extract numeric value and detect embedded unit suffix
+        temper_match = re.match(r'^([0-9.]+)\s*°?\s*([CFcf])?', raw_temper)
         if temper_match:
             normalized['temper_temperature'] = float(temper_match.group(1))
+            # Determine unit: prefer explicit field, fall back to suffix, default to F
+            explicit_unit = data.get('temper_temperature_unit')
+            suffix_unit = temper_match.group(2)
+            if explicit_unit:
+                normalized['temper_temperature_unit'] = explicit_unit.upper()
+            elif suffix_unit:
+                normalized['temper_temperature_unit'] = suffix_unit.upper()
+            else:
+                normalized['temper_temperature_unit'] = 'F'  # default assumption
         else:
             normalized['temper_temperature'] = raw_temper
+    elif 'temper_temperature_unit' in data and data.get('temper_temperature') is None:
+        pass  # no temperature value, skip unit too
+
+    # Preserve temper unit if value was already numeric (no suffix to parse)
+    if ('temper_temperature' in normalized
+            and 'temper_temperature_unit' not in normalized
+            and 'temper_temperature_unit' in data
+            and data['temper_temperature_unit']):
+        normalized['temper_temperature_unit'] = data['temper_temperature_unit'].upper()
+
+    # Preserve charpy temperature and unit
+    if 'charpy_temperature' in data and data['charpy_temperature'] is not None:
+        try:
+            normalized['charpy_temperature'] = float(data['charpy_temperature'])
+        except (ValueError, TypeError):
+            normalized['charpy_temperature'] = data['charpy_temperature']
+    if 'charpy_temperature_unit' in data and data['charpy_temperature_unit']:
+        normalized['charpy_temperature_unit'] = data['charpy_temperature_unit'].upper()
     
     if 'nace_compliant' in data and data['nace_compliant'] is not None:
         normalized['nace_compliant'] = data['nace_compliant']

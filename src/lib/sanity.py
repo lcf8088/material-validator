@@ -26,6 +26,13 @@ CHEMISTRY_RANGES = {
     'W':  (0, 20),       # Tungsten
     'Co': (0, 70),       # Cobalt
     'B':  (0, 0.05),     # Boron (usually very low)
+    'Sn': (0, 0.5),      # Tin
+    'Ta': (0, 5),         # Tantalum
+    'Fe': (0, 100),       # Iron (balance element)
+    'Pb': (0, 5),         # Lead (free-machining alloys)
+    'Zn': (0, 50),        # Zinc (brass)
+    'Se': (0, 0.5),       # Selenium
+    'Ca': (0, 0.1),       # Calcium
 }
 
 MECHANICAL_RANGES = {
@@ -102,7 +109,32 @@ def check_chemistry_sanity(chemistry: Dict[str, float]) -> List[Tuple[str, str, 
             f"Cr={cr:.2f}, Ni={ni:.2f}",
             "Possible Cr/Ni column swap - verify"
         ))
-    
+
+    # S/Sn swap detection
+    # For steels (Fe-based or Cr > 5%), S (Sulfur) is typically << Sn (Tin)
+    # If S > Sn and S > 0.01, it may be swapped
+    try:
+        s_val = float(chemistry.get('S', 0) or 0)
+    except (ValueError, TypeError):
+        s_val = 0
+    try:
+        sn_val = float(chemistry.get('Sn', 0) or 0)
+    except (ValueError, TypeError):
+        sn_val = 0
+    try:
+        cu_val = float(chemistry.get('Cu', 0) or 0)
+    except (ValueError, TypeError):
+        cu_val = 0
+
+    # Only flag for steels/nickel alloys, not free-machining or copper alloys
+    is_copper_alloy = cu_val > 50
+    if s_val > sn_val and sn_val > 0 and not is_copper_alloy:
+        warnings.append((
+            'S/Sn',
+            f"S={s_val:.4f}, Sn={sn_val:.4f}",
+            "Possible S/Sn swap - Sulfur higher than Tin is unusual for steels"
+        ))
+
     return warnings
 
 

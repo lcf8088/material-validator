@@ -24,8 +24,26 @@ Below is raw OCR text extracted from an MTR document. Parse it into structured J
 - Stress values: note whether they are in ksi, MPa, or psi. Report the unit exactly as shown on the document.
 - If a field is not present in the OCR text, use null.
 - For po_number: the customer PO always starts with "PO" (e.g., PO001533). Ignore supplier order numbers, internal references, or any number that does not start with "PO".
-- For multiple specimens/tests, use averages for mechanical properties.
-- Element symbols should be standard (C, Mn, P, S, Si, Cr, Ni, Mo, Cu, V, Nb, Ti, Al, N, B, W, Co).
+
+**MECHANICAL AVERAGING**:
+- For multiple specimens tested under the SAME condition, report the average for mechanical properties.
+- If the document has separate columns for different conditions (e.g., "Before Heat Treat" / "After Heat Treat", "As Shipped" / "Capabilities"), always use the FINAL condition values (After Heat Treat, As Shipped, Final). Never average across different conditions.
+- Reduction of Area must come from the tensile test results, not from wrap test, bend test, or other test sections.
+
+**CHEMISTRY EXTRACTION**:
+- Element symbols should be standard (C, Mn, P, S, Si, Cr, Ni, Mo, Cu, V, Nb, Ti, Al, N, B, W, Co, Sn, Ta, Fe, Pb, Zn, Se, Ca, Ce, La, Mg, Zr).
+- Cb (Columbium) is the old name for Niobium. Always output as Nb, never Cb.
+- S (Sulfur) and Sn (Tin) are different elements. S is typically < 0.05% in steels. Sn is typically < 0.03%. Do not confuse them.
+- If an element cell is blank, empty, or not listed on the cert, output null for that element. Do NOT use an adjacent cell's value. Only include elements that are explicitly labeled and have a value printed on the document.
+- For values with less-than qualifiers (e.g., "<0.002", "<0.01"), report the number without the "<" in the chemistry dict, and add the qualifier to the "chemistry_qualifiers" dict (e.g., {{"Ta": "<"}}).
+
+**TEMPERATURE EXTRACTION**:
+- For temper_temperature, report the numeric value AND the unit separately. Use "C" for Celsius, "F" for Fahrenheit.
+- Heat treatment may be described as a multi-step sequence (e.g., "970°C 1HR + 225°C 2HR + 715°C 2HR"). Extract the TEMPERING step specifically. Look for keywords: temper, tempering, anlassen (German), revenu (French). The tempering step is typically the last or second-to-last step, performed at a lower temperature than the austenitizing/hardening step.
+- For charpy_temperature, report the numeric value AND the unit separately. Charpy impact test temperatures may be negative (e.g., -40°C, -20°F). Always preserve the negative sign. Report the exact value and unit as printed on the document.
+
+**MULTI-DOCUMENT PDFs**:
+- This PDF may contain multiple documents from different companies (packing slips, distributor certs, mill certs). Always prefer the ORIGINAL MILL TEST REPORT as the authoritative source for chemistry and mechanical properties. If different pages show conflicting chemistry, use the mill's values, not the distributor's.
 
 **OCR TEXT**:
 {ocr_text}
@@ -47,6 +65,7 @@ Below is raw OCR text extracted from an MTR document. Parse it into structured J
     "C": 0.00,
     "Mn": 0.00
   }},
+  "chemistry_qualifiers": {{}},
   "mechanical": {{
     "yield_strength": 0.0,
     "yield_strength_unit": "ksi",
@@ -58,7 +77,10 @@ Below is raw OCR text extracted from an MTR document. Parse it into structured J
     "hardness_hrc": null
   }},
   "charpy_impact": null,
+  "charpy_temperature": null,
+  "charpy_temperature_unit": null,
   "temper_temperature": null,
+  "temper_temperature_unit": null,
   "nace_compliant": null,
   "grain_size": null
 }}
