@@ -32,9 +32,11 @@ Below is raw OCR text extracted from an MTR document. Parse it into structured J
 
 **CHEMISTRY EXTRACTION**:
 - Element symbols should be standard (C, Mn, P, S, Si, Cr, Ni, Mo, Cu, V, Nb, Ti, Al, N, B, W, Co, Sn, Ta, Fe, Pb, Zn, Se, Ca, Ce, La, Mg, Zr).
-- Cb (Columbium) is the old name for Niobium. Always output as Nb, never Cb.
+- Cb (Columbium) is the old name for Niobium. Always output as Nb, never Cb. If the OCR text shows "Cb:" followed by a numeric value, map that value to the Nb key in the output.
 - S (Sulfur) and Sn (Tin) are different elements. S is typically < 0.05% in steels. Sn is typically < 0.03%. Do not confuse them.
 - If an element cell is blank, empty, or not listed on the cert, output null for that element. Do NOT use an adjacent cell's value. Only include elements that are explicitly labeled and have a value printed on the document.
+- OCR may break element labels and their values across different lines (e.g., "Cb:" on one line and "0.8900" on the next, or "Ta: 0.8900" when the 0.8900 actually belongs to Cb on the previous line). Carefully match each numeric value to the element label it belongs to by considering the document layout. When in doubt, look at the sequence of element labels and align values left-to-right with their labels.
+- IMPORTANT: Look for chemistry TABLE HEADERS first (a row of element symbols like "C Si Mn P S Cr Mo Ni Cu Ti Nb"). Then match the data row values to those headers by position. Only output elements that appear in the header row. Do NOT add elements (like V) that are not in the header row.
 - For values with less-than qualifiers (e.g., "<0.002", "<0.01"), report the number without the "<" in the chemistry dict, and add the qualifier to the "chemistry_qualifiers" dict (e.g., {{"Ta": "<"}}).
 
 **TEMPERATURE EXTRACTION**:

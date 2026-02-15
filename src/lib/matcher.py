@@ -112,26 +112,42 @@ class SpecMatcher:
         matches.sort(key=lambda x: x[1], reverse=True)
         return matches
     
+    @staticmethod
+    def _normalize_grade(grade: str) -> str:
+        """Normalize a grade name for comparison by removing hyphens, extra spaces."""
+        import re
+        return re.sub(r'[\s\-]+', ' ', grade).strip()
+
     def _check_spec_match(self, spec_id: str, spec: dict, mtr_uns: str, mtr_grade: str) -> Optional[MatchResult]:
         """Check if a single spec matches the MTR identifiers."""
         spec_uns = (spec.get('uns') or '').upper().strip()
         spec_grades = [g.upper() for g in spec.get('grades', [])]
-        
+
         # UNS match (highest confidence)
         if mtr_uns and spec_uns and mtr_uns == spec_uns:
             return (spec_id, CONFIDENCE_UNS_MATCH, f"UNS match: {mtr_uns}")
-        
+
         # Grade match
         if mtr_grade:
             # Exact match
             if mtr_grade in spec_grades:
                 return (spec_id, CONFIDENCE_GRADE_EXACT, f"Grade match: {mtr_grade}")
-            
+
+            # Normalized match (hyphens/spaces equivalent: "9Cr 1Mo" == "9Cr-1Mo")
+            mtr_norm = self._normalize_grade(mtr_grade)
+            for sg in spec_grades:
+                if self._normalize_grade(sg) == mtr_norm:
+                    return (spec_id, CONFIDENCE_GRADE_EXACT, f"Grade match (normalized): {mtr_grade} ~ {sg}")
+
             # Partial match (grade contained in spec grades or vice versa)
             for sg in spec_grades:
                 if mtr_grade in sg or sg in mtr_grade:
                     return (spec_id, CONFIDENCE_GRADE_PARTIAL, f"Partial grade match: {mtr_grade} ~ {sg}")
-        
+                # Also try normalized partial match
+                sg_norm = self._normalize_grade(sg)
+                if mtr_norm in sg_norm or sg_norm in mtr_norm:
+                    return (spec_id, CONFIDENCE_GRADE_PARTIAL, f"Partial grade match: {mtr_grade} ~ {sg}")
+
         return None
     
     def select_best_spec(self, mtr_data: Dict[str, Any]) -> Optional[MatchResult]:

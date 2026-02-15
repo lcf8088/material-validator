@@ -129,7 +129,12 @@ def process_document(
             result.errors.append("No pages/images extracted from document.")
             return result
 
-        # Step 3: Preprocess if scanned
+        # Step 3: Fix rotated pages (runs on all pages, not just scanned)
+        _progress("Checking page orientation...", 0.15)
+        from .preprocessor import fix_rotated_pages
+        image_paths = fix_rotated_pages(image_paths)
+
+        # Step 3b: Preprocess if scanned
         if scanned:
             _progress("Preprocessing scanned images...", 0.20)
             image_paths = preprocess_images(image_paths)
