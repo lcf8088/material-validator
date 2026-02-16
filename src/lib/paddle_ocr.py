@@ -36,7 +36,7 @@ def _get_ocr(model_path: Optional[str] = None):
     kwargs = {
         'device': 'cpu',
         'enable_mkldnn': False,
-        'cpu_threads': os.cpu_count() or 10,
+        'cpu_threads': max((os.cpu_count() or 10) - 4, 4),
         # Use mobile models (much faster, sufficient for printed MTRs)
         'text_detection_model_name': 'PP-OCRv5_mobile_det',
         'text_recognition_model_name': 'latin_PP-OCRv5_mobile_rec',

@@ -14,7 +14,37 @@ from typing import Any, Dict, List, Optional
 
 from .extractor import pdf_to_images, normalize_extracted_data
 from .preprocessor import extract_native_text, is_digital_native, preprocess_images, fix_rotated_pages
-from .paddle_ocr import extract_text as ocr_extract_text
+from .paddle_ocr import extract_text as paddle_extract_text
+
+# GPU OCR availability (checked once at import time)
+_gpu_ocr_available = False
+try:
+    from .gpu_ocr import extract_text as gpu_extract_text, gpu_available, _ensure_cuda_dlls
+    _ensure_cuda_dlls()  # Must happen before any onnxruntime import
+    _gpu_ocr_available = gpu_available()
+except ImportError:
+    pass
+
+
+# Default OCR function (patchable by tests via mock)
+ocr_extract_text = paddle_extract_text
+
+
+def _get_ocr_func(use_gpu: bool = True):
+    """Return the appropriate OCR extract function.
+
+    If tests have patched pipeline.ocr_extract_text, use that.
+    Otherwise select GPU or CPU based on availability.
+    """
+    import sys
+    module = sys.modules[__name__]
+    current = getattr(module, 'ocr_extract_text', paddle_extract_text)
+    # If tests have replaced ocr_extract_text with a mock, honor it
+    if current is not paddle_extract_text and (not _gpu_ocr_available or current is not gpu_extract_text):
+        return current, "mock"
+    if use_gpu and _gpu_ocr_available:
+        return gpu_extract_text, "gpu"
+    return paddle_extract_text, "cpu"
 from .claude_parser import parse_and_validate
 from .matcher import SpecMatcher
 from .validator import SpecValidator, CertValidation
@@ -52,6 +82,7 @@ class PipelineResult:
 
 def _haiku_mtr_check(text: str, api_key: str) -> bool:
     """Ask Haiku if text contains readable MTR data. ~2s, ~$0.001."""
+    t0 = time.time()
     try:
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)
@@ -65,9 +96,10 @@ def _haiku_mtr_check(text: str, api_key: str) -> bool:
                 f"mechanical properties? Reply ONLY: YES or NO\n\n{snippet}"}],
         )
         answer = resp.content[0].text.strip().upper()
+        logger.info("[TIMING] Haiku MTR check: %.1fs -> %s", time.time() - t0, answer)
         return answer.startswith("YES")
     except Exception as e:
-        logger.warning("Haiku MTR check failed (%s), assuming text is OK", e)
+        logger.warning("Haiku MTR check failed (%s, %.1fs), assuming text is OK", e, time.time() - t0)
         return True
 
 
@@ -95,65 +127,119 @@ def pre_extract(
     api_key: str,
     paddle_model_path: Optional[str] = None,
     preprocessing_dpi: int = 300,
+    use_gpu: bool = True,
 ) -> tuple:
     """Phase A: Staged text extraction from a document.
 
-    Tries stages in order: direct text -> OCR@200 -> OCR@300.
+    Tries stages in order: direct text -> OCR@150 -> OCR@300.
     Returns (ocr_text, image_paths, is_pdf, stage_used).
     """
+    t_start = time.time()
+    filename = Path(pdf_path).name
     pdf_path_obj = Path(pdf_path)
     is_pdf = pdf_path_obj.suffix.lower() == '.pdf'
+
+    def _elapsed():
+        return time.time() - t_start
+
+    # DPI for OCR stages — 150 is 44% fewer pixels than 200, sufficient for printed MTRs
+    ocr_dpi = 150
 
     # --- Stage 1: Direct text extraction (digital-native PDFs) ---
     direct_text = ""
     page_texts = []
     if is_pdf:
+        t1 = time.time()
         direct_text, page_texts = extract_native_text(pdf_path, return_page_texts=True)
-        if _text_quality_ok(direct_text, api_key, page_texts=page_texts):
-            # Still need images for Claude vision — render at 200 DPI (cheaper)
-            image_paths = pdf_to_images(pdf_path, dpi=200)
+        logger.info("[TIMING] %s | extract_native_text: %.1fs (%d chars)",
+                    filename, time.time() - t1, len(direct_text))
+
+        t1 = time.time()
+        quality_ok = _text_quality_ok(direct_text, api_key, page_texts=page_texts)
+        logger.info("[TIMING] %s | Stage 1 quality check (Haiku): %.1fs -> %s",
+                    filename, time.time() - t1, "PASS" if quality_ok else "FAIL")
+
+        if quality_ok:
+            t1 = time.time()
+            image_paths = pdf_to_images(pdf_path, dpi=ocr_dpi)
+            logger.info("[TIMING] %s | pdf_to_images@%d: %.1fs (%d pages)",
+                        filename, ocr_dpi, time.time() - t1, len(image_paths))
+            t1 = time.time()
             image_paths = fix_rotated_pages(image_paths)
-            logger.info("Stage 1 PASSED: direct text (%d chars)", len(direct_text))
+            logger.info("[TIMING] %s | fix_rotated_pages: %.1fs", filename, time.time() - t1)
+            logger.info("[TIMING] %s | pre_extract TOTAL: %.1fs (stage=direct)",
+                        filename, _elapsed())
             return direct_text, image_paths, is_pdf, "direct"
-        logger.info("Stage 1 FAILED: direct text (%d chars), escalating to OCR@200",
-                     len(direct_text))
+
+        logger.info("Stage 1 FAILED: direct text (%d chars), escalating to OCR@%d",
+                     len(direct_text), ocr_dpi)
 
     # Determine if PDF is scanned (very little embedded text)
     scanned = len(direct_text.strip()) < 50
 
-    # --- Stage 2: PaddleOCR at 200 DPI ---
+    # --- Stage 2: PaddleOCR at ocr_dpi ---
+    t1 = time.time()
     if is_pdf:
-        image_paths = pdf_to_images(pdf_path, dpi=200)
+        image_paths = pdf_to_images(pdf_path, dpi=ocr_dpi)
     else:
         image_paths = [pdf_path]
+    logger.info("[TIMING] %s | pdf_to_images@%d: %.1fs (%d pages)",
+                filename, ocr_dpi, time.time() - t1, len(image_paths))
 
+    t1 = time.time()
     image_paths = fix_rotated_pages(image_paths)
+    logger.info("[TIMING] %s | fix_rotated_pages: %.1fs", filename, time.time() - t1)
 
     if scanned:
+        t1 = time.time()
         ocr_images = preprocess_images(image_paths)
+        logger.info("[TIMING] %s | preprocess_images: %.1fs", filename, time.time() - t1)
     else:
         ocr_images = image_paths
 
-    ocr_text = ocr_extract_text(ocr_images, model_path=paddle_model_path)
-    if _text_quality_ok(ocr_text, api_key):
-        logger.info("Stage 2 PASSED: OCR@200 (%d chars)", len(ocr_text))
-        return ocr_text, image_paths, is_pdf, "ocr_200"
-    logger.info("Stage 2 FAILED: OCR@200 (%d chars), escalating to OCR@300",
-                 len(ocr_text))
+    ocr_func, ocr_backend = _get_ocr_func(use_gpu)
+    t1 = time.time()
+    ocr_text = ocr_func(ocr_images, model_path=paddle_model_path)
+    logger.info("[TIMING] %s | OCR(%s)@%d: %.1fs (%d chars)",
+                filename, ocr_backend, ocr_dpi, time.time() - t1, len(ocr_text))
+
+    t1 = time.time()
+    quality_ok = _text_quality_ok(ocr_text, api_key)
+    logger.info("[TIMING] %s | Stage 2 quality check (Haiku): %.1fs -> %s",
+                filename, time.time() - t1, "PASS" if quality_ok else "FAIL")
+
+    if quality_ok:
+        logger.info("[TIMING] %s | pre_extract TOTAL: %.1fs (stage=ocr_%d_%s)",
+                    filename, _elapsed(), ocr_dpi, ocr_backend)
+        return ocr_text, image_paths, is_pdf, f"ocr_{ocr_dpi}"
+
+    logger.info("Stage 2 FAILED: OCR@%d (%d chars), escalating to OCR@300", ocr_dpi, len(ocr_text))
 
     # --- Stage 3: PaddleOCR at 300 DPI (accept unconditionally) ---
     if is_pdf:
+        t1 = time.time()
         image_paths = pdf_to_images(pdf_path, dpi=preprocessing_dpi)
+        logger.info("[TIMING] %s | pdf_to_images@300: %.1fs (%d pages)",
+                    filename, time.time() - t1, len(image_paths))
+        t1 = time.time()
         image_paths = fix_rotated_pages(image_paths)
+        logger.info("[TIMING] %s | fix_rotated_pages: %.1fs", filename, time.time() - t1)
         if scanned:
+            t1 = time.time()
             ocr_images = preprocess_images(image_paths)
+            logger.info("[TIMING] %s | preprocess_images@300: %.1fs", filename, time.time() - t1)
         else:
             ocr_images = image_paths
     else:
         ocr_images = image_paths
 
-    ocr_text = ocr_extract_text(ocr_images, model_path=paddle_model_path)
-    logger.info("Stage 3: OCR@300 (%d chars) — accepted", len(ocr_text))
+    t1 = time.time()
+    ocr_text = ocr_func(ocr_images, model_path=paddle_model_path)
+    logger.info("[TIMING] %s | OCR(%s)@300: %.1fs (%d chars)",
+                filename, ocr_backend, time.time() - t1, len(ocr_text))
+
+    logger.info("[TIMING] %s | pre_extract TOTAL: %.1fs (stage=ocr_300_%s)",
+                filename, _elapsed(), ocr_backend)
     return ocr_text, image_paths, is_pdf, "ocr_300"
 
 
@@ -171,6 +257,7 @@ def process_document(
     organize_by_po: bool = False,
     extraction_model: str = "sonnet",
     pre_extracted: Optional[tuple] = None,
+    use_gpu_ocr: bool = True,
 ) -> PipelineResult:
     """
     Process an MTR document through the full pipeline.
@@ -208,6 +295,8 @@ def process_document(
         PipelineResult with all outputs and status.
     """
     result = PipelineResult(source_file=pdf_path)
+    t_pipeline_start = time.time()
+    filename = Path(pdf_path).name
 
     def _progress(step: str, pct: float):
         logger.info("Pipeline [%.0f%%] %s", pct * 100, step)
@@ -232,6 +321,7 @@ def process_document(
                 api_key=anthropic_api_key,
                 paddle_model_path=paddle_model_path,
                 preprocessing_dpi=preprocessing_dpi,
+                use_gpu=use_gpu_ocr,
             )
             logger.info("Staged extraction complete (%s, %d chars)", stage_used, len(ocr_text))
             _progress("Text extraction complete.", 0.30)
@@ -254,6 +344,7 @@ def process_document(
         if spec_id and not vendor_spec_mode:
             spec_data = spec_loader.get(spec_id)
 
+        t_claude = time.time()
         raw_data = parse_and_validate(
             ocr_text=ocr_text,
             api_key=anthropic_api_key,
@@ -262,6 +353,8 @@ def process_document(
             image_paths=image_paths,
             model=extraction_model,
         )
+        logger.info("[TIMING] %s | Claude parse (%s, %d images): %.1fs",
+                    filename, extraction_model, len(image_paths), time.time() - t_claude)
 
         if raw_data.get('_extraction_status') == 'error':
             result.errors.append(f"Claude parsing failed: {raw_data.get('_error', 'Unknown')}")
@@ -286,6 +379,7 @@ def process_document(
                 and detect_suspicious_chemistry(normalized['chemistry'], spec_chem)):
             logger.warning("Suspicious chemistry detected — retrying with Opus...")
             _progress("Suspicious chemistry detected, retrying with Opus...", 0.50)
+            t_opus = time.time()
             raw_data_opus = parse_and_validate(
                 ocr_text=ocr_text,
                 api_key=anthropic_api_key,
@@ -294,6 +388,7 @@ def process_document(
                 image_paths=image_paths,
                 model='opus',
             )
+            logger.info("[TIMING] %s | Opus retry: %.1fs", filename, time.time() - t_opus)
             if raw_data_opus.get('_extraction_status') != 'error':
                 normalized_opus = normalize_extracted_data(raw_data_opus)
                 if not detect_suspicious_chemistry(normalized_opus.get('chemistry', {}), spec_chem):
@@ -368,7 +463,9 @@ def process_document(
             staging_name = f"staging_{heat_number}_{int(time.time())}.tiff"
             staging_path = str(staging_dir / staging_name)
 
+            t_tiff = time.time()
             success, msg = pdf_to_tiff(pdf_path, staging_path, tiff_dpi, tiff_compression)
+            logger.info("[TIMING] %s | TIFF conversion: %.1fs", filename, time.time() - t_tiff)
             if success:
                 result.output_tiff_path = staging_path
                 logger.info("Staging TIFF saved: %s", staging_path)
@@ -376,7 +473,9 @@ def process_document(
                 result.warnings.append(f"TIFF conversion failed: {msg}")
 
         result.success = True
+        total_pipeline = time.time() - t_pipeline_start
         _progress("Complete.", 1.0)
+        logger.info("[TIMING] %s | process_document TOTAL: %.1fs", filename, total_pipeline)
 
     except Exception as e:
         logger.exception("Pipeline error: %s", e)

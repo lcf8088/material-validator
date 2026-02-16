@@ -6,14 +6,23 @@ card-based content panels, and colored status badges.
 Uses PaddleOCR + Claude pipeline for extraction and validation.
 """
 
+import glob
 import json
 import logging
 import os
 import shutil
+import sys
 import threading
 import time
 from pathlib import Path
 from typing import Optional, Dict, Any, List
+
+# Add NVIDIA CUDA DLL paths before any onnxruntime import (via pipeline -> gpu_ocr)
+_site_packages = os.path.join(sys.prefix, 'Lib', 'site-packages')
+_nvidia_bins = [d for d in glob.glob(os.path.join(_site_packages, 'nvidia', '*', 'bin'))
+                if os.path.isdir(d)]
+if _nvidia_bins:
+    os.environ['PATH'] = ';'.join(_nvidia_bins) + ';' + os.environ.get('PATH', '')
 
 try:
     import customtkinter as ctk
@@ -124,6 +133,11 @@ class MaterialValidatorApp:
         self._pipeline_lock = threading.Lock()
         self._override_operator: str = ""
         self._current_history_id: Optional[str] = None
+
+        # Watch queue state
+        self._watch_queue: List[str] = []
+        self._watch_worker_running = False
+        self._watch_first_shown = False
 
         # History filter state
         self._history_filter: str = "all"
@@ -1402,6 +1416,7 @@ class MaterialValidatorApp:
             spec_id = None
 
         def do_pipeline():
+            self._lower_process_priority()
             try:
                 def on_progress(step, pct):
                     self.root.after(0, lambda: self._set_progress(pct))
@@ -1429,6 +1444,7 @@ class MaterialValidatorApp:
                     po_number=po_from_field or None,
                     organize_by_po=self.config.get('organize_by_po', False),
                     extraction_model=self.config.get('extraction_model', 'sonnet'),
+                    use_gpu_ocr=self.config.get('use_gpu_ocr', True),
                 )
                 elapsed = time.time() - t0
 
@@ -1436,6 +1452,8 @@ class MaterialValidatorApp:
 
             except Exception as e:
                 self.root.after(0, lambda: self._on_extract_error(str(e)))
+            finally:
+                self._restore_process_priority()
 
         threading.Thread(target=do_pipeline, daemon=True).start()
 
@@ -1509,11 +1527,13 @@ class MaterialValidatorApp:
 
         def do_batch():
             nonlocal first_result_shown
+            self._lower_process_priority()
             from concurrent.futures import ThreadPoolExecutor
 
             api_key = self.config.anthropic_api_key
             paddle_path = self.config.get('paddle_model_path', '') or None
             dpi = self.config.get('preprocessing_dpi', 300)
+            gpu_ocr = self.config.get('use_gpu_ocr', True)
 
             executor = ThreadPoolExecutor(max_workers=1)
             next_pre = None  # Future for next file's Phase A
@@ -1540,6 +1560,7 @@ class MaterialValidatorApp:
                             fpath, api_key=api_key,
                             paddle_model_path=paddle_path,
                             preprocessing_dpi=dpi,
+                            use_gpu=gpu_ocr,
                         )
 
                     # Kick off Phase A for NEXT file while we do Phase B
@@ -1550,6 +1571,7 @@ class MaterialValidatorApp:
                             api_key=api_key,
                             paddle_model_path=paddle_path,
                             preprocessing_dpi=dpi,
+                            use_gpu=gpu_ocr,
                         )
 
                     t0 = time.time()
@@ -1567,6 +1589,7 @@ class MaterialValidatorApp:
                         organize_by_po=self.config.get('organize_by_po', False),
                         extraction_model=self.config.get('extraction_model', 'sonnet'),
                         pre_extracted=pre_result,
+                        use_gpu_ocr=gpu_ocr,
                     )
                     batch_elapsed = time.time() - t0
 
@@ -1615,6 +1638,7 @@ class MaterialValidatorApp:
                         pass
 
             executor.shutdown(wait=False)
+            self._restore_process_priority()
 
             # Batch complete — re-enable buttons
             def on_batch_done():
@@ -2265,6 +2289,7 @@ class MaterialValidatorApp:
     def _stop_watching(self):
         """Stop the folder watcher."""
         self.watcher.stop_watching()
+        self._watch_queue.clear()
         self._update_watch_button(False)
         self._set_status("Watch stopped")
 
@@ -2286,114 +2311,264 @@ class MaterialValidatorApp:
 
     # ============================================================= Watch Auto-Process
     def _auto_process_watched_file(self, file_path: str):
-        """Auto-process a file detected by the watcher — queues if a review is active."""
+        """Queue a watched file for processing and start the worker if idle."""
         if not self.config.is_configured():
             self._set_status("Watch: skipping — not configured")
             return
 
-        # Check if currently reviewing (approve_btn enabled means active review)
-        currently_reviewing = (
-            ctk and hasattr(self, 'approve_btn')
-            and self.approve_btn.cget('state') == 'normal'
-        )
+        self._watch_queue.append(file_path)
+        logger.info("Watch: queued %s (%d in queue)", Path(file_path).name, len(self._watch_queue))
 
-        self._set_status(f"Watch: processing {Path(file_path).name}...")
-        if not currently_reviewing:
+        if not self._watch_worker_running:
+            self._watch_first_shown = False
+            self._watch_worker_running = True
             self._set_button_state(self.extract_btn, 'disabled')
-            self._set_progress(0)
+            self._start_progress_pulse()
             if ctk:
-                self._update_header_status('INCOMPLETE', "Processing...")
+                self._update_header_status('INCOMPLETE', "Watch: processing...")
+            self._set_status(f"Watch: {len(self._watch_queue)} file(s) queued...")
+            threading.Thread(target=self._watch_worker, daemon=True).start()
 
-        spec_id = self._resolve_spec_id(self.spec_var.get())
-        if spec_id in ('Auto-detect', '---'):
-            spec_id = None
+    @staticmethod
+    def _lower_process_priority():
+        """Lower current process priority so GUI stays responsive during heavy OCR."""
+        try:
+            import sys
+            if sys.platform == 'win32':
+                import ctypes
+                BELOW_NORMAL_PRIORITY_CLASS = 0x00004000
+                handle = ctypes.windll.kernel32.GetCurrentProcess()
+                ctypes.windll.kernel32.SetPriorityClass(handle, BELOW_NORMAL_PRIORITY_CLASS)
+                logger.debug("Lowered process priority to BELOW_NORMAL")
+        except Exception:
+            pass
 
-        def do_auto():
-            if not self._pipeline_lock.acquire(timeout=0.1):
-                logger.info("Watch: pipeline busy, queueing %s", file_path)
-                self._pipeline_lock.acquire()
-            try:
-                output_dir = self.config.effective_output_folder
-                po_from_field = ''
-                if hasattr(self, 'po_var'):
-                    po_from_field = self.po_var.get().strip()
+    @staticmethod
+    def _restore_process_priority():
+        """Restore normal process priority."""
+        try:
+            import sys
+            if sys.platform == 'win32':
+                import ctypes
+                NORMAL_PRIORITY_CLASS = 0x00000020
+                handle = ctypes.windll.kernel32.GetCurrentProcess()
+                ctypes.windll.kernel32.SetPriorityClass(handle, NORMAL_PRIORITY_CLASS)
+                logger.debug("Restored process priority to NORMAL")
+        except Exception:
+            pass
 
-                def on_progress(step, pct):
-                    if not currently_reviewing:
-                        self.root.after(0, lambda: self._set_progress(pct))
-                    self.root.after(0, lambda: self._set_status(f"Watch: {step}"))
+    def _watch_worker(self):
+        """Process watch queue with pre-extraction pipelining.
 
-                t0 = time.time()
-                result = process_document(
-                    pdf_path=file_path,
-                    output_dir=output_dir,
-                    spec_id=spec_id,
-                    anthropic_api_key=self.config.anthropic_api_key,
-                    paddle_model_path=self.config.get('paddle_model_path', '') or None,
-                    preprocessing_dpi=self.config.get('preprocessing_dpi', 300),
-                    tiff_dpi=self.config.get('tiff_dpi', 300),
-                    tiff_compression=self.config.get('tiff_compression', 'lzw'),
-                    on_progress=on_progress,
-                    po_number=po_from_field or None,
-                    organize_by_po=self.config.get('organize_by_po', False),
-                    extraction_model=self.config.get('extraction_model', 'sonnet'),
-                )
-                watch_elapsed = time.time() - t0
+        Overlaps Phase A (OCR) of the next file with Phase B (Claude) of
+        the current file for ~40% throughput improvement on multi-file drops.
+        """
+        from concurrent.futures import ThreadPoolExecutor
 
-                self.watcher.mark_processed(file_path)
+        # Lower process priority so GUI/system stays responsive
+        self._lower_process_priority()
 
-                def handle_result():
-                    if currently_reviewing:
-                        # Record to history immediately even when queuing
-                        if result.validation:
-                            ed = result.normalized_data or result.extracted_data
-                            spec = self.spec_loader.get(result.spec_id) if result.spec_id else {}
-                            vid = self.history.record(
-                                result.validation, ed, spec, file_path,
-                                staging_tiff_path=result.output_tiff_path,
+        api_key = self.config.anthropic_api_key
+        paddle_path = self.config.get('paddle_model_path', '') or None
+        dpi = self.config.get('preprocessing_dpi', 300)
+        gpu_ocr = self.config.get('use_gpu_ocr', True)
+
+        spec_id = None
+        po_from_field = ''
+
+        # Read UI values on main thread via synchronous callback
+        ready = threading.Event()
+
+        def _read_ui():
+            nonlocal spec_id, po_from_field
+            spec_id = self._resolve_spec_id(self.spec_var.get())
+            if spec_id in ('Auto-detect', '---'):
+                spec_id = None
+            if hasattr(self, 'po_var'):
+                po_from_field = self.po_var.get().strip()
+            ready.set()
+
+        self.root.after(0, _read_ui)
+        ready.wait(timeout=5)
+
+        executor = ThreadPoolExecutor(max_workers=1)
+        next_pre = None
+        processed_count = 0
+
+        def _watch_total():
+            """Live count: processed + remaining in queue."""
+            return processed_count + len(self._watch_queue)
+
+        try:
+            t_worker_start = time.time()
+            while True:
+                # Inner loop: process all queued files
+                while self._watch_queue:
+                    file_path = self._watch_queue.pop(0)
+                    processed_count += 1
+                    t_file_start = time.time()
+                    logger.info("[WATCH] === Starting file %d: %s ===", processed_count, Path(file_path).name)
+
+                    # Update progress on UI (use live total via closure)
+                    self.root.after(0, lambda i=processed_count, f=file_path: (
+                        self._set_status(f"Watch: {i}/{_watch_total()} — {Path(f).name}"),
+                        self._set_progress(0.05),
+                        self._update_header_status('INCOMPLETE', f"Watch: {i}/{_watch_total()} — {Path(f).name}"),
+                    ))
+
+                    try:
+                        # Wait for pre-extraction (or run inline for first)
+                        # Start pulsing animation during OCR (no granular progress)
+                        if next_pre is not None:
+                            self.root.after(0, lambda fp=file_path, i=processed_count: (
+                                self._set_status(f"Watch: {i}/{_watch_total()} — {Path(fp).name} — Waiting for OCR..."),
+                                self._start_progress_pulse(),
+                            ))
+                            pre_result = next_pre.result()
+                        else:
+                            self.root.after(0, lambda fp=file_path, i=processed_count: (
+                                self._set_status(f"Watch: {i}/{_watch_total()} — {Path(fp).name} — Running OCR..."),
+                                self._update_header_status('INCOMPLETE', f"Watch: {i}/{_watch_total()} — OCR..."),
+                                self._start_progress_pulse(),
+                            ))
+                            pre_result = pre_extract(
+                                file_path, api_key=api_key,
+                                paddle_model_path=paddle_path,
+                                preprocessing_dpi=dpi,
+                                use_gpu=gpu_ocr,
                             )
-                            if watch_elapsed > 0:
-                                self.history.update(vid, processing_time=round(watch_elapsed, 1))
-                        self._approval_queue.append(result)
-                        self._update_queue_indicator()
-                        self._set_status(
-                            f"Watch: queued {Path(file_path).name} "
-                            f"(Queue: {len(self._approval_queue)} pending)"
+                        # OCR done — stop pulse (process_document will set determinate progress)
+                        self.root.after(0, self._stop_progress_pulse)
+                        logger.info("[WATCH] %s | pre_extract done: %.1fs into file",
+                                    Path(file_path).name, time.time() - t_file_start)
+
+                        # Kick off pre-extraction for NEXT file while we run Claude
+                        next_pre = None
+                        if self._watch_queue:
+                            next_fpath = self._watch_queue[0]
+                            next_pre = executor.submit(
+                                pre_extract, next_fpath,
+                                api_key=api_key,
+                                paddle_model_path=paddle_path,
+                                preprocessing_dpi=dpi,
+                                use_gpu=gpu_ocr,
+                            )
+
+                        def on_progress(step, pct, fp=file_path, idx=processed_count):
+                            self.root.after(0, lambda: (
+                                self._set_progress(pct),
+                                self._set_status(f"Watch: {idx}/{_watch_total()} — {Path(fp).name} — {step}"),
+                                self._update_header_status('INCOMPLETE', f"Watch: {idx}/{_watch_total()} — {step}"),
+                            ))
+
+                        t0 = time.time()
+                        result = process_document(
+                            pdf_path=file_path,
+                            output_dir=self.config.effective_output_folder,
+                            spec_id=spec_id,
+                            anthropic_api_key=api_key,
+                            paddle_model_path=paddle_path,
+                            preprocessing_dpi=dpi,
+                            tiff_dpi=self.config.get('tiff_dpi', 300),
+                            tiff_compression=self.config.get('tiff_compression', 'lzw'),
+                            on_progress=on_progress,
+                            po_number=po_from_field or None,
+                            organize_by_po=self.config.get('organize_by_po', False),
+                            extraction_model=self.config.get('extraction_model', 'sonnet'),
+                            pre_extracted=pre_result,
+                            use_gpu_ocr=gpu_ocr,
                         )
-                    else:
-                        # No active review — display directly
-                        self.current_file = file_path
-                        if ctk:
-                            filename = Path(file_path).name
-                            self.drop_zone.configure(
-                                text=f"{ICONS['file']}  {filename}\n(click to change)",
-                                text_color=COLORS['text_primary'],
-                            )
-                            self.header_file_label.configure(
-                                text=filename, text_color=COLORS['text_primary']
-                            )
-                        self._on_pipeline_complete(result, watch_elapsed)
+                        elapsed = time.time() - t0
+                        logger.info("[WATCH] %s | process_document: %.1fs | file total: %.1fs",
+                                    Path(file_path).name, elapsed, time.time() - t_file_start)
 
-                self.root.after(0, handle_result)
+                        self.watcher.mark_processed(file_path)
+                        result.source_file = file_path
 
-            except Exception as e:
-                logger.exception("Watch auto-process error: %s", e)
-                self.watcher.mark_processed(file_path)
-                # Record error in history for audit trail
-                try:
-                    self.history.record_error(
-                        source_file=file_path,
-                        error_type="WATCH_PIPELINE_FAILED",
-                        error_message=str(e),
+                        def handle_watch_result(r=result, fp=file_path, el=elapsed):
+                            # Check review state NOW (at result time), not at queue time
+                            is_reviewing = (
+                                ctk and hasattr(self, 'approve_btn')
+                                and self.approve_btn.cget('state') == 'normal'
+                            )
+
+                            if is_reviewing or self._watch_first_shown:
+                                # Queue for later review
+                                if r.validation:
+                                    ed = r.normalized_data or r.extracted_data
+                                    spec = self.spec_loader.get(r.spec_id) if r.spec_id else {}
+                                    vid = self.history.record(
+                                        r.validation, ed, spec, fp,
+                                        staging_tiff_path=r.output_tiff_path,
+                                    )
+                                    if el > 0:
+                                        self.history.update(vid, processing_time=round(el, 1))
+                                self._approval_queue.append(r)
+                                self._update_queue_indicator()
+                                remaining = len(self._watch_queue)
+                                self._set_status(
+                                    f"Watch: queued {Path(fp).name} "
+                                    f"(Queue: {len(self._approval_queue)} pending"
+                                    f"{f', {remaining} processing' if remaining else ''})"
+                                )
+                            else:
+                                # First result — display directly
+                                self._watch_first_shown = True
+                                self.current_file = fp
+                                if ctk:
+                                    filename = Path(fp).name
+                                    self.drop_zone.configure(
+                                        text=f"{ICONS['file']}  {filename}\n(click to change)",
+                                        text_color=COLORS['text_primary'],
+                                    )
+                                    self.header_file_label.configure(
+                                        text=filename, text_color=COLORS['text_primary'],
+                                    )
+                                self._on_pipeline_complete(r, el)
+
+                        self.root.after(0, handle_watch_result)
+
+                    except Exception as e:
+                        logger.exception("Watch error for %s: %s", file_path, e)
+                        self.watcher.mark_processed(file_path)
+                        try:
+                            self.history.record_error(
+                                source_file=file_path,
+                                error_type="WATCH_PIPELINE_FAILED",
+                                error_message=str(e),
+                            )
+                        except Exception:
+                            logger.debug("Could not record watcher error to history", exc_info=True)
+
+                # Inner queue drained — wait for late-arriving files
+                logger.info("[WATCH] Queue drained, waiting 2.5s for late files...")
+                time.sleep(2.5)
+                if not self._watch_queue:
+                    break  # No more files arrived, exit outer loop
+                logger.info("[WATCH] %d late file(s) arrived, continuing...", len(self._watch_queue))
+
+            executor.shutdown(wait=False)
+            logger.info("[WATCH] === Worker complete: %d files in %.1fs ===",
+                        processed_count, time.time() - t_worker_start)
+
+        finally:
+            self._restore_process_priority()
+
+            def on_watch_done():
+                self._watch_worker_running = False
+                self._stop_progress_pulse()
+                self._set_progress(0)
+                self._set_button_state(self.extract_btn, 'normal')
+                queue_count = len(self._approval_queue)
+                if queue_count > 0:
+                    self._set_status(
+                        f"Watch: {processed_count} files processed. "
+                        f"Queue: {queue_count} pending review."
                     )
-                except Exception:
-                    logger.debug("Could not record watcher error to history", exc_info=True)
-                if not currently_reviewing:
-                    self.root.after(0, lambda: self._on_extract_error(str(e)))
-            finally:
-                self._pipeline_lock.release()
+                elif processed_count > 0:
+                    self._set_status(f"Watch: {processed_count} files processed.")
 
-        threading.Thread(target=do_auto, daemon=True).start()
+            self.root.after(0, on_watch_done)
 
     # ============================================= Material / Spec Guard
     def _check_material_spec_mismatch(self) -> str:
@@ -2439,7 +2614,23 @@ class MaterialValidatorApp:
     def _set_progress(self, value: float):
         """Update progress bar (0.0 to 1.0)."""
         if ctk and hasattr(self, 'progress_bar') and self.progress_bar:
+            self._stop_progress_pulse()
             self.progress_bar.set(value)
+
+    def _start_progress_pulse(self):
+        """Start indeterminate progress bar animation (pulsing/bouncing)."""
+        if ctk and hasattr(self, 'progress_bar') and self.progress_bar:
+            self.progress_bar.configure(mode='indeterminate')
+            self.progress_bar.start()
+
+    def _stop_progress_pulse(self):
+        """Stop indeterminate animation and switch back to determinate mode."""
+        if ctk and hasattr(self, 'progress_bar') and self.progress_bar:
+            try:
+                self.progress_bar.stop()
+            except Exception:
+                pass
+            self.progress_bar.configure(mode='determinate')
 
     def _clear_text(self, widget):
         """Clear text widget."""
@@ -2542,10 +2733,17 @@ class MaterialValidatorApp:
 
 def main():
     """Application entry point."""
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
-    )
+    # Log to both console and file so timing data is always captured
+    log_format = '%(asctime)s [%(name)s] %(levelname)s: %(message)s'
+    logging.basicConfig(level=logging.INFO, format=log_format)
+
+    log_file = Path(__file__).resolve().parent.parent.parent / 'pipeline.log'
+    file_handler = logging.FileHandler(str(log_file), mode='w', encoding='utf-8')
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(logging.Formatter(log_format))
+    logging.getLogger().addHandler(file_handler)
+    logging.info("Logging to %s", log_file)
+
     app = MaterialValidatorApp()
     app.run()
 

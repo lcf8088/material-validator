@@ -25,6 +25,7 @@ DEFAULT_CONFIG = {
     'organize_by_po': False,
     'watch_auto_process': True,
     'extraction_model': 'sonnet',
+    'use_gpu_ocr': True,
 }
 
 

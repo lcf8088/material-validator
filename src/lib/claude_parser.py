@@ -368,7 +368,10 @@ def _call_claude(
     model: str,
 ) -> Dict[str, Any]:
     """Execute a single Claude API call with optional vision."""
+    import time as _time
     import anthropic
+
+    t_func_start = _time.time()
 
     spec_context = ""
     if spec:
@@ -377,36 +380,47 @@ def _call_claude(
 
     # Strip garbled chemistry table data when images are available
     # (Claude will read chemistry from images instead)
+    t0 = _time.time()
     clean_ocr = _strip_chemistry_table_from_ocr(ocr_text) if image_paths else ocr_text
+    logger.info("[TIMING] _strip_chemistry_table: %.2fs", _time.time() - t0)
 
     prompt_text = EXTRACTION_PROMPT.format(
         ocr_text=clean_ocr,
         spec_context=spec_context,
     )
+    logger.info("[TIMING] Prompt size: %d chars (OCR: %d, spec_context: %d)",
+                len(prompt_text), len(clean_ocr), len(spec_context))
 
     # Build multimodal content: images first, then text prompt
     content: list = []
 
     if image_paths:
+        t0 = _time.time()
         relevant_indices = select_relevant_pages(
             ocr_text=ocr_text,
             total_pages=len(image_paths),
             max_pages=MAX_IMAGE_PAGES,
         )
+        logger.info("[TIMING] select_relevant_pages: %.2fs -> pages %s of %d",
+                     _time.time() - t0, [i + 1 for i in relevant_indices], len(image_paths))
+
         selected_paths = [image_paths[i] for i in relevant_indices]
-        logger.info("Page relevance: selected pages %s of %d total",
-                     [i + 1 for i in relevant_indices], len(image_paths))
+        t0 = _time.time()
         image_blocks = _encode_images(selected_paths)
+        total_img_bytes = sum(len(b.get('source', {}).get('data', '')) for b in image_blocks) if image_blocks else 0
+        logger.info("[TIMING] _encode_images (%d pages): %.2fs (~%.1f MB base64)",
+                     len(selected_paths), _time.time() - t0, total_img_bytes / 1_000_000)
         if image_blocks:
             content.extend(image_blocks)
-            logger.info("Including %d page image(s) in Claude request.", len(image_blocks))
 
     content.append({"type": "text", "text": prompt_text})
 
     model_id = _resolve_model(model)
     client = anthropic.Anthropic(api_key=api_key)
 
-    logger.info("Sending to Claude (%s) for structured parsing...", model_id)
+    logger.info("[TIMING] Sending to Claude (%s) — %d content blocks, %d images...",
+                model_id, len(content), len(content) - 1)
+    t0 = _time.time()
     message = client.messages.create(
         model=model_id,
         max_tokens=4096,
@@ -414,6 +428,7 @@ def _call_claude(
             {"role": "user", "content": content}
         ],
     )
+    api_elapsed = _time.time() - t0
 
     response_text = message.content[0].text
 
@@ -422,17 +437,23 @@ def _call_claude(
     if usage:
         in_tok = getattr(usage, 'input_tokens', 0)
         out_tok = getattr(usage, 'output_tokens', 0)
-        logger.info("Claude response received (%d chars). Tokens: %d in, %d out, %d total.",
-                     len(response_text), in_tok, out_tok, in_tok + out_tok)
+        logger.info("[TIMING] Claude API call (%s): %.1fs | %d in + %d out = %d tokens | response: %d chars",
+                     model_id, api_elapsed, in_tok, out_tok, in_tok + out_tok, len(response_text))
     else:
-        logger.info("Claude response received (%d chars).", len(response_text))
+        logger.info("[TIMING] Claude API call (%s): %.1fs | response: %d chars",
+                     model_id, api_elapsed, len(response_text))
 
+    t0 = _time.time()
     result = _parse_response(response_text)
+    logger.info("[TIMING] _parse_response: %.2fs", _time.time() - t0)
+
     if usage:
         result['_token_usage'] = {
             'input_tokens': getattr(usage, 'input_tokens', 0),
             'output_tokens': getattr(usage, 'output_tokens', 0),
         }
+
+    logger.info("[TIMING] _call_claude TOTAL: %.1fs", _time.time() - t_func_start)
     return result
 
 
