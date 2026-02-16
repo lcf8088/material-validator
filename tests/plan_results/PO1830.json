@@ -1,0 +1,341 @@
+{
+  "alias": "PO1830",
+  "filename": "2026.02.DOCS.PO1830.pdf",
+  "success": true,
+  "spec_id": "ES-M0001C",
+  "spec_confidence": 1.0,
+  "overall_status": "FAIL",
+  "normalized_data": {
+    "heat_number": "312734",
+    "material_grade": "L80 TYPE 1",
+    "supplier": "Pup Joint Inc",
+    "customer": "DOWNHOLE & DESIGN INTL.CORP.",
+    "po_number": "PO001830",
+    "product_form": "SEAMLESS STEEL TUBES",
+    "size": "2.875\" OD x 0.217\" WT",
+    "condition": "Q",
+    "chemistry": {
+      "C": 0.16,
+      "Si": 0.24,
+      "Mn": 0.7,
+      "P": 0.007,
+      "S": 0.003,
+      "Cr": 1.0,
+      "Ni": 0.08,
+      "Cu": 0.18,
+      "Al": 0.033
+    },
+    "mechanical": {
+      "yield_strength": 91.5,
+      "tensile_strength": 111.1,
+      "elongation": 26.25,
+      "hardness_hrc": 23.0
+    },
+    "charpy_impact": {
+      "specimen_size": "10 x 10 mm",
+      "orientation": "Transverse",
+      "values": [
+        {
+          "location": "OW",
+          "values_ftlb": [
+            20.4,
+            19.5,
+            20.0
+          ],
+          "average_ftlb": 20.0
+        },
+        {
+          "location": "MW",
+          "values_ftlb": [
+            20.6,
+            20.2,
+            20.4
+          ],
+          "average_ftlb": 20.4
+        },
+        {
+          "location": "IW",
+          "values_ftlb": [
+            19.5,
+            18.7,
+            18.8
+          ],
+          "average_ftlb": 19.0
+        }
+      ]
+    },
+    "temper_temperature": 1340.0,
+    "temper_temperature_unit": "F",
+    "charpy_temperature": 32.0,
+    "charpy_temperature_unit": "F"
+  },
+  "extracted_data": {
+    "heat_number": "312734",
+    "material_grade": "L80 TYPE 1",
+    "uns": null,
+    "supplier": "Pup Joint Inc",
+    "customer": "DOWNHOLE & DESIGN INTL.CORP.",
+    "po_number": "PO001830",
+    "product_form": "SEAMLESS STEEL TUBES",
+    "size": "2.875\" OD x 0.217\" WT",
+    "condition": "Q",
+    "chemistry": {
+      "C": 0.16,
+      "Si": 0.24,
+      "Mn": 0.7,
+      "P": 0.007,
+      "S": 0.003,
+      "Cr": 1.0,
+      "Ni": 0.08,
+      "Cu": 0.18,
+      "Al": 0.033
+    },
+    "chemistry_qualifiers": {},
+    "mechanical": {
+      "yield_strength": 91531.0,
+      "yield_strength_unit": "psi",
+      "tensile_strength": 111087.0,
+      "tensile_strength_unit": "psi",
+      "elongation": 26.25,
+      "reduction_of_area": null,
+      "hardness_hbw": null,
+      "hardness_hrc": 23.0
+    },
+    "charpy_impact": {
+      "specimen_size": "10 x 10 mm",
+      "orientation": "Transverse",
+      "values": [
+        {
+          "location": "OW",
+          "values_ftlb": [
+            20.4,
+            19.5,
+            20.0
+          ],
+          "average_ftlb": 20.0
+        },
+        {
+          "location": "MW",
+          "values_ftlb": [
+            20.6,
+            20.2,
+            20.4
+          ],
+          "average_ftlb": 20.4
+        },
+        {
+          "location": "IW",
+          "values_ftlb": [
+            19.5,
+            18.7,
+            18.8
+          ],
+          "average_ftlb": 19.0
+        }
+      ]
+    },
+    "charpy_temperature": 32,
+    "charpy_temperature_unit": "F",
+    "temper_temperature": 1340,
+    "temper_temperature_unit": "F",
+    "nace_compliant": null,
+    "grain_size": null,
+    "_extraction_status": "success"
+  },
+  "errors": [],
+  "warnings": [],
+  "validation": {
+    "spec_id": "ES-M0001C",
+    "heat_number": "312734",
+    "material_grade": "L80 TYPE 1",
+    "overall_status": "FAIL",
+    "chemistry": [
+      {
+        "property_name": "C",
+        "spec_min": 0.38,
+        "spec_max": 0.43,
+        "actual_value": 0.16,
+        "unit": "%",
+        "status": "FAIL",
+        "note": "Below minimum (0.1600 < 0.38)",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "Mn",
+        "spec_min": 0.75,
+        "spec_max": 1.0,
+        "actual_value": 0.7,
+        "unit": "%",
+        "status": "FAIL",
+        "note": "Below minimum (0.7000 < 0.75)",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "P",
+        "spec_min": null,
+        "spec_max": 0.035,
+        "actual_value": 0.007,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "S",
+        "spec_min": null,
+        "spec_max": 0.04,
+        "actual_value": 0.003,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "Si",
+        "spec_min": 0.15,
+        "spec_max": 0.35,
+        "actual_value": 0.24,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "Cr",
+        "spec_min": 0.8,
+        "spec_max": 1.1,
+        "actual_value": 1.0,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "Mo",
+        "spec_min": 0.15,
+        "spec_max": 0.25,
+        "actual_value": null,
+        "unit": "%",
+        "status": "MISSING",
+        "note": "Mo not found in MTR",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      }
+    ],
+    "mechanical": [
+      {
+        "property_name": "yield_strength",
+        "spec_min": 80,
+        "spec_max": null,
+        "actual_value": 91.5,
+        "unit": "ksi",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "tensile_strength",
+        "spec_min": 95,
+        "spec_max": null,
+        "actual_value": 111.1,
+        "unit": "ksi",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "elongation",
+        "spec_min": 15,
+        "spec_max": null,
+        "actual_value": 26.25,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "reduction_of_area",
+        "spec_min": 35,
+        "spec_max": null,
+        "actual_value": null,
+        "unit": "%",
+        "status": "MISSING",
+        "note": "reduction_of_area not found in MTR",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "hardness_hbw",
+        "spec_min": 203,
+        "spec_max": 239,
+        "actual_value": 243.0,
+        "unit": "",
+        "status": "FAIL",
+        "note": "Above maximum (243.00 > 239)",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "hardness_hrc",
+        "spec_min": 16,
+        "spec_max": 22,
+        "actual_value": 23.0,
+        "unit": "",
+        "status": "FAIL",
+        "note": "Above maximum (23.00 > 22)",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      }
+    ],
+    "special": [
+      {
+        "property_name": "nace_compliance",
+        "spec_min": null,
+        "spec_max": null,
+        "actual_value": null,
+        "unit": "",
+        "status": "MISSING",
+        "note": "NACE compliance not stated",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "temper_temperature",
+        "spec_min": 1150,
+        "spec_max": null,
+        "actual_value": 1340.0,
+        "unit": "\u00c2\u00b0F",
+        "status": "PASS",
+        "note": "Minimum tempering temperature",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      }
+    ],
+    "errors": [],
+    "warnings": []
+  }
+}

@@ -2,7 +2,7 @@
 PaddleOCR wrapper for text extraction from MTR document images.
 
 Uses PaddleOCR (PP-OCRv5) for CPU-based text extraction.
-Supports multi-page documents and merges cross-page tables.
+Supports multi-page documents with reading-order line reconstruction.
 """
 
 import logging
@@ -59,7 +59,8 @@ def extract_text(image_paths: List[str], model_path: Optional[str] = None) -> st
     """
     Extract text from one or more document images using PaddleOCR.
 
-    Processes each image, detects text regions, and returns combined output.
+    Processes each image, detects text regions, and returns combined output
+    with reading order preserved.
 
     Args:
         image_paths: List of image file paths (PNG recommended).
@@ -100,8 +101,8 @@ def _extract_lines_from_result(results) -> List[str]:
       - result['rec_scores']: list of confidence scores
       - result['dt_polys']: list of bounding polygons
 
-    We sort by vertical position to reconstruct reading order and group
-    nearby text into lines.
+    Text items are grouped into lines by y-position proximity (within 15px)
+    and sorted left-to-right within each line.
     """
     lines = []
 
@@ -112,7 +113,6 @@ def _extract_lines_from_result(results) -> List[str]:
         # Extract fields from PaddleOCR 3.x result object
         try:
             texts = result.get('rec_texts', []) if isinstance(result, dict) else getattr(result, 'rec_texts', [])
-            scores = result.get('rec_scores', []) if isinstance(result, dict) else getattr(result, 'rec_scores', [])
             polys = result.get('dt_polys', []) if isinstance(result, dict) else getattr(result, 'dt_polys', [])
         except (AttributeError, TypeError):
             logger.warning("Unexpected OCR result format: %s", type(result))
@@ -137,27 +137,24 @@ def _extract_lines_from_result(results) -> List[str]:
         # Sort by vertical position, then horizontal
         text_items.sort(key=lambda t: (t['y'], t['x']))
 
-        # Group into lines (items within 15px vertically are same line)
-        current_line_items = []
-        current_y = -100
+        # Group into rows by y-proximity (within 15px = same line)
+        if not text_items:
+            continue
 
-        for item in text_items:
-            if abs(item['y'] - current_y) > 15:
-                # New line
-                if current_line_items:
-                    current_line_items.sort(key=lambda t: t['x'])
-                    line_text = "  ".join(t['text'] for t in current_line_items)
-                    lines.append(line_text)
-                current_line_items = [item]
+        current_row = [text_items[0]]
+        current_y = text_items[0]['y']
+
+        for item in text_items[1:]:
+            if abs(item['y'] - current_y) > 15.0:
+                current_row.sort(key=lambda t: t['x'])
+                lines.append("  ".join(t['text'] for t in current_row))
+                current_row = [item]
                 current_y = item['y']
             else:
-                current_line_items.append(item)
+                current_row.append(item)
 
-        # Don't forget last line
-        if current_line_items:
-            current_line_items.sort(key=lambda t: t['x'])
-            line_text = "  ".join(t['text'] for t in current_line_items)
-            lines.append(line_text)
+        current_row.sort(key=lambda t: t['x'])
+        lines.append("  ".join(t['text'] for t in current_row))
 
     return lines
 

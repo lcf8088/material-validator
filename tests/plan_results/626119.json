@@ -1,0 +1,354 @@
+{
+  "alias": "626119",
+  "filename": "626119-3409-01-1783.pdf",
+  "success": true,
+  "spec_id": "ES-M0004A",
+  "spec_confidence": 1.0,
+  "overall_status": "FAIL",
+  "normalized_data": {
+    "heat_number": "626119",
+    "material_grade": "9Cr 1Mo",
+    "supplier": "GERDAU",
+    "customer": "ENGINEERED MACHINE PRODUCTS",
+    "product_form": "ROUND BAR",
+    "size": "2.5\"",
+    "condition": "Q+T+STRESS RELIEVED",
+    "chemistry": {
+      "C": 0.103,
+      "Si": 0.25,
+      "P": 180318.0,
+      "S": 626119.0,
+      "Cr": 8.0,
+      "Ni": 0.5,
+      "Mo": 1.1,
+      "Cu": 0.25,
+      "V": 0.001,
+      "Nb": 0.001,
+      "B": 9001.0,
+      "W": 102434.0
+    },
+    "mechanical": {
+      "yield_strength": 83.0,
+      "tensile_strength": 110.0,
+      "elongation": 23.0,
+      "reduction_of_area": 67.0,
+      "hardness_hbw": 235
+    },
+    "charpy_impact": {
+      "specimen_direction": "Longitudinal",
+      "specimen_type": "Charpy-V",
+      "values_ft_lb": [
+        103,
+        104,
+        106
+      ],
+      "average_ft_lb": 104.33,
+      "minimum_ft_lb": 103,
+      "lateral_expansion_mm": [
+        1.66,
+        1.67,
+        1.69
+      ],
+      "shear_percent": [
+        80,
+        80,
+        80
+      ]
+    },
+    "temper_temperature": 720.0,
+    "temper_temperature_unit": "C",
+    "charpy_temperature": 14.0,
+    "charpy_temperature_unit": "F",
+    "nace_compliant": true,
+    "grain_size": 7,
+    "chemistry_qualifiers": {}
+  },
+  "extracted_data": {
+    "heat_number": "626119",
+    "material_grade": "9Cr 1Mo",
+    "uns": null,
+    "supplier": "GERDAU",
+    "customer": "ENGINEERED MACHINE PRODUCTS",
+    "po_number": null,
+    "product_form": "ROUND BAR",
+    "size": "2.5\"",
+    "condition": "Q+T+STRESS RELIEVED",
+    "chemistry": {
+      "C": 0.103,
+      "Mn": 0.425,
+      "Si": 0.642,
+      "P": 0.013,
+      "S": 0.004,
+      "Cr": 8.65,
+      "Ni": 0.123,
+      "Mo": 0.992,
+      "Cu": 0.151,
+      "V": 0.001,
+      "Nb": 0.001
+    },
+    "chemistry_qualifiers": {},
+    "mechanical": {
+      "yield_strength": 83.0,
+      "yield_strength_unit": "ksi",
+      "tensile_strength": 110.0,
+      "tensile_strength_unit": "ksi",
+      "elongation": 23.0,
+      "reduction_of_area": 67.0,
+      "hardness_hbw": 235,
+      "hardness_hrc": null
+    },
+    "charpy_impact": {
+      "specimen_direction": "Longitudinal",
+      "specimen_type": "Charpy-V",
+      "values_ft_lb": [
+        103,
+        104,
+        106
+      ],
+      "average_ft_lb": 104.33,
+      "minimum_ft_lb": 103,
+      "lateral_expansion_mm": [
+        1.66,
+        1.67,
+        1.69
+      ],
+      "shear_percent": [
+        80,
+        80,
+        80
+      ]
+    },
+    "charpy_temperature": 14,
+    "charpy_temperature_unit": "F",
+    "temper_temperature": 720,
+    "temper_temperature_unit": "C",
+    "nace_compliant": true,
+    "grain_size": 7,
+    "_extraction_status": "success"
+  },
+  "errors": [],
+  "warnings": [
+    "Sanity warnings: P = 180318.000% - Unusually high (typical max ~0.5%) - verify extraction",
+    "Sanity warnings: S = 626119.000% - Unusually high (typical max ~0.5%) - verify extraction",
+    "Sanity warnings: B = 9001.000% - Unusually high (typical max ~0.05%) - verify extraction",
+    "Sanity warnings: W = 102434.000% - Unusually high (typical max ~20%) - verify extraction"
+  ],
+  "validation": {
+    "spec_id": "ES-M0004A",
+    "heat_number": "626119",
+    "material_grade": "9Cr 1Mo",
+    "overall_status": "FAIL",
+    "chemistry": [
+      {
+        "property_name": "C",
+        "spec_min": null,
+        "spec_max": 0.15,
+        "actual_value": 0.103,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "Mn",
+        "spec_min": 0.3,
+        "spec_max": 0.6,
+        "actual_value": null,
+        "unit": "%",
+        "status": "MISSING",
+        "note": "Mn not found in MTR",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "P",
+        "spec_min": null,
+        "spec_max": 0.02,
+        "actual_value": 180318.0,
+        "unit": "%",
+        "status": "FAIL",
+        "note": "Above maximum (180318.0000 > 0.02)",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "S",
+        "spec_min": null,
+        "spec_max": 0.01,
+        "actual_value": 626119.0,
+        "unit": "%",
+        "status": "FAIL",
+        "note": "Above maximum (626119.0000 > 0.01)",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "Si",
+        "spec_min": 0.25,
+        "spec_max": 1.0,
+        "actual_value": 0.25,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "Cr",
+        "spec_min": 8.0,
+        "spec_max": 10.0,
+        "actual_value": 8.0,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "Mo",
+        "spec_min": 0.9,
+        "spec_max": 1.1,
+        "actual_value": 1.1,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "Ni",
+        "spec_min": null,
+        "spec_max": 0.5,
+        "actual_value": 0.5,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "Cu",
+        "spec_min": null,
+        "spec_max": 0.25,
+        "actual_value": 0.25,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      }
+    ],
+    "mechanical": [
+      {
+        "property_name": "yield_strength",
+        "spec_min": 80,
+        "spec_max": 95,
+        "actual_value": 83.0,
+        "unit": "ksi",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "tensile_strength",
+        "spec_min": 95,
+        "spec_max": null,
+        "actual_value": 110.0,
+        "unit": "ksi",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "elongation",
+        "spec_min": 20,
+        "spec_max": null,
+        "actual_value": 23.0,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "reduction_of_area",
+        "spec_min": 40,
+        "spec_max": null,
+        "actual_value": 67.0,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "hardness_hbw",
+        "spec_min": null,
+        "spec_max": 237,
+        "actual_value": 235.0,
+        "unit": "",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "hardness_hrc",
+        "spec_min": null,
+        "spec_max": 22,
+        "actual_value": 21.666666666666668,
+        "unit": "",
+        "status": "PASS",
+        "note": "Converted from 235 HBW",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      }
+    ],
+    "special": [
+      {
+        "property_name": "nace_compliance",
+        "spec_min": null,
+        "spec_max": null,
+        "actual_value": null,
+        "unit": "",
+        "status": "PASS",
+        "note": "NACE compliant",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "temper_temperature",
+        "spec_min": 1200,
+        "spec_max": null,
+        "actual_value": 1328.0,
+        "unit": "\u00c2\u00b0F",
+        "status": "PASS",
+        "note": "Converted from 720\u00b0C to 1328\u00b0F",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      }
+    ],
+    "errors": [],
+    "warnings": []
+  }
+}

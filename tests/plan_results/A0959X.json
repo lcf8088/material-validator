@@ -1,0 +1,321 @@
+{
+  "alias": "A0959X",
+  "filename": "2026.02.DOCS.PO1783Li1.2.pdf",
+  "success": true,
+  "spec_id": "ES-M0004A",
+  "spec_confidence": 1.0,
+  "overall_status": "FAIL",
+  "normalized_data": {
+    "heat_number": "A0959X",
+    "material_grade": "9Cr 1Mo",
+    "supplier": "Tata Steel UK Limited",
+    "customer": "TATA STEEL INT (AMERICAS) INC.",
+    "product_form": "ROUND BAR",
+    "size": "2.00IN",
+    "condition": "H&T, REELED, SM TURN, STR REL",
+    "chemistry": {
+      "C": 22008.0,
+      "Si": 0.3,
+      "Mn": 0.54,
+      "P": 17.0,
+      "S": 0.002,
+      "Cr": 8.31,
+      "Mo": 0.91,
+      "Ni": 0.11,
+      "Cu": 0.06,
+      "Sn": 0.005,
+      "W": 4.0
+    },
+    "mechanical": {
+      "yield_strength": 83.0,
+      "tensile_strength": 110.0,
+      "elongation": 25.0,
+      "reduction_of_area": 72.0,
+      "hardness_hbw": 232
+    },
+    "charpy_impact": {
+      "specimen_1": 104,
+      "specimen_2": 105,
+      "specimen_3": 103,
+      "mean": 105,
+      "unit": "ft-lbs"
+    },
+    "temper_temperature": 680.0,
+    "temper_temperature_unit": "C",
+    "charpy_temperature": -10.0,
+    "charpy_temperature_unit": "C",
+    "grain_size": "6-8",
+    "chemistry_qualifiers": {}
+  },
+  "extracted_data": {
+    "heat_number": "A0959X",
+    "material_grade": "9Cr 1Mo",
+    "uns": null,
+    "supplier": "Tata Steel UK Limited",
+    "customer": "TATA STEEL INT (AMERICAS) INC.",
+    "po_number": null,
+    "product_form": "ROUND BAR",
+    "size": "2.00IN",
+    "condition": "H&T, REELED, SM TURN, STR REL",
+    "chemistry": {
+      "C": 0.135,
+      "Si": 0.3,
+      "Mn": 0.54,
+      "P": 0.01,
+      "S": 0.002,
+      "Cr": 8.31,
+      "Mo": 0.91,
+      "Ni": 0.11,
+      "Cu": 0.06,
+      "Sn": 0.005
+    },
+    "chemistry_qualifiers": {},
+    "mechanical": {
+      "yield_strength": 83.0,
+      "yield_strength_unit": "ksi",
+      "tensile_strength": 110.0,
+      "tensile_strength_unit": "ksi",
+      "elongation": 25.0,
+      "reduction_of_area": 72.0,
+      "hardness_hbw": 232,
+      "hardness_hrc": null
+    },
+    "charpy_impact": {
+      "specimen_1": 104,
+      "specimen_2": 105,
+      "specimen_3": 103,
+      "mean": 105,
+      "unit": "ft-lbs"
+    },
+    "charpy_temperature": -10,
+    "charpy_temperature_unit": "C",
+    "temper_temperature": 680,
+    "temper_temperature_unit": "C",
+    "nace_compliant": null,
+    "grain_size": "6-8",
+    "_extraction_status": "success"
+  },
+  "errors": [],
+  "warnings": [
+    "Sanity warnings: C = 22008.000% - Unusually high (typical max ~2.5%) - verify extraction",
+    "Sanity warnings: P = 17.000% - Unusually high (typical max ~0.5%) - verify extraction"
+  ],
+  "validation": {
+    "spec_id": "ES-M0004A",
+    "heat_number": "A0959X",
+    "material_grade": "9Cr 1Mo",
+    "overall_status": "FAIL",
+    "chemistry": [
+      {
+        "property_name": "C",
+        "spec_min": null,
+        "spec_max": 0.15,
+        "actual_value": 22008.0,
+        "unit": "%",
+        "status": "FAIL",
+        "note": "Above maximum (22008.0000 > 0.15)",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "Mn",
+        "spec_min": 0.3,
+        "spec_max": 0.6,
+        "actual_value": 0.54,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "P",
+        "spec_min": null,
+        "spec_max": 0.02,
+        "actual_value": 17.0,
+        "unit": "%",
+        "status": "FAIL",
+        "note": "Above maximum (17.0000 > 0.02)",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "S",
+        "spec_min": null,
+        "spec_max": 0.01,
+        "actual_value": 0.002,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "Si",
+        "spec_min": 0.25,
+        "spec_max": 1.0,
+        "actual_value": 0.3,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "Cr",
+        "spec_min": 8.0,
+        "spec_max": 10.0,
+        "actual_value": 8.31,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "Mo",
+        "spec_min": 0.9,
+        "spec_max": 1.1,
+        "actual_value": 0.91,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "Ni",
+        "spec_min": null,
+        "spec_max": 0.5,
+        "actual_value": 0.11,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "Cu",
+        "spec_min": null,
+        "spec_max": 0.25,
+        "actual_value": 0.06,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      }
+    ],
+    "mechanical": [
+      {
+        "property_name": "yield_strength",
+        "spec_min": 80,
+        "spec_max": 95,
+        "actual_value": 83.0,
+        "unit": "ksi",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "tensile_strength",
+        "spec_min": 95,
+        "spec_max": null,
+        "actual_value": 110.0,
+        "unit": "ksi",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "elongation",
+        "spec_min": 20,
+        "spec_max": null,
+        "actual_value": 25.0,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "reduction_of_area",
+        "spec_min": 40,
+        "spec_max": null,
+        "actual_value": 72.0,
+        "unit": "%",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "hardness_hbw",
+        "spec_min": null,
+        "spec_max": 237,
+        "actual_value": 232.0,
+        "unit": "",
+        "status": "PASS",
+        "note": "",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "hardness_hrc",
+        "spec_min": null,
+        "spec_max": 22,
+        "actual_value": 21.166666666666668,
+        "unit": "",
+        "status": "PASS",
+        "note": "Converted from 232 HBW",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      }
+    ],
+    "special": [
+      {
+        "property_name": "nace_compliance",
+        "spec_min": null,
+        "spec_max": null,
+        "actual_value": null,
+        "unit": "",
+        "status": "MISSING",
+        "note": "NACE compliance not stated",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      },
+      {
+        "property_name": "temper_temperature",
+        "spec_min": 1200,
+        "spec_max": null,
+        "actual_value": 1256.0,
+        "unit": "\u00c2\u00b0F",
+        "status": "PASS",
+        "note": "Converted from 680\u00b0C to 1256\u00b0F",
+        "original_status": "",
+        "override_by": "",
+        "override_reason": ""
+      }
+    ],
+    "errors": [],
+    "warnings": []
+  }
+}

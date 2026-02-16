@@ -279,9 +279,24 @@ def _call_claude(
     )
 
     response_text = message.content[0].text
-    logger.info("Claude response received (%d chars).", len(response_text))
 
-    return _parse_response(response_text)
+    # Log token usage for cost tracking
+    usage = getattr(message, 'usage', None)
+    if usage:
+        in_tok = getattr(usage, 'input_tokens', 0)
+        out_tok = getattr(usage, 'output_tokens', 0)
+        logger.info("Claude response received (%d chars). Tokens: %d in, %d out, %d total.",
+                     len(response_text), in_tok, out_tok, in_tok + out_tok)
+    else:
+        logger.info("Claude response received (%d chars).", len(response_text))
+
+    result = _parse_response(response_text)
+    if usage:
+        result['_token_usage'] = {
+            'input_tokens': getattr(usage, 'input_tokens', 0),
+            'output_tokens': getattr(usage, 'output_tokens', 0),
+        }
+    return result
 
 
 def _parse_response(response_text: str) -> Dict[str, Any]:

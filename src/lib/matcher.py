@@ -57,6 +57,20 @@ _NON_METAL_FAMILIES = {
 # Metallic elements whose presence indicates a metal MTR
 _METALLIC_ELEMENTS = {'Fe', 'Cr', 'Ni', 'Mo', 'Mn', 'Cu', 'Ti', 'Al', 'Co', 'W', 'Nb', 'V', 'Ta'}
 
+# Supplier / trade name aliases that map to standard grade names.
+# Key = normalized trade name (uppercase), Value = list of standard grade names to try.
+# This handles cases where OCR extracts the supplier's commercial name instead of the
+# industry-standard grade (e.g., DEW "Corrodur 4021" = AISI 420 Modified).
+_GRADE_ALIASES = {
+    'CORRODUR 4021': ['420 MODIFIED', '420 MOD', '420'],
+    'CORRODUR 4034': ['420'],
+    'CORRODUR 4116': ['420 MODIFIED'],
+    '1.4021': ['420'],            # DIN/EN number for AISI 420
+    '1.4028': ['420 MODIFIED'],   # DIN/EN number
+    'X20CR13': ['420', '13CR'],   # EN designation
+    'X46CR13': ['420 MODIFIED'],  # EN designation
+}
+
 
 def _extract_family_number(spec_id: str) -> str:
     """Extract the 4-digit family number from a DDIC spec ID.
@@ -138,6 +152,20 @@ class SpecMatcher:
             for sg in spec_grades:
                 if self._normalize_grade(sg) == mtr_norm:
                     return (spec_id, CONFIDENCE_GRADE_EXACT, f"Grade match (normalized): {mtr_grade} ~ {sg}")
+
+            # Trade name alias match (e.g., "Corrodur 4021" → "420 Modified")
+            alias_grades = _GRADE_ALIASES.get(mtr_grade, [])
+            if not alias_grades:
+                alias_grades = _GRADE_ALIASES.get(mtr_norm, [])
+            for alias in alias_grades:
+                alias_upper = alias.upper()
+                if alias_upper in spec_grades:
+                    return (spec_id, CONFIDENCE_GRADE_EXACT,
+                            f"Trade name match: {mtr_grade} -> {alias}")
+                for sg in spec_grades:
+                    if self._normalize_grade(sg) == self._normalize_grade(alias_upper):
+                        return (spec_id, CONFIDENCE_GRADE_EXACT,
+                                f"Trade name match: {mtr_grade} -> {alias} ~ {sg}")
 
             # Partial match (grade contained in spec grades or vice versa)
             for sg in spec_grades:
