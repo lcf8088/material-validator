@@ -1379,6 +1379,7 @@ class MaterialValidatorApp:
                     on_progress=on_progress,
                     po_number=po_from_field or None,
                     organize_by_po=self.config.get('organize_by_po', False),
+                    extraction_model=self.config.get('extraction_model', 'sonnet'),
                 )
 
                 self.root.after(0, lambda: self._on_pipeline_complete(result))
@@ -1899,6 +1900,7 @@ class MaterialValidatorApp:
                     on_progress=on_progress,
                     po_number=po_from_field or None,
                     organize_by_po=self.config.get('organize_by_po', False),
+                    extraction_model=self.config.get('extraction_model', 'sonnet'),
                 )
 
                 self.watcher.mark_processed(file_path)

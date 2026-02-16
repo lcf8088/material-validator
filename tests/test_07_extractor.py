@@ -4,7 +4,9 @@ Test 07: Extractor - PDF conversion and data normalization.
 
 import json
 import pytest
-from lib.extractor import parse_extraction_response, normalize_extracted_data, pdf_to_images
+from lib.extractor import (
+    parse_extraction_response, normalize_extracted_data, pdf_to_images,
+)
 
 
 class TestParseExtractionResponse:

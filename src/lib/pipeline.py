@@ -62,6 +62,7 @@ def process_document(
     on_progress: Optional[callable] = None,
     po_number: Optional[str] = None,
     organize_by_po: bool = False,
+    extraction_model: str = "sonnet",
 ) -> PipelineResult:
     """
     Process an MTR document through the full pipeline.
@@ -161,6 +162,8 @@ def process_document(
             api_key=anthropic_api_key,
             spec=spec_data,
             spec_id=spec_id,
+            image_paths=image_paths,
+            model=extraction_model,
         )
 
         if raw_data.get('_extraction_status') == 'error':
@@ -174,6 +177,7 @@ def process_document(
         # Step 6: Normalize extracted data
         _progress("Normalizing data...", 0.55)
         normalized = normalize_extracted_data(raw_data)
+
         result.normalized_data = normalized
 
         # Step 7: Auto-detect spec if not provided

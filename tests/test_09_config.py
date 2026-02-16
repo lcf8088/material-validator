@@ -91,6 +91,33 @@ class TestIsConfigured:
         assert not cfg.is_configured()
 
 
+class TestExtractionModelConfig:
+    def test_extraction_model_in_defaults(self):
+        assert "extraction_model" in DEFAULT_CONFIG
+        assert DEFAULT_CONFIG["extraction_model"] == "sonnet"
+
+    def test_extraction_model_property(self, tmp_path):
+        path = str(tmp_path / "cfg.json")
+        cfg = Config(path)
+        assert cfg.extraction_model == "sonnet"
+        cfg.extraction_model = "opus"
+        assert cfg.extraction_model == "opus"
+
+    def test_extraction_model_valid_values(self, tmp_path):
+        path = str(tmp_path / "cfg.json")
+        cfg = Config(path)
+        for val in ("sonnet", "opus", "sonnet_with_opus_fallback"):
+            cfg.extraction_model = val
+            assert cfg.extraction_model == val
+
+    def test_extraction_model_persists(self, tmp_path):
+        path = str(tmp_path / "cfg.json")
+        cfg = Config(path)
+        cfg.extraction_model = "sonnet_with_opus_fallback"
+        cfg2 = Config(path)
+        assert cfg2.extraction_model == "sonnet_with_opus_fallback"
+
+
 class TestConfigProperties:
     def test_archive_folder_property(self, sample_config):
         cfg = Config(sample_config)

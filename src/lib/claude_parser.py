@@ -1,28 +1,44 @@
 """
-Claude Opus 4.6 structured parser for MTR data extraction.
+Claude structured parser for MTR data extraction.
 
-Takes raw OCR text output from PaddleOCR and sends it to Claude
-with a structured extraction prompt and optional spec context.
+Takes raw OCR text output from PaddleOCR and page images, sends them to Claude
+in a multimodal request for structured extraction with optional spec context.
 Returns parsed JSON matching the existing MTR data format.
 """
 
+import base64
 import json
 import logging
-from typing import Dict, Any, Optional
+from pathlib import Path
+from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger(__name__)
+
+# Model ID mapping
+MODEL_IDS = {
+    'sonnet': 'claude-sonnet-4-5-20250929',
+    'opus': 'claude-opus-4-6',
+}
+
+# Max pages to send as images (typical MTR is 1-4 pages)
+MAX_IMAGE_PAGES = 5
 
 # Structured extraction prompt for Claude
 EXTRACTION_PROMPT = """\
 You are an expert at reading Material Test Reports (MTRs) / Mill Certifications.
 
-Below is raw OCR text extracted from an MTR document. Parse it into structured JSON.
+You are viewing the actual document images alongside OCR text extracted from them.
+Use the IMAGES for visual layout — which columns belong to which headers, table structure, and spatial relationships.
+Use the OCR TEXT for precise character-level values — exact decimal places, element symbols, and numbers.
+When the image and OCR text disagree, prefer the image for structure and OCR text for exact values.
+
+Parse the document into structured JSON.
 
 **RULES**:
-- Extract ONLY what is explicitly stated in the text. Do not guess or infer values.
+- Extract ONLY what is explicitly stated in the document. Do not guess or infer values.
 - Chemistry values are percentages by weight (e.g., 0.04 means 0.04%).
 - Stress values: note whether they are in ksi, MPa, or psi. Report the unit exactly as shown on the document.
-- If a field is not present in the OCR text, use null.
+- If a field is not present in the document, use null.
 - For po_number: the customer PO always starts with "PO" (e.g., PO001533). Ignore supplier order numbers, internal references, or any number that does not start with "PO".
 
 **MECHANICAL AVERAGING**:
@@ -32,22 +48,21 @@ Below is raw OCR text extracted from an MTR document. Parse it into structured J
 
 **CHEMISTRY EXTRACTION**:
 - Element symbols should be standard (C, Mn, P, S, Si, Cr, Ni, Mo, Cu, V, Nb, Ti, Al, N, B, W, Co, Sn, Ta, Fe, Pb, Zn, Se, Ca, Ce, La, Mg, Zr).
-- Cb (Columbium) is the old name for Niobium. Always output as Nb, never Cb. If the OCR text shows "Cb:" followed by a numeric value, map that value to the Nb key in the output.
+- Cb (Columbium) is the old name for Niobium. Always output as Nb, never Cb. If the document shows "Cb" followed by a numeric value, map that value to the Nb key in the output.
 - S (Sulfur) and Sn (Tin) are different elements. S is typically < 0.05% in steels. Sn is typically < 0.03%. Do not confuse them.
 - If an element cell is blank, empty, or not listed on the cert, output null for that element. Do NOT use an adjacent cell's value. Only include elements that are explicitly labeled and have a value printed on the document.
-- OCR may break element labels and their values across different lines (e.g., "Cb:" on one line and "0.8900" on the next, or "Ta: 0.8900" when the 0.8900 actually belongs to Cb on the previous line). Carefully match each numeric value to the element label it belongs to by considering the document layout. When in doubt, look at the sequence of element labels and align values left-to-right with their labels.
-- IMPORTANT: Look for chemistry TABLE HEADERS first (a row of element symbols like "C Si Mn P S Cr Mo Ni Cu Ti Nb"). Then match the data row values to those headers by position. Only output elements that appear in the header row. Do NOT add elements (like V) that are not in the header row.
+- Use the document images to identify table structure: match chemistry headers to their corresponding values by visual column alignment. This is more reliable than the raw OCR text for column-to-element mapping.
 - For values with less-than qualifiers (e.g., "<0.002", "<0.01"), report the number without the "<" in the chemistry dict, and add the qualifier to the "chemistry_qualifiers" dict (e.g., {{"Ta": "<"}}).
 
 **TEMPERATURE EXTRACTION**:
 - For temper_temperature, report the numeric value AND the unit separately. Use "C" for Celsius, "F" for Fahrenheit.
 - Heat treatment may be described as a multi-step sequence (e.g., "970°C 1HR + 225°C 2HR + 715°C 2HR"). Extract the TEMPERING step specifically. Look for keywords: temper, tempering, anlassen (German), revenu (French). The tempering step is typically the last or second-to-last step, performed at a lower temperature than the austenitizing/hardening step.
-- For charpy_temperature, report the numeric value AND the unit separately. Charpy impact test temperatures may be negative (e.g., -40°C, -20°F). Always preserve the negative sign. Report the exact value and unit as printed on the document.
+- For charpy_temperature, report the numeric value AND the unit separately. Charpy impact test temperatures are frequently NEGATIVE (e.g., -40°C, -20°F, -46°C). Always preserve the negative sign. Common Charpy test temperatures are: -196°C, -101°C, -75°C, -50°C, -46°C, -40°C, -29°C, -20°C, -10°C, 0°C. OCR may misread a minus sign as a digit or drop it entirely. If the document says something like "10°C" but the context suggests a sub-zero test (e.g., impact testing, low-temperature toughness), double-check for a missing minus sign. Report the exact value and unit as printed on the document.
 
 **MULTI-DOCUMENT PDFs**:
 - This PDF may contain multiple documents from different companies (packing slips, distributor certs, mill certs). Always prefer the ORIGINAL MILL TEST REPORT as the authoritative source for chemistry and mechanical properties. If different pages show conflicting chemistry, use the mill's values, not the distributor's.
 
-**OCR TEXT**:
+**OCR TEXT** (use for precise character values):
 {ocr_text}
 
 {spec_context}
@@ -141,24 +156,93 @@ def _format_spec_as_text(spec: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _encode_images(image_paths: List[str]) -> List[Dict[str, Any]]:
+    """Encode page images as base64 content blocks for the Anthropic API.
+
+    Args:
+        image_paths: List of image file paths (PNG).
+
+    Returns:
+        List of image content blocks ready for the messages API.
+    """
+    blocks = []
+    for path in image_paths[:MAX_IMAGE_PAGES]:
+        p = Path(path)
+        if not p.exists():
+            logger.warning("Image not found, skipping: %s", path)
+            continue
+        suffix = p.suffix.lower()
+        media_type = {
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.webp': 'image/webp',
+            '.gif': 'image/gif',
+        }.get(suffix, 'image/png')
+
+        data = base64.standard_b64encode(p.read_bytes()).decode('ascii')
+        blocks.append({
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": media_type,
+                "data": data,
+            }
+        })
+    return blocks
+
+
+def _resolve_model(model: str) -> str:
+    """Resolve a short model name to a full Anthropic model ID."""
+    return MODEL_IDS.get(model, MODEL_IDS['sonnet'])
+
+
 def parse_and_validate(
     ocr_text: str,
     api_key: str,
     spec: Optional[Dict[str, Any]] = None,
     spec_id: Optional[str] = None,
+    image_paths: Optional[List[str]] = None,
+    model: str = "sonnet",
 ) -> Dict[str, Any]:
     """
-    Send OCR text to Claude for structured extraction and optional spec validation.
+    Send OCR text and page images to Claude for structured extraction.
 
     Args:
         ocr_text: Raw text from PaddleOCR extraction.
         api_key: Anthropic API key.
         spec: Optional spec dict for cross-referencing.
         spec_id: Optional spec identifier string.
+        image_paths: Optional list of page image paths for vision.
+        model: Model to use — 'sonnet', 'opus', or 'sonnet_with_opus_fallback'.
 
     Returns:
         Parsed MTR data dict compatible with normalize_extracted_data().
     """
+    import anthropic
+
+    # Handle fallback strategy
+    if model == 'sonnet_with_opus_fallback':
+        result = _call_claude(ocr_text, api_key, spec, spec_id, image_paths, 'sonnet')
+        if result.get('_extraction_status') == 'error':
+            logger.warning("Sonnet extraction failed, falling back to Opus...")
+            result = _call_claude(ocr_text, api_key, spec, spec_id, image_paths, 'opus')
+            if result.get('_extraction_status') == 'success':
+                result['_fallback_used'] = 'opus'
+        return result
+
+    return _call_claude(ocr_text, api_key, spec, spec_id, image_paths, model)
+
+
+def _call_claude(
+    ocr_text: str,
+    api_key: str,
+    spec: Optional[Dict[str, Any]],
+    spec_id: Optional[str],
+    image_paths: Optional[List[str]],
+    model: str,
+) -> Dict[str, Any]:
+    """Execute a single Claude API call with optional vision."""
     import anthropic
 
     spec_context = ""
@@ -166,26 +250,37 @@ def parse_and_validate(
         spec_text = _format_spec_as_text(spec)
         spec_context = _build_spec_context(spec_text, spec_id)
 
-    prompt = EXTRACTION_PROMPT.format(
+    prompt_text = EXTRACTION_PROMPT.format(
         ocr_text=ocr_text,
         spec_context=spec_context,
     )
 
+    # Build multimodal content: images first, then text prompt
+    content: list = []
+
+    if image_paths:
+        image_blocks = _encode_images(image_paths)
+        if image_blocks:
+            content.extend(image_blocks)
+            logger.info("Including %d page image(s) in Claude request.", len(image_blocks))
+
+    content.append({"type": "text", "text": prompt_text})
+
+    model_id = _resolve_model(model)
     client = anthropic.Anthropic(api_key=api_key)
 
-    logger.info("Sending OCR text to Claude for structured parsing...")
+    logger.info("Sending to Claude (%s) for structured parsing...", model_id)
     message = client.messages.create(
-        model="claude-opus-4-6",
+        model=model_id,
         max_tokens=4096,
         messages=[
-            {"role": "user", "content": prompt}
+            {"role": "user", "content": content}
         ],
     )
 
     response_text = message.content[0].text
     logger.info("Claude response received (%d chars).", len(response_text))
 
-    # Parse the JSON response
     return _parse_response(response_text)
 
 
@@ -244,11 +339,11 @@ def test_connection(api_key: str) -> tuple[bool, str]:
     try:
         client = anthropic.Anthropic(api_key=api_key)
         client.messages.create(
-            model="claude-opus-4-6",
+            model="claude-sonnet-4-5-20250929",
             max_tokens=10,
             messages=[{"role": "user", "content": "Hi"}],
         )
-        return True, "Connected to Anthropic API (Claude Opus 4.6)"
+        return True, "Connected to Anthropic API (Claude Sonnet 4.5)"
     except anthropic.AuthenticationError:
         return False, "Invalid API key"
     except Exception as e:

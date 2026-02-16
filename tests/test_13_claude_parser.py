@@ -9,8 +9,11 @@ from lib.claude_parser import (
     _parse_response,
     _build_spec_context,
     _format_spec_as_text,
+    _encode_images,
+    _resolve_model,
     parse_and_validate,
     EXTRACTION_PROMPT,
+    MODEL_IDS,
 )
 
 
@@ -111,6 +114,45 @@ class TestExtractionPrompt:
         assert "{ocr_text}" in EXTRACTION_PROMPT
         assert "{spec_context}" in EXTRACTION_PROMPT
 
+    def test_prompt_has_vision_instructions(self):
+        assert "IMAGES" in EXTRACTION_PROMPT
+        assert "visual layout" in EXTRACTION_PROMPT
+
+
+class TestModelResolution:
+    def test_sonnet_resolves(self):
+        assert _resolve_model("sonnet") == MODEL_IDS["sonnet"]
+
+    def test_opus_resolves(self):
+        assert _resolve_model("opus") == MODEL_IDS["opus"]
+
+    def test_unknown_defaults_to_sonnet(self):
+        assert _resolve_model("unknown") == MODEL_IDS["sonnet"]
+
+
+class TestEncodeImages:
+    def test_encode_existing_image(self, tmp_path):
+        img = tmp_path / "test.png"
+        img.write_bytes(b'\x89PNG\r\n\x1a\n' + b'\x00' * 20)
+        blocks = _encode_images([str(img)])
+        assert len(blocks) == 1
+        assert blocks[0]["type"] == "image"
+        assert blocks[0]["source"]["media_type"] == "image/png"
+        assert blocks[0]["source"]["type"] == "base64"
+
+    def test_skip_missing_image(self):
+        blocks = _encode_images(["/nonexistent/path.png"])
+        assert len(blocks) == 0
+
+    def test_max_pages_limit(self, tmp_path):
+        paths = []
+        for i in range(8):
+            img = tmp_path / f"page{i}.png"
+            img.write_bytes(b'\x89PNG\r\n\x1a\n' + b'\x00' * 20)
+            paths.append(str(img))
+        blocks = _encode_images(paths)
+        assert len(blocks) == 5  # MAX_IMAGE_PAGES
+
 
 class TestParseAndValidateMocked:
     """Test the full parse_and_validate with mocked Anthropic client."""
@@ -127,7 +169,6 @@ class TestParseAndValidateMocked:
         mock_anthropic.Anthropic.return_value.messages.create.return_value = mock_message
 
         with patch.dict("sys.modules", {"anthropic": mock_anthropic}):
-            # Re-import to pick up the mock
             import importlib
             import lib.claude_parser as cp
             importlib.reload(cp)
@@ -155,5 +196,77 @@ class TestParseAndValidateMocked:
 
         # Verify spec context was included in the prompt
         call_args = mock_client.messages.create.call_args
-        prompt_text = call_args[1]["messages"][0]["content"]
+        # Content is now a list of blocks (multimodal), find the text block
+        content = call_args[1]["messages"][0]["content"]
+        if isinstance(content, list):
+            prompt_text = next(b["text"] for b in content if b.get("type") == "text")
+        else:
+            prompt_text = content
         assert "ES-M0001C" in prompt_text
+
+    def test_with_image_paths(self, tmp_path):
+        img = tmp_path / "page1.png"
+        img.write_bytes(b'\x89PNG\r\n\x1a\n' + b'\x00' * 20)
+
+        mock_anthropic = MagicMock()
+        mock_message = MagicMock()
+        mock_message.content = [MagicMock(text='{"heat_number": "H1"}')]
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = mock_message
+        mock_anthropic.Anthropic.return_value = mock_client
+
+        with patch.dict("sys.modules", {"anthropic": mock_anthropic}):
+            import importlib
+            import lib.claude_parser as cp
+            importlib.reload(cp)
+            result = cp.parse_and_validate(
+                "text", "key", image_paths=[str(img)], model="sonnet"
+            )
+
+        assert result["heat_number"] == "H1"
+
+        # Verify image was included in request
+        call_args = mock_client.messages.create.call_args
+        content = call_args[1]["messages"][0]["content"]
+        assert isinstance(content, list)
+        image_blocks = [b for b in content if b.get("type") == "image"]
+        assert len(image_blocks) == 1
+        assert image_blocks[0]["source"]["media_type"] == "image/png"
+
+    def test_model_selection(self):
+        mock_anthropic = MagicMock()
+        mock_message = MagicMock()
+        mock_message.content = [MagicMock(text='{"heat_number": "H1"}')]
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = mock_message
+        mock_anthropic.Anthropic.return_value = mock_client
+
+        with patch.dict("sys.modules", {"anthropic": mock_anthropic}):
+            import importlib
+            import lib.claude_parser as cp
+            importlib.reload(cp)
+            cp.parse_and_validate("text", "key", model="opus")
+
+        call_args = mock_client.messages.create.call_args
+        assert call_args[1]["model"] == "claude-opus-4-6"
+
+    def test_fallback_strategy(self):
+        mock_anthropic = MagicMock()
+        # First call (sonnet) returns error, second call (opus) succeeds
+        mock_error = MagicMock()
+        mock_error.content = [MagicMock(text="not json at all")]
+        mock_success = MagicMock()
+        mock_success.content = [MagicMock(text='{"heat_number": "H1"}')]
+        mock_client = MagicMock()
+        mock_client.messages.create.side_effect = [mock_error, mock_success]
+        mock_anthropic.Anthropic.return_value = mock_client
+
+        with patch.dict("sys.modules", {"anthropic": mock_anthropic}):
+            import importlib
+            import lib.claude_parser as cp
+            importlib.reload(cp)
+            result = cp.parse_and_validate("text", "key", model="sonnet_with_opus_fallback")
+
+        assert result["heat_number"] == "H1"
+        assert result.get("_fallback_used") == "opus"
+        assert mock_client.messages.create.call_count == 2

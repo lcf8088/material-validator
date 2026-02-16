@@ -25,6 +25,7 @@ DEFAULT_CONFIG = {
     'output_folder': '',
     'organize_by_po': False,
     'watch_auto_process': True,
+    'extraction_model': 'sonnet',
 }
 
 
@@ -105,6 +106,14 @@ class Config:
     def effective_output_folder(self) -> str:
         """Output folder — prefers output_folder, falls back to archive_folder."""
         return self._config.get('output_folder', '') or self._config.get('archive_folder', '')
+
+    @property
+    def extraction_model(self) -> str:
+        return self._config.get('extraction_model', 'sonnet')
+
+    @extraction_model.setter
+    def extraction_model(self, value: str):
+        self.set('extraction_model', value)
 
     def is_configured(self) -> bool:
         """Check if minimum required settings are configured."""

@@ -21,6 +21,14 @@ from tkinter import filedialog, messagebox
 from .config import Config
 from .theme import COLORS, FONTS
 
+# Display label ↔ config value mapping for extraction model
+_MODEL_DISPLAY_TO_CONFIG = {
+    "Sonnet 4.5 (Recommended)": "sonnet",
+    "Opus 4.6": "opus",
+    "Sonnet → Opus Fallback": "sonnet_with_opus_fallback",
+}
+_MODEL_CONFIG_TO_DISPLAY = {v: k for k, v in _MODEL_DISPLAY_TO_CONFIG.items()}
+
 
 class SettingsPanel:
     """Settings panel that embeds in the main window, replacing main content."""
@@ -182,6 +190,14 @@ class SettingsPanel:
             font=FONTS['body'],
         ).pack(anchor="w", padx=15, pady=(6, 0))
 
+        self._label(tab, "Extraction Model").pack(anchor="w", **pad)
+        self.model_var = ctk.StringVar()
+        self._combo(
+            tab,
+            ["Sonnet 4.5 (Recommended)", "Opus 4.6", "Sonnet → Opus Fallback"],
+            self.model_var, width=220, state="readonly",
+        ).pack(anchor="w", padx=15, pady=2)
+
         self._label(tab, "Preprocessing DPI").pack(anchor="w", **pad)
         self.prep_dpi_var = ctk.StringVar()
         self._combo(tab, ["200", "300", "400"], self.prep_dpi_var, state="readonly").pack(anchor="w", padx=15, pady=2)
@@ -308,6 +324,15 @@ class SettingsPanel:
         ttk.Checkbutton(tab, text="Auto-process watched files", variable=self.watch_auto_process_var).grid(row=row, column=0, columnspan=2, sticky="w", pady=6)
 
         row += 1
+        ttk.Label(tab, text="Extraction Model").grid(row=row, column=0, sticky="w", pady=4)
+        self.model_var = tk.StringVar()
+        ttk.Combobox(
+            tab,
+            values=["Sonnet 4.5 (Recommended)", "Opus 4.6", "Sonnet → Opus Fallback"],
+            textvariable=self.model_var, state="readonly", width=25,
+        ).grid(row=row, column=1, sticky="w", pady=4)
+
+        row += 1
         ttk.Label(tab, text="Preprocessing DPI").grid(row=row, column=0, sticky="w", pady=4)
         self.prep_dpi_var = tk.StringVar()
         ttk.Combobox(tab, values=["200", "300", "400"], textvariable=self.prep_dpi_var, state="readonly", width=10).grid(row=row, column=1, sticky="w", pady=4)
@@ -381,6 +406,8 @@ class SettingsPanel:
         """Populate widgets from config."""
         self.key_var.set(self.config.get("anthropic_api_key", ""))
         self.watch_var.set(self.config.get("watch_folder", ""))
+        model_cfg = self.config.get("extraction_model", "sonnet")
+        self.model_var.set(_MODEL_CONFIG_TO_DISPLAY.get(model_cfg, "Sonnet 4.5 (Recommended)"))
         self.prep_dpi_var.set(str(self.config.get("preprocessing_dpi", 300)))
         self.paddle_var.set(self.config.get("paddle_model_path", ""))
 
@@ -409,10 +436,14 @@ class SettingsPanel:
 
         old_specs_folder = self.config.get("specs_folder", "")
 
+        model_display = self.model_var.get()
+        model_config = _MODEL_DISPLAY_TO_CONFIG.get(model_display, "sonnet")
+
         self.config.update({
             "anthropic_api_key": self.key_var.get().strip(),
             "watch_folder": self.watch_var.get().strip(),
             "watch_auto_process": self.watch_auto_process_var.get(),
+            "extraction_model": model_config,
             "preprocessing_dpi": int(prep_dpi_str),
             "paddle_model_path": self.paddle_var.get().strip(),
             "archive_folder": self.archive_var.get().strip(),
