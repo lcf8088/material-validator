@@ -318,7 +318,7 @@ class SpecValidator:
 
             # Unit conversion for stress values
             spec_unit = limits.get('unit', '').lower()
-            if actual_unit and spec_unit in ('ksi', 'mpa'):
+            if actual_unit and spec_unit in ('ksi', 'mpa', 'psi'):
                 if actual_unit.lower() != spec_unit:
                     original = actual
                     actual = convert_stress(actual, actual_unit, spec_unit)
@@ -334,14 +334,16 @@ class SpecValidator:
     def _find_property_value(self, mtr_mech: Dict[str, Any], prop_name: str) -> tuple:
         """Find property value using aliases. Returns (value, unit) or (None, None)."""
         aliases = PROPERTY_ALIASES.get(prop_name, [prop_name])
-        
+
         for alias in aliases:
             if alias in mtr_mech:
                 val = mtr_mech[alias]
                 if isinstance(val, dict):
                     return val.get('value'), val.get('unit')
-                return val, None
-        
+                # Check for companion '_unit' key (e.g. tensile_strength_unit)
+                unit = mtr_mech.get(f'{alias}_unit')
+                return val, unit
+
         return None, None
     
     def _try_hardness_conversion(self, mtr_mech: Dict[str, Any], prop_name: str, vr: ValidationResult) -> Optional[float]:

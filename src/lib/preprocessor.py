@@ -11,6 +11,33 @@ from pathlib import Path
 from typing import List
 
 
+def extract_native_text(pdf_path: str, return_page_texts: bool = False):
+    """Extract embedded text from a PDF using PyMuPDF.
+
+    Returns page-separated text using the same '--- Page N ---' markers
+    that PaddleOCR produces, so downstream page relevance scoring works
+    identically regardless of extraction method.
+
+    If return_page_texts=True, returns (combined_text, [per_page_texts]).
+    """
+    import fitz
+
+    doc = fitz.open(pdf_path)
+    parts = []
+    page_texts = []
+    for i, page in enumerate(doc, 1):
+        text = page.get_text().strip()
+        page_texts.append(text)
+        if len(doc) > 1:
+            parts.append(f"\n--- Page {i} ---\n")
+        parts.append(text)
+    doc.close()
+    combined = "\n".join(parts)
+    if return_page_texts:
+        return combined, page_texts
+    return combined
+
+
 def is_digital_native(pdf_path: str) -> bool:
     """
     Detect whether a PDF is digital-native (has a text layer) or scanned.
@@ -21,16 +48,7 @@ def is_digital_native(pdf_path: str) -> bool:
     Returns:
         True if the PDF has extractable text (digital-native), False if scanned.
     """
-    import fitz
-
-    doc = fitz.open(pdf_path)
-    total_chars = 0
-    for page in doc:
-        total_chars += len(page.get_text().strip())
-    doc.close()
-
-    # If we extracted a reasonable amount of text, it's digital-native
-    return total_chars > 50
+    return len(extract_native_text(pdf_path)) > 50
 
 
 def fix_rotated_pages(image_paths: List[str]) -> List[str]:

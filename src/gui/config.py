@@ -22,7 +22,6 @@ DEFAULT_CONFIG = {
     'last_input_folder': '',
     'specs_folder': '',
     'auto_archive': True,
-    'output_folder': '',
     'organize_by_po': False,
     'watch_auto_process': True,
     'extraction_model': 'sonnet',
@@ -53,6 +52,10 @@ class Config:
                 for legacy_key in ('vision_provider', 'vision_api_key', 'vision_model',
                                    'vision_endpoint'):
                     config.pop(legacy_key, None)
+                # Migrate: output_folder was merged into archive_folder
+                old_output = config.pop('output_folder', '')
+                if old_output and not config.get('archive_folder'):
+                    config['archive_folder'] = old_output
                 return config
             except Exception:
                 pass
@@ -104,8 +107,8 @@ class Config:
 
     @property
     def effective_output_folder(self) -> str:
-        """Output folder — prefers output_folder, falls back to archive_folder."""
-        return self._config.get('output_folder', '') or self._config.get('archive_folder', '')
+        """Output/archive folder for approved TIFFs."""
+        return self._config.get('archive_folder', '')
 
     @property
     def extraction_model(self) -> str:

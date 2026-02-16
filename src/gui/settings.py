@@ -212,19 +212,12 @@ class SettingsPanel:
     def _build_archive_tab_ctk(self, tab):
         pad = {"padx": 15, "pady": (8, 0)}
 
-        self._label(tab, "Archive Folder").pack(anchor="w", **pad)
+        self._label(tab, "Output Folder").pack(anchor="w", **pad)
         af_frame = ctk.CTkFrame(tab, fg_color="transparent")
         af_frame.pack(fill="x", padx=15, pady=2)
         self.archive_var = ctk.StringVar()
         self._entry(af_frame, textvariable=self.archive_var, width=310).pack(side="left")
         self._browse_button(af_frame, self._browse_archive).pack(side="left", padx=5)
-
-        self._label(tab, "Output Folder (overrides Archive Folder)").pack(anchor="w", **pad)
-        of_frame = ctk.CTkFrame(tab, fg_color="transparent")
-        of_frame.pack(fill="x", padx=15, pady=2)
-        self.output_folder_var = ctk.StringVar()
-        self._entry(of_frame, textvariable=self.output_folder_var, width=310).pack(side="left")
-        self._browse_button(of_frame, self._browse_output_folder).pack(side="left", padx=5)
 
         self.organize_by_po_var = ctk.BooleanVar()
         ctk.CTkCheckBox(
@@ -347,20 +340,12 @@ class SettingsPanel:
 
     def _build_archive_tab_tk(self, tab):
         row = 0
-        ttk.Label(tab, text="Archive Folder").grid(row=row, column=0, sticky="w", pady=4)
+        ttk.Label(tab, text="Output Folder").grid(row=row, column=0, sticky="w", pady=4)
         af_frame = ttk.Frame(tab)
         af_frame.grid(row=row, column=1, sticky="w", pady=4)
         self.archive_var = tk.StringVar()
         ttk.Entry(af_frame, textvariable=self.archive_var, width=35).pack(side="left")
         ttk.Button(af_frame, text="Browse", command=self._browse_archive).pack(side="left", padx=4)
-
-        row += 1
-        ttk.Label(tab, text="Output Folder (overrides Archive)").grid(row=row, column=0, sticky="w", pady=4)
-        of_frame = ttk.Frame(tab)
-        of_frame.grid(row=row, column=1, sticky="w", pady=4)
-        self.output_folder_var = tk.StringVar()
-        ttk.Entry(of_frame, textvariable=self.output_folder_var, width=35).pack(side="left")
-        ttk.Button(of_frame, text="Browse", command=self._browse_output_folder).pack(side="left", padx=4)
 
         row += 1
         self.organize_by_po_var = tk.BooleanVar()
@@ -412,7 +397,6 @@ class SettingsPanel:
         self.paddle_var.set(self.config.get("paddle_model_path", ""))
 
         self.archive_var.set(self.config.get("archive_folder", ""))
-        self.output_folder_var.set(self.config.get("output_folder", ""))
         self.organize_by_po_var.set(self.config.get("organize_by_po", False))
         self.watch_auto_process_var.set(self.config.get("watch_auto_process", True))
         self.dpi_var.set(str(self.config.get("tiff_dpi", 300)))
@@ -447,7 +431,6 @@ class SettingsPanel:
             "preprocessing_dpi": int(prep_dpi_str),
             "paddle_model_path": self.paddle_var.get().strip(),
             "archive_folder": self.archive_var.get().strip(),
-            "output_folder": self.output_folder_var.get().strip(),
             "organize_by_po": self.organize_by_po_var.get(),
             "tiff_dpi": int(dpi_str),
             "tiff_compression": self.compress_var.get(),
@@ -510,11 +493,6 @@ class SettingsPanel:
         folder = filedialog.askdirectory(title="Select Archive Folder")
         if folder:
             self.archive_var.set(folder)
-
-    def _browse_output_folder(self):
-        folder = filedialog.askdirectory(title="Select Output Folder")
-        if folder:
-            self.output_folder_var.set(folder)
 
     def _browse_watch(self):
         folder = filedialog.askdirectory(title="Select Watch Folder")

@@ -17,7 +17,60 @@ from PIL import Image
 
 from .page_relevance import select_relevant_pages
 
+import re
+
 logger = logging.getLogger(__name__)
+
+
+def _strip_chemistry_table_from_ocr(ocr_text: str) -> str:
+    """Strip garbled chemistry table data from OCR text.
+
+    PaddleOCR frequently garbles tabular chemistry data — headers merge,
+    values split across lines, column alignment is destroyed. This misleads
+    Claude into column-shift errors even when images are provided.
+
+    Replaces the chemistry table section with a marker telling Claude to
+    read chemistry exclusively from the document images.
+    """
+    lines = ocr_text.split('\n')
+    result = []
+    in_chem_section = False
+    stripped_count = 0
+
+    # Patterns that signal the start of a chemistry table
+    chem_start_re = re.compile(
+        r'CHEM|COMPOSITION\s*\(%?\)|CHEMICAL|ANALYSE|ANALYS',
+        re.IGNORECASE,
+    )
+    # Patterns that signal the end of a chemistry section
+    chem_end_re = re.compile(
+        r'TENSILE|MECHANICAL|HARDNESS|IMPACT|CHARPY|HEAT\s+TREAT|'
+        r'GRAIN\s+SIZE|NOTES|REMARKS|---\s*Page',
+        re.IGNORECASE,
+    )
+
+    for line in lines:
+        stripped = line.strip()
+        if not in_chem_section:
+            if chem_start_re.search(stripped):
+                in_chem_section = True
+                result.append("[CHEMISTRY TABLE PRESENT — read all chemistry values from the document images, not from OCR text]")
+                stripped_count += 1
+                continue
+            result.append(line)
+        else:
+            if chem_end_re.search(stripped) or (stripped.startswith('---') and 'Page' in stripped):
+                in_chem_section = False
+                result.append(line)
+            else:
+                stripped_count += 1
+                # Skip this garbled chemistry line
+
+    if stripped_count > 0:
+        logger.info("Stripped %d garbled chemistry lines from OCR text", stripped_count)
+
+    return '\n'.join(result)
+
 
 # Model ID mapping
 MODEL_IDS = {
@@ -36,9 +89,9 @@ EXTRACTION_PROMPT = """\
 You are an expert at reading Material Test Reports (MTRs) / Mill Certifications.
 
 You are viewing the actual document images alongside OCR text extracted from them.
-Use the IMAGES for visual layout — which columns belong to which headers, table structure, and spatial relationships.
-Use the OCR TEXT for precise character-level values — exact decimal places, element symbols, and numbers.
-When the image and OCR text disagree, prefer the image for structure and OCR text for exact values.
+Use the IMAGES as the PRIMARY source — for layout, table structure, column-to-header mapping, AND reading values from tables.
+Use the OCR TEXT as a secondary reference for text values outside of tables (heat numbers, supplier names, etc.).
+IMPORTANT: OCR frequently garbles tabular data — headers merge together, values split across lines, and column alignment is lost. For chemistry and mechanical tables, ALWAYS trust what you see in the images over the OCR text. Read table values directly from the images, matching each value to its column header by visual position.
 
 Parse the document into structured JSON.
 
@@ -60,7 +113,14 @@ Parse the document into structured JSON.
 - S (Sulfur) and Sn (Tin) are different elements. S is typically < 0.05% in steels. Sn is typically < 0.03%. Do not confuse them.
 - If an element cell is blank, empty, or not listed on the cert, output null for that element. Do NOT use an adjacent cell's value. Only include elements that are explicitly labeled and have a value printed on the document.
 - Use the document images to identify table structure: match chemistry headers to their corresponding values by visual column alignment. This is more reliable than the raw OCR text for column-to-element mapping.
+- **COLUMN ALIGNMENT IS CRITICAL**: Count the number of column headers and verify the same number of data values per row. Footnote markers like *1, *2, *3, *4 next to column headers are NOT extra columns — they are superscript annotations. Row labels like R (requirement), L (ladle), P (product) at the start of a row are NOT chemistry values. Do not skip or shift columns. If the header row is [C, Si, Mn, P, S, Cr, Ni, Mo, Ti, V, N] then the first numeric value in a data row corresponds to C, the second to Si, etc. Verify your extraction: if C > 0.50% or Mn < 0.10% for a stainless steel, you likely have a column shift error.
 - For values with less-than qualifiers (e.g., "<0.002", "<0.01"), report the number without the "<" in the chemistry dict, and add the qualifier to the "chemistry_qualifiers" dict (e.g., {{"Ta": "<"}}).
+- **COMPACT INTEGER NOTATION**: Some MTRs display chemistry as integers with footnote multipliers instead of decimal percentages. Look for footnotes near the bottom of the chemistry table such as "*2:X10", "*3:X1000", "*4:X10000", "OTHER:X100". These tell you how to convert each column's integer to a percentage:
+  - OTHER or X100 or unmarked: divide by 100 (e.g., C=1 → 0.01%, Si=22 → 0.22%, Mn=40 → 0.40%).
+  - *2 or X10: divide by 10 (e.g., Cr=120 → 12.0%, Ni=56 → 5.6%, Mo=19 → 1.9%).
+  - *3 or X1000: divide by 1000 (e.g., P=13 → 0.013%, S=0 → 0.000%).
+  - *4 or X10000: divide by 10000 (e.g., N=77 → 0.0077%).
+  When you see integer-only chemistry values (no decimal points) with footnote markers on column headers, you MUST apply the correct scale factor and output the final decimal percentage. Verify your conversion makes physical sense (e.g., C is typically 0.01-0.50%, Cr in stainless steels is 11-18%, Ni is typically 0-10%).
 
 **TEMPERATURE EXTRACTION**:
 - For temper_temperature, report the numeric value AND the unit separately. Use "C" for Celsius, "F" for Fahrenheit.
@@ -315,8 +375,12 @@ def _call_claude(
         spec_text = _format_spec_as_text(spec)
         spec_context = _build_spec_context(spec_text, spec_id)
 
+    # Strip garbled chemistry table data when images are available
+    # (Claude will read chemistry from images instead)
+    clean_ocr = _strip_chemistry_table_from_ocr(ocr_text) if image_paths else ocr_text
+
     prompt_text = EXTRACTION_PROMPT.format(
-        ocr_text=ocr_text,
+        ocr_text=clean_ocr,
         spec_context=spec_context,
     )
 

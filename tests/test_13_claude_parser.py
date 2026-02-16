@@ -116,7 +116,7 @@ class TestExtractionPrompt:
 
     def test_prompt_has_vision_instructions(self):
         assert "IMAGES" in EXTRACTION_PROMPT
-        assert "visual layout" in EXTRACTION_PROMPT
+        assert "PRIMARY source" in EXTRACTION_PROMPT
 
 
 class TestModelResolution:

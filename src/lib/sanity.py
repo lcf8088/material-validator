@@ -4,7 +4,7 @@ Sanity checks for extracted MTR data.
 Catches obvious extraction errors before validation runs.
 """
 
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any
 
 # Reasonable ranges for common materials
 # Values outside these ranges trigger warnings
@@ -47,6 +47,98 @@ MECHANICAL_RANGES = {
 
 # Typical borderline threshold (percentage of limit)
 BORDERLINE_THRESHOLD = 0.05  # 5%
+
+
+def detect_suspicious_chemistry(
+    chemistry: Dict[str, Any],
+    spec_chemistry: Optional[Dict[str, Any]] = None,
+) -> bool:
+    """Detect if extracted chemistry looks suspicious and warrants an Opus retry.
+
+    Combines multiple detection strategies to catch various extraction errors:
+    1. Column shift by +1 (most common: C←Si, Si←Mn, Mn←P, P←S)
+    2. Column shift by +2 or other mis-alignments
+    3. Multiplier errors (correct column, wrong scale factor)
+    4. Spec-based: too many chemistry failures against known spec limits
+
+    Returns True if extraction looks unreliable.
+
+    Args:
+        chemistry: Extracted chemistry dict (element → value).
+        spec_chemistry: Optional spec chemistry limits dict (element → {min, max}).
+    """
+    def _f(key):
+        v = chemistry.get(key)
+        if v is None:
+            return None
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return None
+
+    signals = 0
+
+    # --- Strategy 1: Column shift by +1 (physics-based, no spec needed) ---
+    c, si, mn, p = _f('C'), _f('Si'), _f('Mn'), _f('P')
+
+    # C > 0.15 and fits Si's typical range (0.10-1.00)
+    if c is not None and c > 0.15 and 0.10 <= c <= 1.00:
+        signals += 1
+
+    # Si > 0.50 and fits Mn's typical range (0.10-2.00)
+    if si is not None and si > 0.50 and 0.10 <= si <= 2.00:
+        signals += 1
+
+    # Mn < 0.10 and fits P's typical range (0-0.050)
+    if mn is not None and mn < 0.10 and 0.0 <= mn <= 0.050:
+        signals += 1
+
+    # P < 0.005 and fits S's typical range
+    if p is not None and p < 0.005:
+        signals += 1
+
+    if signals >= 2:
+        return True
+
+    # --- Strategy 2: Multiplier errors (value 10x or 100x off) ---
+    # Ti is commonly misread: 0.10 read as 1.0 (÷10 instead of ÷100)
+    ti = _f('Ti')
+    if ti is not None and ti > 0.50 and ti <= 5.0:
+        # Ti > 0.50% is unusual for most steels (except some titanium alloys)
+        # Combined with C being off, strong signal
+        if c is not None and c > 0.10:
+            signals += 1
+
+    # N typically < 0.05%; if > 0.10% it's likely a multiplier error
+    n = _f('N')
+    if n is not None and n > 0.10:
+        signals += 1
+
+    if signals >= 2:
+        return True
+
+    # --- Strategy 3: Spec-based failure counting ---
+    if spec_chemistry and len(spec_chemistry) >= 3:
+        failures = 0
+        checked = 0
+        for elem, limits in spec_chemistry.items():
+            val = _f(elem)
+            if val is None:
+                continue
+            checked += 1
+            lo = limits.get('min')
+            hi = limits.get('max')
+            if lo is not None and val < float(lo) * 0.5:
+                # Value is less than HALF the minimum — very suspicious
+                failures += 1
+            elif hi is not None and val > float(hi) * 2.0:
+                # Value is more than DOUBLE the maximum — very suspicious
+                failures += 1
+        # 3+ elements way out of range is suspicious
+        if checked >= 4 and failures >= 3:
+            return True
+
+    return False
 
 
 def check_chemistry_sanity(chemistry: Dict[str, float]) -> List[Tuple[str, str, str]]:

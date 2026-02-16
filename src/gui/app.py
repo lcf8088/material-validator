@@ -11,6 +11,7 @@ import logging
 import os
 import shutil
 import threading
+import time
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
@@ -31,14 +32,14 @@ from lib.validator import SpecValidator, CertValidation, format_validation_repor
 from lib.matcher import SpecMatcher
 from lib.sanity import run_all_sanity_checks, format_sanity_report
 from lib.history import ValidationHistory
-from lib.pipeline import process_document, PipelineResult
+from lib.pipeline import process_document, pre_extract, PipelineResult
 from lib.watcher import FolderWatcher
 
 from .config import Config
 from .tiff_export import generate_archive_filename, sanitize_filename
 from .settings import SettingsPanel
 from .override_dialog import OverrideDialog
-from .theme import COLORS, FONTS, ICONS, SIDEBAR_WIDTH, status_color
+from .theme import COLORS, FONTS, ICONS, SIDEBAR_WIDTH, status_color, ScrollableComboBox
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +118,7 @@ class MaterialValidatorApp:
         self.settings_panel: Optional[SettingsPanel] = None
 
         # Approval queue state
+        self._batch_running = False
         self._approval_queue: List[PipelineResult] = []
         self.staging_tiff_path: Optional[str] = None
         self._pipeline_lock = threading.Lock()
@@ -407,6 +409,36 @@ class MaterialValidatorApp:
 
         self._create_drop_zone(top)
 
+        # Batch buttons row (below drop zone)
+        batch_row = ctk.CTkFrame(top, fg_color='transparent')
+        batch_row.pack(fill='x', padx=4, pady=(2, 0))
+
+        self.batch_files_btn = ctk.CTkButton(
+            batch_row, text="Batch Files...", width=110, height=28,
+            font=FONTS['small'],
+            fg_color=COLORS['bg_card'], hover_color=COLORS['surface_hl'],
+            border_color=COLORS['border'], border_width=1,
+            text_color=COLORS['text_secondary'],
+            command=self._batch_files,
+        )
+        self.batch_files_btn.pack(side='left', padx=(4, 4))
+
+        self.batch_folder_btn = ctk.CTkButton(
+            batch_row, text="Batch Folder...", width=110, height=28,
+            font=FONTS['small'],
+            fg_color=COLORS['bg_card'], hover_color=COLORS['surface_hl'],
+            border_color=COLORS['border'], border_width=1,
+            text_color=COLORS['text_secondary'],
+            command=self._batch_folder,
+        )
+        self.batch_folder_btn.pack(side='left', padx=(0, 4))
+
+        self.batch_status_label = ctk.CTkLabel(
+            batch_row, text="", font=FONTS['small'],
+            text_color=COLORS['text_secondary'],
+        )
+        self.batch_status_label.pack(side='left', padx=(8, 0))
+
         # Controls row: Spec selector + PO field + action buttons
         controls_row = ctk.CTkFrame(view, fg_color='transparent')
         controls_row.pack(fill='x', padx=4, pady=(8, 0))
@@ -421,10 +453,10 @@ class MaterialValidatorApp:
             text_color=COLORS['text_secondary'],
         ).pack(side='left', padx=(4, 6))
 
-        specs = ['Auto-detect'] + self.spec_loader.list_ids()
+        specs = ['Auto-detect', 'Vendor Spec'] + self._spec_display_list()
         self.spec_var = ctk.StringVar(value='Auto-detect')
-        self.spec_dropdown = ctk.CTkComboBox(
-            left_controls, values=specs, variable=self.spec_var, width=170,
+        self.spec_dropdown = ScrollableComboBox(
+            left_controls, values=specs, variable=self.spec_var, width=300,
             fg_color=COLORS['bg_input'], border_color=COLORS['border'],
             button_color=COLORS['accent'], button_hover_color=COLORS['accent_hover'],
             dropdown_fg_color=COLORS['bg_card'], dropdown_hover_color=COLORS['surface_hl'],
@@ -905,6 +937,14 @@ class MaterialValidatorApp:
             command=lambda v=id_value, lbl=id_label: self._copy_identifier(v, lbl),
         ).pack(side='right', padx=(4, 0))
 
+        # Processing time
+        proc_time = record.get('processing_time')
+        if proc_time:
+            ctk.CTkLabel(
+                inner, text=self._format_elapsed(proc_time), font=FONTS['small'],
+                text_color=COLORS['accent_light'],
+            ).pack(side='right', padx=(0, 8))
+
         # Timestamp
         ts = record.get('timestamp', '')
         if ts:
@@ -957,6 +997,10 @@ class MaterialValidatorApp:
         if id_value == 'N/A':
             id_value = details.get('heat_number', record.get('heat_number', 'N/A'))
 
+        # Show source filename at top for traceability
+        if record.get('source_file'):
+            tw.insert('end', f"  File: ", 'label')
+            tw.insert('end', f"{Path(record['source_file']).name}\n", 'value')
         tw.insert('end', f"  Spec: ", 'label')
         tw.insert('end', f"{details.get('spec_id', record.get('spec_id', 'N/A'))}\n", 'header')
         tw.insert('end', f"  {id_label}#: ", 'label')
@@ -1120,7 +1164,7 @@ class MaterialValidatorApp:
 
         def on_settings_done(saved: bool):
             if saved:
-                specs = ['Auto-detect'] + self.spec_loader.list_ids()
+                specs = ['Auto-detect', 'Vendor Spec'] + self._spec_display_list()
                 self.spec_dropdown.configure(values=specs)
 
                 # Restart watcher if the watch folder changed while watching
@@ -1206,6 +1250,10 @@ class MaterialValidatorApp:
         if result.heat_number and result.heat_number != 'N/A':
             id_value = result.heat_number
 
+        # Show source filename at top for traceability
+        if self.current_file:
+            tw.insert('end', f"  File: ", 'label')
+            tw.insert('end', f"{Path(self.current_file).name}\n", 'value')
         tw.insert('end', f"  Spec: ", 'label')
         tw.insert('end', f"{result.spec_id}\n", 'header')
         tw.insert('end', f"  {id_label}#: ", 'label')
@@ -1349,8 +1397,8 @@ class MaterialValidatorApp:
         if ctk:
             self._update_header_status('INCOMPLETE', "Processing...")
 
-        spec_id = self.spec_var.get()
-        if spec_id == 'Auto-detect':
+        spec_id = self._resolve_spec_id(self.spec_var.get())
+        if spec_id in ('Auto-detect', '---'):
             spec_id = None
 
         def do_pipeline():
@@ -1367,6 +1415,7 @@ class MaterialValidatorApp:
                 if hasattr(self, 'po_var'):
                     po_from_field = self.po_var.get().strip()
 
+                t0 = time.time()
                 result = process_document(
                     pdf_path=self.current_file,
                     output_dir=output_dir,
@@ -1381,16 +1430,213 @@ class MaterialValidatorApp:
                     organize_by_po=self.config.get('organize_by_po', False),
                     extraction_model=self.config.get('extraction_model', 'sonnet'),
                 )
+                elapsed = time.time() - t0
 
-                self.root.after(0, lambda: self._on_pipeline_complete(result))
+                self.root.after(0, lambda: self._on_pipeline_complete(result, elapsed))
 
             except Exception as e:
                 self.root.after(0, lambda: self._on_extract_error(str(e)))
 
         threading.Thread(target=do_pipeline, daemon=True).start()
 
-    def _on_pipeline_complete(self, result: PipelineResult):
+    # ============================================================= Batch
+    def _batch_files(self):
+        """Open multi-file picker and start batch processing."""
+        if self._batch_running:
+            messagebox.showinfo("Batch Running", "A batch is already in progress.")
+            return
+        file_paths = filedialog.askopenfilenames(
+            title="Select MTR Files for Batch Processing",
+            filetypes=[
+                ("PDF files", "*.pdf"),
+                ("Images", "*.png *.jpg *.jpeg *.tiff *.tif"),
+                ("All files", "*.*"),
+            ],
+            initialdir=self.config.get('last_input_folder', ''),
+        )
+        if file_paths:
+            self.config.set('last_input_folder', str(Path(file_paths[0]).parent))
+            self._start_batch(list(file_paths))
+
+    def _batch_folder(self):
+        """Open folder picker and start batch processing all supported files."""
+        if self._batch_running:
+            messagebox.showinfo("Batch Running", "A batch is already in progress.")
+            return
+        folder = filedialog.askdirectory(
+            title="Select Folder for Batch Processing",
+            initialdir=self.config.get('last_input_folder', ''),
+        )
+        if not folder:
+            return
+        self.config.set('last_input_folder', folder)
+        supported = {'.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.tif'}
+        files = sorted(
+            str(p) for p in Path(folder).iterdir()
+            if p.is_file() and p.suffix.lower() in supported
+        )
+        if not files:
+            messagebox.showinfo("No Files", "No supported files found in the selected folder.")
+            return
+        self._start_batch(files)
+
+    def _start_batch(self, file_paths: list):
+        """Process a list of files sequentially, queuing results for approval."""
+        if not self.config.is_configured():
+            messagebox.showwarning(
+                "Setup Required",
+                "Please configure Anthropic API key and archive folder in Settings first.",
+            )
+            self._navigate_to('settings')
+            return
+
+        total = len(file_paths)
+        spec_id = self._resolve_spec_id(self.spec_var.get())
+        if spec_id in ('Auto-detect', '---'):
+            spec_id = None
+
+        po_from_field = ''
+        if hasattr(self, 'po_var'):
+            po_from_field = self.po_var.get().strip()
+
+        # Disable buttons during processing
+        self._batch_running = True
+        self._set_button_state(self.batch_files_btn, 'disabled')
+        self._set_button_state(self.batch_folder_btn, 'disabled')
+        self._set_button_state(self.extract_btn, 'disabled')
+
+        first_result_shown = False
+
+        def do_batch():
+            nonlocal first_result_shown
+            from concurrent.futures import ThreadPoolExecutor
+
+            api_key = self.config.anthropic_api_key
+            paddle_path = self.config.get('paddle_model_path', '') or None
+            dpi = self.config.get('preprocessing_dpi', 300)
+
+            executor = ThreadPoolExecutor(max_workers=1)
+            next_pre = None  # Future for next file's Phase A
+
+            for idx, fpath in enumerate(file_paths, 1):
+                # Update batch progress on UI thread
+                self.root.after(0, lambda i=idx, t=total, f=fpath: (
+                    self.batch_status_label.configure(
+                        text=f"Batch: {i}/{t} \u2014 {Path(f).name}"
+                    ),
+                    self._set_status(f"Batch: processing {i}/{t} \u2014 {Path(f).name}"),
+                    self._set_progress(0),
+                ))
+
+                try:
+                    def on_progress(step, pct):
+                        self.root.after(0, lambda: self._set_progress(pct))
+
+                    # Wait for this file's pre-extraction (or run inline for first)
+                    if next_pre is not None:
+                        pre_result = next_pre.result()
+                    else:
+                        pre_result = pre_extract(
+                            fpath, api_key=api_key,
+                            paddle_model_path=paddle_path,
+                            preprocessing_dpi=dpi,
+                        )
+
+                    # Kick off Phase A for NEXT file while we do Phase B
+                    if idx < total:
+                        next_fpath = file_paths[idx]
+                        next_pre = executor.submit(
+                            pre_extract, next_fpath,
+                            api_key=api_key,
+                            paddle_model_path=paddle_path,
+                            preprocessing_dpi=dpi,
+                        )
+
+                    t0 = time.time()
+                    result = process_document(
+                        pdf_path=fpath,
+                        output_dir=self.config.effective_output_folder,
+                        spec_id=spec_id,
+                        anthropic_api_key=api_key,
+                        paddle_model_path=paddle_path,
+                        preprocessing_dpi=dpi,
+                        tiff_dpi=self.config.get('tiff_dpi', 300),
+                        tiff_compression=self.config.get('tiff_compression', 'lzw'),
+                        on_progress=on_progress,
+                        po_number=po_from_field or None,
+                        organize_by_po=self.config.get('organize_by_po', False),
+                        extraction_model=self.config.get('extraction_model', 'sonnet'),
+                        pre_extracted=pre_result,
+                    )
+                    batch_elapsed = time.time() - t0
+
+                    # Store source file on result for _load_queued_result
+                    result.source_file = fpath
+
+                    def handle_result(r=result, fp=fpath, is_first=not first_result_shown, el=batch_elapsed):
+                        if is_first:
+                            # Display first result directly
+                            self.current_file = fp
+                            filename = Path(fp).name
+                            self.drop_zone.configure(
+                                text=f"{ICONS['file']}  {filename}\n(click to change)",
+                                text_color=COLORS['text_primary'],
+                            )
+                            self.header_file_label.configure(
+                                text=filename, text_color=COLORS['text_primary'],
+                            )
+                            self._on_pipeline_complete(r, el)
+                        else:
+                            # Queue subsequent results
+                            if r.validation:
+                                ed = r.normalized_data or r.extracted_data
+                                spec = self.spec_loader.get(r.spec_id) if r.spec_id else {}
+                                vid = self.history.record(
+                                    r.validation, ed, spec, fp,
+                                    staging_tiff_path=r.output_tiff_path,
+                                )
+                                if el > 0:
+                                    self.history.update(vid, processing_time=round(el, 1))
+                            self._approval_queue.append(r)
+                            self._update_queue_indicator()
+
+                    self.root.after(0, handle_result)
+                    first_result_shown = True
+
+                except Exception as e:
+                    logger.exception("Batch error for %s: %s", fpath, e)
+                    try:
+                        self.history.record_error(
+                            source_file=fpath,
+                            error_type="BATCH_PIPELINE_FAILED",
+                            error_message=str(e),
+                        )
+                    except Exception:
+                        pass
+
+            executor.shutdown(wait=False)
+
+            # Batch complete — re-enable buttons
+            def on_batch_done():
+                self._batch_running = False
+                self._set_button_state(self.batch_files_btn, 'normal')
+                self._set_button_state(self.batch_folder_btn, 'normal')
+                self._set_button_state(self.extract_btn, 'normal')
+                self.batch_status_label.configure(
+                    text=f"Batch complete: {total} files processed"
+                )
+                self._set_status(
+                    f"Batch complete: {total} files. "
+                    f"Queue: {len(self._approval_queue)} pending review."
+                )
+
+            self.root.after(0, on_batch_done)
+
+        threading.Thread(target=do_batch, daemon=True).start()
+
+    def _on_pipeline_complete(self, result: PipelineResult, elapsed: float = 0.0):
         """Handle pipeline completion — display results for review (no archiving yet)."""
+        self._processing_time_sec = elapsed
         self.pipeline_result = result
         self.extracted_data = result.normalized_data or result.extracted_data
         self.validation_result = result.validation
@@ -1434,13 +1680,15 @@ class MaterialValidatorApp:
             status = result.validation.overall_status
             if result.validation.heat_number and result.validation.heat_number != 'N/A':
                 id_value = result.validation.heat_number
-            self._set_status(f"{status} - {id_label}# {id_value} (Spec: {result.spec_id}) — Review & Approve")
+            time_str = self._format_elapsed(elapsed)
+            self._set_status(f"{status} - {id_label}# {id_value} (Spec: {result.spec_id}) — {time_str} — Review & Approve")
             if ctk:
-                self._update_header_status(status, f"{id_label}# {id_value} | {result.spec_id}")
+                self._update_header_status(status, f"{id_label}# {id_value} | {result.spec_id} | {time_str}")
         else:
             if result.sanity and any(result.sanity.values()):
                 self._insert_text(self.result_text, format_sanity_report(result.sanity))
-            self._set_status(f"Extracted: {id_label}# {id_value} — Review & Approve")
+            time_str = self._format_elapsed(elapsed)
+            self._set_status(f"Extracted: {id_label}# {id_value} — {time_str} — Review & Approve")
             if ctk:
                 self._update_header_status('INCOMPLETE', f"{id_label}# {id_value}")
 
@@ -1467,8 +1715,10 @@ class MaterialValidatorApp:
         if self.extracted_data:
             self._set_button_state(self.validate_btn, 'normal')
 
-        # Update spec dropdown to show which spec was used
-        if result.spec_id and hasattr(self, 'spec_var'):
+        # Re-rank spec dropdown based on extracted data
+        if self.extracted_data and hasattr(self, 'spec_dropdown'):
+            self._rerank_spec_dropdown(self.extracted_data, result.spec_id)
+        elif result.spec_id and hasattr(self, 'spec_var'):
             self.spec_var.set(result.spec_id)
 
         # Record to history immediately as PENDING
@@ -1481,6 +1731,9 @@ class MaterialValidatorApp:
                 staging_tiff_path=self.staging_tiff_path,
             )
             self._current_history_id = vid
+            # Store processing time in history
+            if elapsed > 0:
+                self.history.update(vid, processing_time=round(elapsed, 1))
 
         # Enable approve/preview/override buttons for the approval gate
         if ctk:
@@ -1511,12 +1764,190 @@ class MaterialValidatorApp:
 
         messagebox.showerror("Pipeline Failed", error)
 
+    def _rerank_spec_dropdown(self, mtr_data: dict, selected_spec_id: Optional[str] = None):
+        """Re-rank the spec dropdown based on extracted MTR data.
+
+        Shows top matching specs with confidence at the top, then Vendor Spec,
+        then all remaining specs alphabetically.
+        """
+        matches = self.matcher.find_matching_specs(mtr_data)
+        matched_ids = {m[0] for m in matches}
+        all_ids = self.spec_loader.list_ids()
+
+        # Build ranked list: top matches with confidence, then divider, then rest
+        ranked = ['Auto-detect']
+        for spec_id, confidence, reason in matches[:5]:  # Top 5 matches
+            spec = self.spec_loader.get(spec_id)
+            material = spec.get('material', '') if spec else ''
+            material = self._abbreviate_material(material, max_len=20)
+            ranked.append(f"{spec_id}, {material} ({confidence:.0%})")
+
+        ranked.append('---')  # Visual separator
+        ranked.append('Vendor Spec')
+
+        # Add remaining specs (not in top matches) with material description
+        for sid in all_ids:
+            if sid not in matched_ids:
+                spec = self.spec_loader.get(sid)
+                material = spec.get('material', '') if spec else ''
+                if material:
+                    material = self._abbreviate_material(material)
+                    ranked.append(f"{sid}, {material}")
+                else:
+                    ranked.append(sid)
+
+        self.spec_dropdown.configure(values=ranked)
+
+        # Set the selected spec
+        if selected_spec_id:
+            # Find the display string for the selected spec
+            for item in ranked:
+                if item.startswith(selected_spec_id):
+                    self.spec_var.set(item)
+                    return
+            self.spec_var.set(selected_spec_id)
+
+    @staticmethod
+    def _format_elapsed(seconds: float) -> str:
+        """Format elapsed seconds as a human-readable string."""
+        if seconds < 60:
+            return f"{seconds:.1f}s"
+        m, s = divmod(seconds, 60)
+        return f"{int(m)}m {s:.0f}s"
+
+    @staticmethod
+    def _abbreviate_material(name: str, max_len: int = 26) -> str:
+        """Shorten a material name to fit the spec dropdown."""
+        # Common abbreviations (order matters — longest/most-specific first)
+        abbrevs = [
+            ('Drawn Over Mandrel (DOM)', 'DOM'),
+            ('Nickel-Cobalt-Chromium-Molybdenum', 'NiCoCrMo'),
+            ('Cobalt-Chromium-Nickel-Molybdenum', 'CoCrNiMo'),
+            ('Copper Nickel-Tin Bronze Alloy', 'CuNiSn'),
+            ('Nitriding #3 (135 Modified)', 'Nitride #3'),
+            ('Chromium Molybdenum Low Alloy Steel', 'CrMo LAS'),
+            ('Chromium Molybdenum', 'CrMo'),
+            ('Low Alloy Steel', 'LAS'),
+            ('Alloy Steel', 'AS'),
+            ('Stainless Steel', 'SS'),
+            ('Carbon Steel', 'CS'),
+            ('Tool Steel', 'TS'),
+            ('Polyetheretherketone', 'PEEK'),
+            ('Polytetrafluoroethylene', 'PTFE'),
+            ('Martensitic', 'Mart.'),
+            ('Durometer Molded', 'Duro Mld'),
+            ('Durometer', 'Duro'),
+            ('High Carbon', 'Hi-C'),
+            ('Low Carbon', 'Lo-C'),
+            ('Aluminum', 'Al'),
+            ('Reconstituted', 'Recon.'),
+            ('Re-Processed', 'Reproc.'),
+            ('Extruded Nylon', 'Ext. Nylon'),
+            ('Double Aged', 'DA'),
+            ('Annealed', 'Ann.'),
+            ('Spring Wire', 'Sprg Wire'),
+            ('Spring Alloy', 'Spring'),
+            ('Half Hard', 'HH'),
+            ('Nickel Chrome', 'NiCr'),
+            ('Tungsten Carbide Balls', 'WC Balls'),
+            ('Plastic Bushing', 'Bushing'),
+            ('Set Screws', 'Screws'),
+            ('Chromium Alloy Steel', 'Cr AS'),
+            ('Chromium', 'Cr'),
+            (' Modified ', ' Mod. '),
+        ]
+        s = name
+        for long, short in abbrevs:
+            s = s.replace(long, short)
+        if len(s) > max_len:
+            s = s[:max_len - 3].rstrip() + '...'
+        return s
+
+    def _spec_display_list(self) -> list:
+        """Build spec dropdown items with material descriptions."""
+        result = []
+        for sid in self.spec_loader.list_ids():
+            spec = self.spec_loader.get(sid)
+            material = spec.get('material', '') if spec else ''
+            if material:
+                material = self._abbreviate_material(material)
+                result.append(f"{sid}, {material}")
+            else:
+                result.append(sid)
+        return result
+
+    def _resolve_spec_id(self, display_value: str) -> str:
+        """Extract the spec ID from a dropdown display value.
+
+        Handles plain IDs ('ES-M0009B'), comma-separated display strings
+        ('ES-M0009B, Inconel X-750'), and ranked strings
+        ('ES-M0009B, Inconel X-750 (90%)').
+        """
+        if display_value in ('Auto-detect', 'Vendor Spec', '---'):
+            return display_value
+        # Extract spec ID (everything before the first comma or space)
+        return display_value.split(',')[0].split(' (')[0].strip()
+
+    def _check_spec_mismatch(self, spec_id: str) -> bool:
+        """Check if selected spec is a material type mismatch with extracted data.
+
+        Returns True if user confirmed to proceed (or no mismatch), False to cancel.
+        """
+        if not self.extracted_data or spec_id in ('Auto-detect', 'Vendor Spec', '---'):
+            return True
+
+        from lib.matcher import SpecMatcher, _NON_METAL_FAMILIES, _extract_family_number
+
+        mtr_is_metallic = SpecMatcher._is_metallic(self.extracted_data)
+        spec = self.spec_loader.get(spec_id)
+        if not spec:
+            return True
+
+        spec_is_non_metal = SpecMatcher._is_non_metal_spec(spec_id, spec)
+
+        if mtr_is_metallic and spec_is_non_metal:
+            grade = self.extracted_data.get('material_grade', 'Unknown')
+            spec_material = spec.get('material', spec_id)
+            # Find suggested alternatives
+            matches = self.matcher.find_matching_specs(self.extracted_data)
+            suggestions = ""
+            if matches:
+                top = [f"  - {m[0]} ({m[1]:.0%})" for m in matches[:3]]
+                suggestions = "\n\nSuggested specs:\n" + "\n".join(top)
+
+            answer = messagebox.askyesno(
+                "Material Type Mismatch",
+                f"The extracted material appears to be metallic ({grade}) "
+                f"but the selected spec is for non-metal ({spec_material}).\n\n"
+                f"This will likely produce incorrect validation results.\n"
+                f"Continue anyway?{suggestions}",
+            )
+            return answer
+
+        if not mtr_is_metallic and not spec_is_non_metal and self.extracted_data.get('chemistry'):
+            spec_material = spec.get('material', spec_id)
+            answer = messagebox.askyesno(
+                "Material Type Mismatch",
+                f"The extracted material appears to be non-metallic "
+                f"but the selected spec is for metal ({spec_material}).\n\n"
+                f"Continue anyway?",
+            )
+            return answer
+
+        return True
+
     def _validate(self):
         """Re-validate extracted data against the currently selected spec."""
         if not self.extracted_data:
             return
 
-        spec_id = self.spec_var.get()
+        # Ensure weighted/ranked choices are available in the dropdown
+        if hasattr(self, 'spec_dropdown'):
+            self._rerank_spec_dropdown(self.extracted_data, self._resolve_spec_id(self.spec_var.get()))
+
+        spec_id = self._resolve_spec_id(self.spec_var.get())
+        if spec_id == '---':
+            return
         if spec_id == 'Auto-detect':
             match = self.matcher.select_best_spec(self.extracted_data)
             if match:
@@ -1526,6 +1957,10 @@ class MaterialValidatorApp:
             else:
                 messagebox.showwarning("No Match", "Could not auto-detect specification. Please select manually.")
                 return
+
+        # Check for material type mismatch before validating
+        if not self._check_spec_mismatch(spec_id):
+            return
 
         result = self.validator.validate(self.extracted_data, spec_id)
         self.validation_result = result
@@ -1729,8 +2164,8 @@ class MaterialValidatorApp:
             self._current_history_id = None
         elif self.validation_result:
             # Fallback: no pending record exists — create an approved one
-            spec_id = self.spec_var.get() if hasattr(self, 'spec_var') else None
-            if spec_id == 'Auto-detect':
+            spec_id = self._resolve_spec_id(self.spec_var.get()) if hasattr(self, 'spec_var') else None
+            if spec_id in ('Auto-detect', '---'):
                 spec_id = self.pipeline_result.spec_id if self.pipeline_result else None
             spec = self.spec_loader.get(spec_id) if spec_id else {}
             vid = self.history.record(
@@ -1869,8 +2304,8 @@ class MaterialValidatorApp:
             if ctk:
                 self._update_header_status('INCOMPLETE', "Processing...")
 
-        spec_id = self.spec_var.get()
-        if spec_id == 'Auto-detect':
+        spec_id = self._resolve_spec_id(self.spec_var.get())
+        if spec_id in ('Auto-detect', '---'):
             spec_id = None
 
         def do_auto():
@@ -1888,6 +2323,7 @@ class MaterialValidatorApp:
                         self.root.after(0, lambda: self._set_progress(pct))
                     self.root.after(0, lambda: self._set_status(f"Watch: {step}"))
 
+                t0 = time.time()
                 result = process_document(
                     pdf_path=file_path,
                     output_dir=output_dir,
@@ -1902,6 +2338,7 @@ class MaterialValidatorApp:
                     organize_by_po=self.config.get('organize_by_po', False),
                     extraction_model=self.config.get('extraction_model', 'sonnet'),
                 )
+                watch_elapsed = time.time() - t0
 
                 self.watcher.mark_processed(file_path)
 
@@ -1911,10 +2348,12 @@ class MaterialValidatorApp:
                         if result.validation:
                             ed = result.normalized_data or result.extracted_data
                             spec = self.spec_loader.get(result.spec_id) if result.spec_id else {}
-                            self.history.record(
+                            vid = self.history.record(
                                 result.validation, ed, spec, file_path,
                                 staging_tiff_path=result.output_tiff_path,
                             )
+                            if watch_elapsed > 0:
+                                self.history.update(vid, processing_time=round(watch_elapsed, 1))
                         self._approval_queue.append(result)
                         self._update_queue_indicator()
                         self._set_status(
@@ -1933,7 +2372,7 @@ class MaterialValidatorApp:
                             self.header_file_label.configure(
                                 text=filename, text_color=COLORS['text_primary']
                             )
-                        self._on_pipeline_complete(result)
+                        self._on_pipeline_complete(result, watch_elapsed)
 
                 self.root.after(0, handle_result)
 
