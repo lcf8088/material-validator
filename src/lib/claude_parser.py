@@ -7,10 +7,15 @@ Returns parsed JSON matching the existing MTR data format.
 """
 
 import base64
+import io
 import json
 import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional
+
+from PIL import Image
+
+from .page_relevance import select_relevant_pages
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +27,9 @@ MODEL_IDS = {
 
 # Max pages to send as images (typical MTR is 1-4 pages)
 MAX_IMAGE_PAGES = 5
+
+# Max raw image bytes before compression (3.5MB raw → ~4.7MB base64, under 5MB API limit)
+MAX_IMAGE_BYTES = 3_500_000
 
 # Structured extraction prompt for Claude
 EXTRACTION_PROMPT = """\
@@ -156,8 +164,57 @@ def _format_spec_as_text(spec: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _compress_image(raw_bytes: bytes, filename: str) -> tuple[bytes, str]:
+    """Compress an oversized image to fit under MAX_IMAGE_BYTES.
+
+    Strategy: resize if wider than 2048px, then convert to JPEG with
+    decreasing quality until it fits.
+
+    Returns:
+        (image_bytes, media_type) tuple.
+    """
+    img = Image.open(io.BytesIO(raw_bytes))
+    if img.mode in ('RGBA', 'P', 'LA'):
+        img = img.convert('RGB')
+
+    # Resize if wider than 2048px
+    if img.width > 2048:
+        ratio = 2048 / img.width
+        new_size = (2048, int(img.height * ratio))
+        img = img.resize(new_size, Image.LANCZOS)
+        logger.info("Resized %s: %dx%d → %dx%d",
+                     filename, img.width, img.height, *new_size)
+
+    for quality in (85, 70, 50):
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=quality)
+        compressed = buf.getvalue()
+        if len(compressed) <= MAX_IMAGE_BYTES:
+            logger.info("Compressed %s: %s → %s (JPEG q=%d)",
+                         filename,
+                         _fmt_size(len(raw_bytes)),
+                         _fmt_size(len(compressed)),
+                         quality)
+            return compressed, 'image/jpeg'
+
+    # Last resort: already at q=50, return it anyway (best effort)
+    logger.warning("Image %s still %s after max compression",
+                    filename, _fmt_size(len(compressed)))
+    return compressed, 'image/jpeg'
+
+
+def _fmt_size(n: int) -> str:
+    """Format byte count as human-readable string."""
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}MB"
+    return f"{n / 1_000:.0f}KB"
+
+
 def _encode_images(image_paths: List[str]) -> List[Dict[str, Any]]:
     """Encode page images as base64 content blocks for the Anthropic API.
+
+    Images exceeding MAX_IMAGE_BYTES are compressed to JPEG to stay under
+    the 5MB per-image API limit.
 
     Args:
         image_paths: List of image file paths (PNG).
@@ -171,16 +228,24 @@ def _encode_images(image_paths: List[str]) -> List[Dict[str, Any]]:
         if not p.exists():
             logger.warning("Image not found, skipping: %s", path)
             continue
-        suffix = p.suffix.lower()
-        media_type = {
-            '.png': 'image/png',
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.webp': 'image/webp',
-            '.gif': 'image/gif',
-        }.get(suffix, 'image/png')
 
-        data = base64.standard_b64encode(p.read_bytes()).decode('ascii')
+        raw_bytes = p.read_bytes()
+        original_size = len(raw_bytes)
+
+        if original_size > MAX_IMAGE_BYTES:
+            image_bytes, media_type = _compress_image(raw_bytes, p.name)
+        else:
+            image_bytes = raw_bytes
+            suffix = p.suffix.lower()
+            media_type = {
+                '.png': 'image/png',
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.webp': 'image/webp',
+                '.gif': 'image/gif',
+            }.get(suffix, 'image/png')
+
+        data = base64.standard_b64encode(image_bytes).decode('ascii')
         blocks.append({
             "type": "image",
             "source": {
@@ -259,7 +324,15 @@ def _call_claude(
     content: list = []
 
     if image_paths:
-        image_blocks = _encode_images(image_paths)
+        relevant_indices = select_relevant_pages(
+            ocr_text=ocr_text,
+            total_pages=len(image_paths),
+            max_pages=MAX_IMAGE_PAGES,
+        )
+        selected_paths = [image_paths[i] for i in relevant_indices]
+        logger.info("Page relevance: selected pages %s of %d total",
+                     [i + 1 for i in relevant_indices], len(image_paths))
+        image_blocks = _encode_images(selected_paths)
         if image_blocks:
             content.extend(image_blocks)
             logger.info("Including %d page image(s) in Claude request.", len(image_blocks))
