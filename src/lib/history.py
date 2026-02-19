@@ -251,6 +251,42 @@ class ValidationHistory:
 
         return list(reversed(records[-limit:]))
 
+    def delete(self, validation_id: str) -> bool:
+        """Delete a single history record by ID. Returns True on success."""
+        if not self.history_file.exists():
+            return False
+
+        records = []
+        found = False
+        removed_record = None
+        with open(self.history_file) as f:
+            for line in f:
+                record = json.loads(line)
+                if record['validation_id'] == validation_id:
+                    found = True
+                    removed_record = record
+                else:
+                    records.append(record)
+
+        if not found:
+            return False
+
+        # Rewrite the JSONL file without the deleted record
+        with open(self.history_file, 'w') as f:
+            for record in records:
+                f.write(json.dumps(record) + '\n')
+
+        # Remove from indexes
+        for key_type in ('by_heat', 'by_spec', 'by_date'):
+            for key, ids in list(self._index.get(key_type, {}).items()):
+                if validation_id in ids:
+                    ids.remove(validation_id)
+                    if not ids:
+                        del self._index[key_type][key]
+
+        self._save_index()
+        return True
+
     def clear(self):
         """Delete all history records and reset the index."""
         if self.history_file.exists():

@@ -35,6 +35,10 @@ COLORS = {
     'border':        '#2E3650',
     'border_orange': '#5C3A1A',
     'surface_hl':    '#232C42',
+
+    # Disabled buttons
+    'btn_disabled_fg':   '#1a2030',
+    'btn_disabled_text': '#4a5068',
 }
 
 # ------------------------------------------------------------------ Fonts

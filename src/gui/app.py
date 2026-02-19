@@ -45,7 +45,7 @@ from lib.pipeline import process_document, pre_extract, PipelineResult
 from lib.watcher import FolderWatcher
 
 from .config import Config
-from .tiff_export import generate_archive_filename, sanitize_filename
+from .tiff_export import generate_archive_filename, generate_assembly_archive_filename, sanitize_filename
 from .settings import SettingsPanel
 from .override_dialog import OverrideDialog
 from .theme import COLORS, FONTS, ICONS, SIDEBAR_WIDTH, status_color, ScrollableComboBox
@@ -525,7 +525,7 @@ class MaterialValidatorApp:
             btn_frame, text="Extract & Validate", width=160,
             font=FONTS['badge'], state='disabled',
             fg_color=COLORS['accent'], hover_color=COLORS['accent_hover'],
-            text_color='#FFFFFF',
+            text_color='#FFFFFF', text_color_disabled=COLORS['btn_disabled_text'],
             command=self._extract,
         )
         self.extract_btn.pack(side='left', padx=4)
@@ -535,7 +535,7 @@ class MaterialValidatorApp:
             font=FONTS['badge'], state='disabled',
             fg_color=COLORS['bg_card'], hover_color=COLORS['surface_hl'],
             border_color=COLORS['border'], border_width=1,
-            text_color=COLORS['text_primary'],
+            text_color='#FFFFFF', text_color_disabled=COLORS['btn_disabled_text'],
             command=self._validate,
         )
         self.validate_btn.pack(side='left', padx=4)
@@ -544,17 +544,26 @@ class MaterialValidatorApp:
             btn_frame, text="Override", width=100,
             font=FONTS['badge'], state='disabled',
             fg_color=COLORS['orange'], hover_color=COLORS['orange_hover'],
-            text_color='#FFFFFF',
+            text_color='#FFFFFF', text_color_disabled=COLORS['btn_disabled_text'],
             command=self._open_override_dialog,
         )
         self.override_btn.pack(side='left', padx=4)
+
+        self.add_heat_btn = ctk.CTkButton(
+            btn_frame, text="Add Missing Heat", width=130,
+            font=FONTS['badge'], state='disabled',
+            fg_color=COLORS['orange'], hover_color=COLORS['orange_hover'],
+            text_color='#FFFFFF', text_color_disabled=COLORS['btn_disabled_text'],
+            command=self._add_missing_heat,
+        )
+        # Hidden by default — shown only for assembly results with missing heats
 
         self.preview_btn = ctk.CTkButton(
             btn_frame, text="Preview", width=90,
             font=FONTS['badge'], state='disabled',
             fg_color=COLORS['bg_card'], hover_color=COLORS['surface_hl'],
             border_color=COLORS['border'], border_width=1,
-            text_color=COLORS['text_primary'],
+            text_color='#FFFFFF', text_color_disabled=COLORS['btn_disabled_text'],
             command=self._preview_tiff,
         )
         self.preview_btn.pack(side='left', padx=4)
@@ -563,7 +572,7 @@ class MaterialValidatorApp:
             btn_frame, text="Approve", width=110,
             font=FONTS['badge'], state='disabled',
             fg_color=COLORS['success'], hover_color='#4A9A3A',
-            text_color='#FFFFFF',
+            text_color='#FFFFFF', text_color_disabled=COLORS['btn_disabled_text'],
             command=self._approve,
         )
         self.approve_btn.pack(side='left', padx=4)
@@ -575,8 +584,45 @@ class MaterialValidatorApp:
         )
         self.queue_label.pack(side='left', padx=(8, 0))
 
+        # -- Assembly row (hidden by default, shown when assembly detected) --
+        self.assembly_row = ctk.CTkFrame(view, fg_color='transparent')
+        # Not packed by default — shown dynamically
+
+        ctk.CTkLabel(
+            self.assembly_row, text="Mode:", font=FONTS['label'],
+            text_color=COLORS['text_secondary'],
+        ).pack(side='left', padx=(4, 6))
+
+        self.assembly_var = ctk.StringVar(value='Auto')
+        self.assembly_dropdown = ctk.CTkOptionMenu(
+            self.assembly_row, values=['Auto', 'Assembly', 'Single Part'],
+            variable=self.assembly_var, width=110,
+            font=FONTS['body'],
+            fg_color=COLORS['bg_input'], button_color=COLORS['accent'],
+            button_hover_color=COLORS['accent_hover'],
+            dropdown_fg_color=COLORS['bg_card'], dropdown_hover_color=COLORS['surface_hl'],
+            dropdown_text_color=COLORS['text_primary'],
+            text_color=COLORS['text_primary'],
+            command=self._on_assembly_mode_change,
+        )
+        self.assembly_dropdown.pack(side='left')
+
+        self.cust_part_label = ctk.CTkLabel(
+            self.assembly_row, text="Cust Part#:", font=FONTS['label'],
+            text_color=COLORS['text_secondary'],
+        )
+        self.cust_part_var = ctk.StringVar(value='')
+        self.cust_part_entry = ctk.CTkEntry(
+            self.assembly_row, textvariable=self.cust_part_var, width=180,
+            placeholder_text="Customer part number",
+            fg_color=COLORS['bg_input'], border_color=COLORS['border'],
+            text_color=COLORS['text_primary'], font=FONTS['body'],
+        )
+        self._assembly_result = None  # store for approval flow
+
         # -- Bottom row: data card + result card --
-        cards = ctk.CTkFrame(view, fg_color='transparent')
+        self.cards_frame = ctk.CTkFrame(view, fg_color='transparent')
+        cards = self.cards_frame
         cards.pack(fill='both', expand=True, padx=4, pady=(8, 4))
         cards.grid_columnconfigure(0, weight=1)
         cards.grid_columnconfigure(1, weight=1)
@@ -765,6 +811,24 @@ class MaterialValidatorApp:
             self._refresh_history_view()
             self._set_status("History cleared")
 
+    def _delete_history_record(self, validation_id: str):
+        """Delete a single history record after user confirmation."""
+        record = self.history.get(validation_id)
+        if not record:
+            messagebox.showwarning("Delete", "Record not found.")
+            return
+
+        heat = record.get('heat_number', 'N/A')
+        spec = record.get('spec_id', 'N/A')
+        confirmed = messagebox.askyesno(
+            "Delete Record",
+            f"Delete this record?\n\nHeat: {heat}\nSpec: {spec}\nID: {validation_id}",
+        )
+        if confirmed:
+            self.history.delete(validation_id)
+            self._refresh_history_view()
+            self._set_status(f"Deleted record {validation_id}")
+
     def _set_history_filter(self, filter_name: str):
         """Update the active history filter and refresh the view."""
         self._history_filter = filter_name
@@ -951,6 +1015,17 @@ class MaterialValidatorApp:
             command=lambda v=id_value, lbl=id_label: self._copy_identifier(v, lbl),
         ).pack(side='right', padx=(4, 0))
 
+        # Delete button
+        vid = record.get('validation_id', '')
+        ctk.CTkButton(
+            inner, text="Delete", width=60, height=28,
+            font=FONTS['label'],
+            fg_color=COLORS['bg_dark'], hover_color=COLORS['error'],
+            border_color=COLORS['border'], border_width=1,
+            text_color=COLORS['text_secondary'],
+            command=lambda v=vid: self._delete_history_record(v),
+        ).pack(side='right', padx=(4, 0))
+
         # Processing time
         proc_time = record.get('processing_time')
         if proc_time:
@@ -989,6 +1064,41 @@ class MaterialValidatorApp:
         elif mtr_data:
             self._clear_text(self.data_text)
             self._insert_text(self.data_text, json.dumps(mtr_data, indent=2))
+
+        # Check for assembly data first
+        assembly_data = record.get('assembly_data')
+        if assembly_data and assembly_data.get('is_assembly'):
+            from lib.assembly import AssemblyResult, AssemblyComponent
+            assy = AssemblyResult(
+                is_assembly=True,
+                po_number=assembly_data.get('po_number', ''),
+                customer_part_number=assembly_data.get('customer_part_number', ''),
+                invoice_number=assembly_data.get('invoice_number', ''),
+                vendor_name=assembly_data.get('vendor_name', ''),
+                assembly_description=assembly_data.get('assembly_description', ''),
+                overall_status=assembly_data.get('overall_status', 'UNKNOWN'),
+                warnings=assembly_data.get('warnings', []),
+                mtr_heats={int(k): v for k, v in assembly_data.get('mtr_heats', {}).items()},
+            )
+            for cd in assembly_data.get('components', []):
+                assy.components.append(AssemblyComponent(
+                    line_item=cd.get('line_item', ''),
+                    qty=cd.get('qty', ''),
+                    part_description=cd.get('part_description', ''),
+                    part_number=cd.get('part_number', ''),
+                    heat_number=cd.get('heat_number', ''),
+                    status=cd.get('status', 'MISSING'),
+                    found_on_pages=cd.get('found_on_pages', []),
+                    manual_note=cd.get('manual_note', ''),
+                ))
+            self._display_assembly_data(assy)
+            self._display_assembly_results(assy)
+            self._assembly_result = assy
+
+            overall = assy.overall_status
+            self._update_header_status(overall, f"Assembly | PO {assy.po_number or 'N/A'}")
+            self._set_status(f"Viewing history: Assembly PO {assy.po_number} ({overall})")
+            return
 
         # Populate validation result panel from stored validation_details
         details = record.get('validation_details', {})
@@ -1109,13 +1219,6 @@ class MaterialValidatorApp:
 
     def _review_from_history(self, record: dict):
         """Load a pending history record into the validate view for review/override/approval."""
-        # Reconstruct CertValidation from stored details
-        details = record.get('validation_details', {})
-        if details:
-            self.validation_result = CertValidation.from_dict(details)
-        else:
-            self.validation_result = None
-
         self.extracted_data = record.get('mtr_data', {})
         self.current_file = record.get('source_file')
         self._current_history_id = record.get('validation_id')
@@ -1123,6 +1226,80 @@ class MaterialValidatorApp:
 
         # Switch to validate view
         self._navigate_to('validate')
+
+        # Check for assembly record
+        assembly_data = record.get('assembly_data')
+        if assembly_data and assembly_data.get('is_assembly'):
+            from lib.assembly import AssemblyResult, AssemblyComponent
+            assy = AssemblyResult(
+                is_assembly=True,
+                po_number=assembly_data.get('po_number', ''),
+                customer_part_number=assembly_data.get('customer_part_number', ''),
+                invoice_number=assembly_data.get('invoice_number', ''),
+                vendor_name=assembly_data.get('vendor_name', ''),
+                assembly_description=assembly_data.get('assembly_description', ''),
+                overall_status=assembly_data.get('overall_status', 'UNKNOWN'),
+                warnings=assembly_data.get('warnings', []),
+                mtr_heats={int(k): v for k, v in assembly_data.get('mtr_heats', {}).items()},
+            )
+            for cd in assembly_data.get('components', []):
+                assy.components.append(AssemblyComponent(
+                    line_item=cd.get('line_item', ''),
+                    qty=cd.get('qty', ''),
+                    part_description=cd.get('part_description', ''),
+                    part_number=cd.get('part_number', ''),
+                    heat_number=cd.get('heat_number', ''),
+                    status=cd.get('status', 'MISSING'),
+                    found_on_pages=cd.get('found_on_pages', []),
+                    manual_note=cd.get('manual_note', ''),
+                ))
+            self._assembly_result = assy
+            self._display_assembly_data(assy)
+            self._display_assembly_results(assy)
+
+            # Reconstruct a minimal CertValidation for approval flow
+            self.validation_result = CertValidation(
+                spec_id=f"Assembly: {assy.customer_part_number or 'N/A'}",
+                heat_number=f"PO-{assy.po_number}" if assy.po_number else 'ASSEMBLY',
+                material_grade=assy.assembly_description or 'Assembly',
+                overall_status=assy.overall_status,
+            )
+
+            # Show assembly row with customer part field
+            self._show_assembly_row(show_cust_part=True)
+            if assy.customer_part_number:
+                self.cust_part_var.set(assy.customer_part_number)
+            if assy.po_number and not self.po_var.get().strip():
+                self.po_var.set(assy.po_number)
+
+            overall = assy.overall_status
+            if ctk:
+                filename = Path(self.current_file).name if self.current_file else 'History review'
+                self.drop_zone.configure(
+                    text=f"{ICONS['file']}  {filename}\n(reviewing from history)",
+                    text_color=COLORS['text_primary'],
+                )
+                self.header_file_label.configure(text=filename, text_color=COLORS['text_primary'])
+                self._update_header_status(overall, f"Assembly | PO {assy.po_number or 'N/A'}")
+                self._set_button_state(self.approve_btn, 'normal')
+                self._set_button_state(self.validate_btn, 'normal')
+                self._set_button_state(self.override_btn, 'normal')
+                if assy.missing_count > 0:
+                    self.add_heat_btn.pack_forget()
+                    self.add_heat_btn.pack(side='left', padx=4, before=self.approve_btn)
+                    self._set_button_state(self.add_heat_btn, 'normal')
+                if self.staging_tiff_path and Path(self.staging_tiff_path).exists():
+                    self._set_button_state(self.preview_btn, 'normal')
+
+            self._set_status(f"Reviewing: Assembly PO {assy.po_number} ({overall}) — Approve")
+            return
+
+        # Standard (non-assembly) record
+        details = record.get('validation_details', {})
+        if details:
+            self.validation_result = CertValidation.from_dict(details)
+        else:
+            self.validation_result = None
 
         # Populate extracted data panel
         if ctk and self.extracted_data:
@@ -1336,6 +1513,159 @@ class MaterialValidatorApp:
             for w in result.warnings:
                 tw.insert('end', f"    {w}\n", 'warn')
 
+    def _display_assembly_data(self, assy):
+        """Display assembly COC data in the Extracted Data card."""
+        self._clear_text(self.data_text)
+        tw = self.data_text._textbox
+
+        tw.insert('end', "  ASSEMBLY PACKET\n\n", 'header')
+        tw.insert('end', f"  Vendor: ", 'label')
+        tw.insert('end', f"{assy.vendor_name}\n", 'value')
+        tw.insert('end', f"  PO Number: ", 'label')
+        tw.insert('end', f"{assy.po_number}\n", 'value')
+        tw.insert('end', f"  Customer Part#: ", 'label')
+        tw.insert('end', f"{assy.customer_part_number}\n", 'value')
+        tw.insert('end', f"  Invoice: ", 'label')
+        tw.insert('end', f"{assy.invoice_number}\n", 'value')
+        tw.insert('end', f"  Description: ", 'label')
+        tw.insert('end', f"{assy.assembly_description}\n", 'value')
+        tw.insert('end', f"\n  Components: {len(assy.components)}\n", 'header')
+        tw.insert('end', f"  Unique Heats on MTR pages: {len(assy.mtr_heats)}\n\n", 'label')
+
+        # Component table
+        tw.insert('end', f"  {'#':<4}{'Part Number':<20}{'Heat':<16}{'Description'}\n", 'label')
+        tw.insert('end', "  " + "-" * 70 + "\n", 'label')
+        for i, c in enumerate(assy.components, 1):
+            tw.insert('end', f"  {i:<4}{c.part_number:<20}{c.heat_number:<16}{c.part_description}\n", 'value')
+
+    def _display_assembly_results(self, assy):
+        """Display assembly traceability results in the Validation Result card."""
+        self._clear_text(self.result_text)
+        tw = self.result_text._textbox
+
+        tw.insert('end', "  HEAT TRACEABILITY\n\n", 'header')
+        tw.insert('end', f"  Overall: ", 'label')
+        tag = 'pass' if assy.overall_status == 'PASS' else 'warn'
+        tw.insert('end', f"{assy.overall_status}\n", tag)
+
+        tw.insert('end', f"\n  Found: ", 'label')
+        tw.insert('end', f"{assy.found_count}", 'pass')
+        tw.insert('end', f"  Missing: ", 'label')
+        tw.insert('end', f"{assy.missing_count}", 'fail' if assy.missing_count else 'pass')
+        tw.insert('end', f"  Manual: ", 'label')
+        tw.insert('end', f"{assy.manual_count}\n", 'warn' if assy.manual_count else 'value')
+
+        # Traceability matrix
+        tw.insert('end', f"\n  {'Part Number':<20}{'Heat':<16}{'Pages':<12}{'Status'}\n", 'label')
+        tw.insert('end', "  " + "-" * 60 + "\n", 'label')
+
+        for c in assy.components:
+            tw.insert('end', f"  {c.part_number:<20}{c.heat_number:<16}", 'value')
+            if c.found_on_pages:
+                pages_str = ','.join(str(p) for p in c.found_on_pages)
+            else:
+                pages_str = '-'
+            tw.insert('end', f"{pages_str:<12}", 'value')
+
+            if c.status == 'FOUND':
+                tw.insert('end', "FOUND\n", 'pass')
+            elif c.status == 'MANUAL':
+                tw.insert('end', f"MANUAL\n", 'warn')
+                if c.manual_note:
+                    tw.insert('end', f"    Note: {c.manual_note}\n", 'label')
+            else:
+                tw.insert('end', "MISSING\n", 'fail')
+
+        # MTR heat map
+        tw.insert('end', "\n  MTR Pages Heat Map\n", 'header')
+        tw.insert('end', f"  {'Page':<8}{'Heat Number'}\n", 'label')
+        tw.insert('end', "  " + "-" * 30 + "\n", 'label')
+        for page in sorted(assy.mtr_heats.keys()):
+            tw.insert('end', f"  {page:<8}{assy.mtr_heats[page]}\n", 'value')
+
+        if assy.warnings:
+            tw.insert('end', "\n  Warnings\n", 'warn')
+            for w in assy.warnings:
+                tw.insert('end', f"    {w}\n", 'warn')
+
+        # Add "Mark as Verified" button hint for missing heats
+        if assy.missing_count > 0:
+            tw.insert('end', "\n  Use 'Add Missing Heat' button to manually verify missing heats.\n", 'label')
+
+    def _show_assembly_row(self, show_cust_part: bool = False):
+        """Show the assembly controls row below the main controls."""
+        if not ctk or not hasattr(self, 'assembly_row'):
+            return
+        self.assembly_row.pack_forget()
+        self.assembly_row.pack(fill='x', padx=4, pady=(2, 0),
+                               before=self.cards_frame)
+        if show_cust_part:
+            self.cust_part_label.pack(side='left', padx=(16, 6))
+            self.cust_part_entry.pack(side='left')
+        else:
+            self.cust_part_label.pack_forget()
+            self.cust_part_entry.pack_forget()
+
+    def _hide_assembly_row(self):
+        """Hide the assembly controls row."""
+        if ctk and hasattr(self, 'assembly_row'):
+            self.assembly_row.pack_forget()
+
+    def _on_assembly_mode_change(self, value):
+        """Handle assembly mode dropdown change."""
+        if value == 'Assembly':
+            self.cust_part_label.pack(side='left', padx=(16, 6))
+            self.cust_part_entry.pack(side='left')
+        elif value == 'Single Part':
+            self.cust_part_label.pack_forget()
+            self.cust_part_entry.pack_forget()
+        # 'Auto' — leave as-is (will be shown/hidden by pipeline result)
+
+    def _add_missing_heat(self):
+        """Dialog to manually mark a missing heat as verified."""
+        if not self._assembly_result:
+            return
+
+        missing = [c for c in self._assembly_result.components if c.status == 'MISSING']
+        if not missing:
+            messagebox.showinfo("No Missing Heats", "All heats are accounted for.")
+            return
+
+        # Show dialog with missing components
+        missing_list = "\n".join(
+            f"  {c.part_number} — Heat: {c.heat_number} ({c.part_description})"
+            for c in missing
+        )
+
+        if ctk:
+            dialog = ctk.CTkInputDialog(
+                text=f"Missing heats:\n{missing_list}\n\nEnter part number to mark as verified:",
+                title="Add Missing Heat",
+            )
+            part_num = dialog.get_input()
+        else:
+            from tkinter import simpledialog
+            part_num = simpledialog.askstring(
+                "Add Missing Heat",
+                f"Missing heats:\n{missing_list}\n\nEnter part number to mark as verified:",
+            )
+
+        if not part_num:
+            return
+
+        from lib.assembly import mark_heat_manual
+        note = "Manually verified by operator"
+        self._assembly_result = mark_heat_manual(self._assembly_result, part_num.strip(), note)
+
+        # Refresh display
+        self._display_assembly_results(self._assembly_result)
+
+        # Update status
+        if self._assembly_result.overall_status == 'PASS':
+            self._set_status("All heats now accounted for (including manual)")
+            if ctk:
+                self._update_header_status('PASS', "Assembly — all heats verified")
+
     # ============================================================= File I/O
     def _on_drop(self, event):
         """Handle file drop."""
@@ -1430,6 +1760,14 @@ class MaterialValidatorApp:
                 if hasattr(self, 'po_var'):
                     po_from_field = self.po_var.get().strip()
 
+                # Assembly mode
+                assembly_mode = self.assembly_var.get() if hasattr(self, 'assembly_var') else 'Auto'
+                force_assembly = None
+                if assembly_mode == 'Assembly':
+                    force_assembly = True
+                elif assembly_mode == 'Single Part':
+                    force_assembly = False
+
                 t0 = time.time()
                 result = process_document(
                     pdf_path=self.current_file,
@@ -1445,6 +1783,7 @@ class MaterialValidatorApp:
                     organize_by_po=self.config.get('organize_by_po', False),
                     extraction_model=self.config.get('extraction_model', 'sonnet'),
                     use_gpu_ocr=self.config.get('use_gpu_ocr', True),
+                    force_assembly=force_assembly,
                 )
                 elapsed = time.time() - t0
 
@@ -1575,6 +1914,10 @@ class MaterialValidatorApp:
                         )
 
                     t0 = time.time()
+                    # Assembly mode from dropdown
+                    asm = self.assembly_var.get() if hasattr(self, 'assembly_var') else 'Auto'
+                    fa = True if asm == 'Assembly' else (False if asm == 'Single Part' else None)
+
                     result = process_document(
                         pdf_path=fpath,
                         output_dir=self.config.effective_output_folder,
@@ -1590,6 +1933,7 @@ class MaterialValidatorApp:
                         extraction_model=self.config.get('extraction_model', 'sonnet'),
                         pre_extracted=pre_result,
                         use_gpu_ocr=gpu_ocr,
+                        force_assembly=fa,
                     )
                     batch_elapsed = time.time() - t0
 
@@ -1664,6 +2008,7 @@ class MaterialValidatorApp:
         self.pipeline_result = result
         self.extracted_data = result.normalized_data or result.extracted_data
         self.validation_result = result.validation
+        self._assembly_result = result.assembly_result
 
         # Store staging TIFF path for preview/approve
         self.staging_tiff_path = result.output_tiff_path
@@ -1678,6 +2023,79 @@ class MaterialValidatorApp:
             if ctk:
                 self._update_header_status('ERROR')
             return
+
+        # --- Assembly result display ---
+        if result.assembly_result and result.assembly_result.is_assembly:
+            assy = result.assembly_result
+            if ctk:
+                self._display_assembly_data(assy)
+                self._display_assembly_results(assy)
+                # Show assembly row with customer part number field
+                self._show_assembly_row(show_cust_part=True)
+                if assy.customer_part_number and not self.cust_part_var.get().strip():
+                    self.cust_part_var.set(assy.customer_part_number)
+                if assy.po_number and not self.po_var.get().strip():
+                    self.po_var.set(assy.po_number)
+
+            time_str = self._format_elapsed(elapsed)
+            status = assy.overall_status
+            self._set_status(
+                f"Assembly {status} — PO {assy.po_number or 'N/A'} — "
+                f"{assy.found_count}/{len(assy.components)} heats matched — {time_str}"
+            )
+            if ctk:
+                self._update_header_status(
+                    status,
+                    f"Assembly | PO {assy.po_number or 'N/A'} | {time_str}"
+                )
+
+            self._set_button_state(self.extract_btn, 'normal')
+            self._set_button_state(self.validate_btn, 'normal')
+            self._set_button_state(self.override_btn, 'normal')
+            if self.staging_tiff_path and Path(self.staging_tiff_path).exists():
+                self._set_button_state(self.preview_btn, 'normal')
+            self._set_button_state(self.approve_btn, 'normal')
+            # Show/hide "Add Missing Heat" button (pack before approve for visibility)
+            if assy.missing_count > 0:
+                # Ensure it's visible — remove first then re-add in the right spot
+                self.add_heat_btn.pack_forget()
+                self.add_heat_btn.pack(side='left', padx=4, before=self.approve_btn)
+                self._set_button_state(self.add_heat_btn, 'normal')
+            else:
+                self.add_heat_btn.pack_forget()
+
+            # Record assembly to history using a minimal CertValidation
+            try:
+                assy_validation = CertValidation(
+                    spec_id=f"Assembly: {assy.customer_part_number or 'N/A'}",
+                    heat_number=f"PO-{assy.po_number}" if assy.po_number else 'ASSEMBLY',
+                    material_grade=assy.assembly_description or 'Assembly',
+                    overall_status=assy.overall_status,
+                )
+                assy_spec = {'material': assy.assembly_description or 'Assembly'}
+                vid = self.history.record(
+                    assy_validation,
+                    self.extracted_data,
+                    assy_spec,
+                    self.current_file,
+                    staging_tiff_path=self.staging_tiff_path,
+                )
+                self._current_history_id = vid
+                if elapsed > 0:
+                    self.history.update(vid, processing_time=round(elapsed, 1))
+                # Store the full assembly result in the validation record
+                self.history.update(vid, assembly_data=assy.to_dict())
+                self.validation_result = assy_validation
+            except Exception as e:
+                logger.warning("Could not record assembly to history: %s", e)
+
+            self._update_queue_indicator()
+            return
+
+        # Hide assembly-specific controls for non-assembly
+        if ctk and hasattr(self, 'add_heat_btn'):
+            self.add_heat_btn.pack_forget()
+        self._hide_assembly_row()
 
         if ctk:
             self._display_extracted_data(self.extracted_data)
@@ -2064,8 +2482,10 @@ class MaterialValidatorApp:
         if not self.extracted_data:
             return
 
-        # Material-type guardrail: block metal-vs-polymer cross-approval
-        if self.validation_result and self.extracted_data:
+        is_assembly = self._assembly_result is not None and self._assembly_result.is_assembly
+
+        # Material-type guardrail: block metal-vs-polymer cross-approval (skip for assemblies)
+        if not is_assembly and self.validation_result and self.extracted_data:
             mismatch = self._check_material_spec_mismatch()
             if mismatch:
                 messagebox.showerror(
@@ -2074,8 +2494,20 @@ class MaterialValidatorApp:
                 )
                 return
 
-        # Block approval unless validation is PASS
-        if self.validation_result:
+        # Block approval unless validation is PASS (assemblies allow PASS or WARN)
+        if is_assembly:
+            assy_status = self._assembly_result.overall_status.upper()
+            if assy_status == 'WARN' and self._assembly_result.missing_count > 0:
+                missing_parts = [c for c in self._assembly_result.components if c.status == 'MISSING']
+                missing_list = "\n".join(f"  - {c.part_number}: Heat {c.heat_number}" for c in missing_parts)
+                proceed = messagebox.askyesno(
+                    "Missing Heats",
+                    f"The following heats are not accounted for:\n\n{missing_list}\n\n"
+                    "Approve anyway? (Missing heats will be noted in the report.)",
+                )
+                if not proceed:
+                    return
+        elif self.validation_result:
             overall = self.validation_result.overall_status.upper()
             if overall != 'PASS':
                 messagebox.showwarning(
@@ -2111,21 +2543,43 @@ class MaterialValidatorApp:
             self._navigate_to('settings')
             return
 
-        # Get identifier (heat/batch number)
-        _, id_value = _get_identifier(self.extracted_data)
-        heat_number = id_value if id_value != 'N/A' else 'UNKNOWN'
+        if is_assembly:
+            # Assembly naming: PO_CustomerPartNumber.tiff
+            po_number = self.po_var.get().strip() if hasattr(self, 'po_var') else ''
+            if not po_number:
+                po_number = self._assembly_result.po_number
+            if not po_number:
+                po_number = self._prompt_for_po()
 
-        # Get PO from the entry field first, then extracted data, then prompt
-        po_number = None
-        if ctk and hasattr(self, 'po_var'):
-            po_number = self.po_var.get().strip()
-        if not po_number:
-            po_number = self.extracted_data.get('po_number')
-        if not po_number:
-            po_number = self._prompt_for_po()
+            cust_part = self.cust_part_var.get().strip() if hasattr(self, 'cust_part_var') else ''
+            if not cust_part:
+                cust_part = self._assembly_result.customer_part_number
+            if not cust_part:
+                if ctk:
+                    dialog = ctk.CTkInputDialog(
+                        text="Enter Customer Part Number:",
+                        title="Customer Part Number Required",
+                    )
+                    cust_part = dialog.get_input() or ''
+                else:
+                    from tkinter import simpledialog
+                    cust_part = simpledialog.askstring("Customer Part Number", "Enter Customer Part Number:") or ''
 
-        # Compute final filename and destination
-        archive_name = generate_archive_filename(heat_number, po_number)
+            archive_name = generate_assembly_archive_filename(po_number, cust_part)
+        else:
+            # Standard single-part naming: HeatNumber-PO.tiff
+            _, id_value = _get_identifier(self.extracted_data)
+            heat_number = id_value if id_value != 'N/A' else 'UNKNOWN'
+
+            po_number = None
+            if ctk and hasattr(self, 'po_var'):
+                po_number = self.po_var.get().strip()
+            if not po_number:
+                po_number = self.extracted_data.get('po_number')
+            if not po_number:
+                po_number = self._prompt_for_po()
+
+            archive_name = generate_archive_filename(heat_number, po_number)
         effective_output_dir = Path(archive_folder)
         if self.config.get('organize_by_po', False) and po_number:
             effective_output_dir = effective_output_dir / sanitize_filename(po_number)
@@ -2462,6 +2916,10 @@ class MaterialValidatorApp:
                             ))
 
                         t0 = time.time()
+                        # Assembly mode from dropdown
+                        _asm = self.assembly_var.get() if hasattr(self, 'assembly_var') else 'Auto'
+                        _fa = True if _asm == 'Assembly' else (False if _asm == 'Single Part' else None)
+
                         result = process_document(
                             pdf_path=file_path,
                             output_dir=self.config.effective_output_folder,
@@ -2477,6 +2935,7 @@ class MaterialValidatorApp:
                             extraction_model=self.config.get('extraction_model', 'sonnet'),
                             pre_extracted=pre_result,
                             use_gpu_ocr=gpu_ocr,
+                            force_assembly=_fa,
                         )
                         elapsed = time.time() - t0
                         logger.info("[WATCH] %s | process_document: %.1fs | file total: %.1fs",
@@ -2608,8 +3067,23 @@ class MaterialValidatorApp:
         self.status_label.configure(text=text)
 
     def _set_button_state(self, button, state: str):
-        """Set button state."""
+        """Set button state with clear visual feedback."""
+        # Store original colors on first use
+        if not hasattr(button, '_orig_fg'):
+            button._orig_fg = button.cget('fg_color')
+            button._orig_text = button.cget('text_color')
+
         button.configure(state=state)
+        if state == 'disabled':
+            button.configure(
+                fg_color=COLORS['btn_disabled_fg'],
+                text_color=COLORS['btn_disabled_text'],
+            )
+        else:
+            button.configure(
+                fg_color=button._orig_fg,
+                text_color=button._orig_text,
+            )
 
     def _set_progress(self, value: float):
         """Update progress bar (0.0 to 1.0)."""
