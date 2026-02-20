@@ -29,19 +29,31 @@ _ELEMENT_PATTERNS = [re.compile(rf"\b{e}\b") for e in _ELEMENTS]
 # Minimum distinct elements before awarding full chemistry weight
 _ELEMENT_THRESHOLD = 3
 
-# Mechanical property keywords — high specificity
+# Mechanical property keywords — high specificity (English + German + French)
 _MECHANICAL_KW = [
     "yield", "tensile", "elongation", "hardness", "charpy", "impact",
     "reduction of area", "proof stress", "breaking load", "brinell",
     "rockwell", "hrc", "hrb", "ksi", "mpa",
+    # German
+    "zugversuch", "streckgrenze", "zugfestigkeit", "dehnung",
+    "brucheinschn", "härte", "kerbschlag", "schlagbiege",
+    # French
+    "traction", "dureté", "résilience", "allongement",
+    # Common multilingual table headers
+    "rp0.2", "rp0,2", "rm [",
 ]
 
-# Header / identity keywords
+# Header / identity keywords (English + German + French)
 _HEADER_KW = [
     "heat number", "heat no", "grade", "astm", "specification", "material",
     "certificate", "mill test", "test report", "chemical composition",
     "mechanical properties", "chemical analysis", "heat treat",
     "normalizing", "quench", "temper", "anneal", "austenitizing",
+    # German
+    "schmelzen-nr", "schmelze", "werkstoff", "prüfzeugnis", "zeugnis",
+    "chemische zusammensetzung", "abnahmeprüfzeugnis",
+    # French
+    "certificat", "composition chimique", "no.de coulée",
 ]
 
 # Filler / boilerplate keywords — strong negative signal

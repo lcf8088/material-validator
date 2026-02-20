@@ -129,7 +129,8 @@ Parse the document into structured JSON.
 - For charpy_temperature, report the numeric value AND the unit separately. Charpy impact test temperatures are frequently NEGATIVE (e.g., -40°C, -20°F, -46°C). Always preserve the negative sign. Common Charpy test temperatures are: -196°C, -101°C, -75°C, -50°C, -46°C, -40°C, -29°C, -20°C, -10°C, 0°C. OCR may misread a minus sign as a digit or drop it entirely. If the document says something like "10°C" but the context suggests a sub-zero test (e.g., impact testing, low-temperature toughness), double-check for a missing minus sign. Report the exact value and unit as printed on the document.
 
 **TABLE LOCATIONS**:
-- For "table_regions", report which page (1-indexed) contains the chemistry table and the mechanical properties table, and their approximate vertical position as a percentage of the page height (0=top, 100=bottom).
+- For "table_regions", report which page (1-indexed) contains the chemistry table, mechanical properties table (tensile test), and hardness table, and their approximate vertical position as a percentage of the page height (0=top, 100=bottom).
+- If hardness results are on a DIFFERENT page from the tensile test, report the hardness location separately. If they are on the same page as the mechanical/tensile section, you may omit the hardness key.
 - For example, if the chemistry table starts 25% from the top and ends 50% from the top on page 1: {{"page": 1, "top_pct": 25, "bottom_pct": 50}}.
 
 **MULTI-DOCUMENT PDFs**:
@@ -175,7 +176,8 @@ Parse the document into structured JSON.
   "grain_size": null,
   "table_regions": {{
     "chemistry": {{"page": 1, "top_pct": 0, "bottom_pct": 100}},
-    "mechanical": {{"page": 1, "top_pct": 0, "bottom_pct": 100}}
+    "mechanical": {{"page": 1, "top_pct": 0, "bottom_pct": 100}},
+    "hardness": null
   }}
 }}
 """
@@ -340,10 +342,18 @@ Read the heat number, chemistry table, and mechanical properties from this Mill 
 - Element symbols: C, Mn, P, S, Si, Cr, Ni, Mo, Cu, V, Nb, Ti, Al, N, B, W, Co, Sn, Ta, Fe.
 - Cb = Nb (columbium = niobium). S ≠ Sn.
 - Values with "<" qualifiers: report number without "<" in chemistry, add qualifier to chemistry_qualifiers.
+- **COLUMN ALIGNMENT IS CRITICAL**: Count the number of column headers and verify the same number of data values per row. Footnote markers like *1, *2, *3, *4 next to column headers are NOT extra columns — they are superscript annotations. Row labels like R, L, P at the start of a row are NOT chemistry values.
+- **COMPACT INTEGER NOTATION**: Some MTRs (especially Japanese mills like Nippon Steel, JFE, Sumitomo) display chemistry as integers with footnote multipliers instead of decimal percentages. Look for footnotes near the bottom of the chemistry table such as "*2:X10", "*3:X1000", "*4:X10000", "OTHER:X100". These tell you how to convert each column's integer to a percentage:
+  - OTHER or X100 or unmarked columns: divide by 100 (e.g., C=19 → 0.19%, Si=25 → 0.25%, Mn=52 → 0.52%).
+  - *2 or X10: divide by 10 (e.g., Cr=129 → 12.9%, Ni=56 → 5.6%).
+  - *3 or X1000: divide by 1000 (e.g., P=13 → 0.013%, S=1 → 0.001%).
+  - *4 or X10000: divide by 10000 (e.g., N=77 → 0.0077%).
+  Each column header may have a different footnote marker (*2, *3, etc.) — apply the CORRECT multiplier for EACH column individually. Verify your conversion makes physical sense (e.g., C is typically 0.01-0.50%, Cr in 13CR steels is 12-14%, Ni is typically 0-10%).
 
 **MECHANICAL PROPERTIES**:
 - For multiple specimens under the SAME condition, report averages.
 - If separate conditions exist (Before/After Heat Treat), use FINAL condition values only.
+- Stress values: note whether they are in ksi, MPa, or psi. Report the unit exactly as shown.
 
 Return ONLY valid JSON:
 {
@@ -393,13 +403,13 @@ def crop_table_regions(
     crops = []
     # Collect unique page regions and merge overlapping ones
     page_regions: Dict[int, list] = {}
-    for table_name in ('chemistry', 'mechanical'):
+    for table_name in ('chemistry', 'mechanical', 'hardness'):
         region = table_regions.get(table_name)
         if not region or not isinstance(region, dict):
             continue
         page_idx = int(region.get('page', 1)) - 1  # 0-indexed
-        top_pct = max(0, float(region.get('top_pct', 0)) - 5)  # 5% padding
-        bottom_pct = min(100, float(region.get('bottom_pct', 100)) + 5)
+        top_pct = max(0, float(region.get('top_pct', 0)) - 15)  # 15% padding
+        bottom_pct = min(100, float(region.get('bottom_pct', 100)) + 15)
         if page_idx not in page_regions:
             page_regions[page_idx] = []
         page_regions[page_idx].append((top_pct, bottom_pct))
@@ -424,6 +434,14 @@ def crop_table_regions(
                 merged.append((top, bottom))
 
         for i, (top_pct, bottom_pct) in enumerate(merged):
+            # If merged region covers >60% of the page, send the full page
+            # instead of cropping — avoids cutting off adjacent table sections
+            if bottom_pct - top_pct > 60:
+                crops.append(image_paths[page_idx])
+                logger.info("Table regions span %d%% of p%d — sending full page",
+                             int(bottom_pct - top_pct), page_idx + 1)
+                continue
+
             y_top = int(h * top_pct / 100)
             y_bottom = int(h * bottom_pct / 100)
             cropped = img.crop((0, y_top, w, y_bottom))

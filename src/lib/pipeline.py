@@ -485,8 +485,21 @@ def process_document(
                 if opus_tables.get('chemistry_qualifiers'):
                     raw_data['chemistry_qualifiers'] = opus_tables['chemistry_qualifiers']
                 if opus_tables.get('mechanical'):
-                    raw_data['mechanical'] = opus_tables['mechanical']
-                    logger.info("Merged Opus mechanical: %d properties", len(opus_tables['mechanical']))
+                    # Field-level merge: Opus values override Sonnet, but
+                    # preserve Sonnet values for fields Opus returned as null
+                    # (e.g. hardness on a separate page that Opus didn't see)
+                    sonnet_mech = raw_data.get('mechanical') or {}
+                    opus_mech = opus_tables['mechanical']
+                    merged_mech = dict(sonnet_mech)
+                    opus_filled = 0
+                    for k, v in opus_mech.items():
+                        if v is not None:
+                            merged_mech[k] = v
+                            opus_filled += 1
+                    raw_data['mechanical'] = merged_mech
+                    logger.info("Merged Opus mechanical: %d/%d non-null fields (kept %d from Sonnet)",
+                                opus_filled, len(opus_mech),
+                                len(merged_mech) - opus_filled)
 
         # Step 6: Normalize extracted data
         _progress("Normalizing data...", 0.55)
