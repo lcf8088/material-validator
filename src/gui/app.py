@@ -1465,13 +1465,13 @@ class MaterialValidatorApp:
 
         if result.chemistry_results:
             tw.insert('end', "\n  Chemistry\n", 'header')
-            tw.insert('end', f"  {'Element':<10}{'Min':>8}{'Max':>8}{'Actual':>10}  {'Status'}\n", 'label')
-            tw.insert('end', "  " + "-" * 48 + "\n", 'label')
+            tw.insert('end', f"  {'Element':<10}{'Min':>10}{'Max':>10}{'Actual':>10}  {'Status'}\n", 'label')
+            tw.insert('end', "  " + "-" * 52 + "\n", 'label')
             for r in result.chemistry_results:
-                smin = f"{r.spec_min}" if r.spec_min is not None else "-"
-                smax = f"{r.spec_max}" if r.spec_max is not None else "-"
-                actual = f"{r.actual_value}" if r.actual_value is not None else "-"
-                tw.insert('end', f"  {r.property_name:<10}{smin:>8}{smax:>8}{actual:>10}  ", 'value')
+                smin = f"{r.spec_min:.4f}" if r.spec_min is not None else "-"
+                smax = f"{r.spec_max:.4f}" if r.spec_max is not None else "-"
+                actual = f"{r.actual_value:.4f}" if r.actual_value is not None else "-"
+                tw.insert('end', f"  {r.property_name:<10}{smin:>10}{smax:>10}{actual:>10}  ", 'value')
                 tag = r.status.lower() if r.status.lower() in ('pass', 'fail', 'missing', 'skip') else 'warn'
                 tw.insert('end', f"{r.status}\n", tag)
                 if r.is_overridden:
@@ -1479,13 +1479,13 @@ class MaterialValidatorApp:
 
         if result.mechanical_results:
             tw.insert('end', "\n  Mechanical Properties\n", 'header')
-            tw.insert('end', f"  {'Property':<20}{'Min':>8}{'Max':>8}{'Actual':>10}  {'Status'}\n", 'label')
-            tw.insert('end', "  " + "-" * 58 + "\n", 'label')
+            tw.insert('end', f"  {'Property':<25}{'Min':>8}{'Max':>8}{'Actual':>10}  {'Status'}\n", 'label')
+            tw.insert('end', "  " + "-" * 63 + "\n", 'label')
             for r in result.mechanical_results:
-                smin = f"{r.spec_min}" if r.spec_min is not None else "-"
-                smax = f"{r.spec_max}" if r.spec_max is not None else "-"
-                actual = f"{r.actual_value}" if r.actual_value is not None else "-"
-                tw.insert('end', f"  {r.property_name:<20}{smin:>8}{smax:>8}{actual:>10}  ", 'value')
+                smin = f"{r.spec_min:.1f}" if r.spec_min is not None else "-"
+                smax = f"{r.spec_max:.1f}" if r.spec_max is not None else "-"
+                actual = f"{r.actual_value:.1f}" if r.actual_value is not None else "-"
+                tw.insert('end', f"  {r.property_name:<25}{smin:>8}{smax:>8}{actual:>10}  ", 'value')
                 tag = r.status.lower() if r.status.lower() in ('pass', 'fail', 'missing', 'skip') else 'warn'
                 tw.insert('end', f"{r.status}\n", tag)
                 if r.is_overridden:

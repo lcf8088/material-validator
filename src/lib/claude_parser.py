@@ -108,6 +108,7 @@ Parse the document into structured JSON.
 - Reduction of Area must come from the tensile test results, not from wrap test, bend test, or other test sections.
 
 **CHEMISTRY EXTRACTION**:
+- **CRITICAL — WHICH ROW TO EXTRACT**: Chemistry tables often have MULTIPLE rows: "Min." (minimum spec limit), "Max." (maximum spec limit), and "Cer." / "Cert." / "Actual" / "Heat Analysis" / "Ladle" / "Product" (the ACTUAL measured values for this specific heat). You MUST extract ONLY the ACTUAL/CERTIFICATE row. NEVER extract the Min or Max rows — those are specification limits, not measured values. The certificate row is usually the last data row, often marked with check marks (✓) or ticks. If the table has rows labeled "Min.", "Max.", "Cer." — extract the "Cer." row. If rows are labeled "R" (requirement), "L" (ladle), "P" (product) — extract "P" or "L", not "R". If both Ladle and Product rows exist, prefer Product.
 - Element symbols should be standard (C, Mn, P, S, Si, Cr, Ni, Mo, Cu, V, Nb, Ti, Al, N, B, W, Co, Sn, Ta, Fe, Pb, Zn, Se, Ca, Ce, La, Mg, Zr).
 - Cb (Columbium) is the old name for Niobium. Always output as Nb, never Cb. If the document shows "Cb" followed by a numeric value, map that value to the Nb key in the output.
 - S (Sulfur) and Sn (Tin) are different elements. S is typically < 0.05% in steels. Sn is typically < 0.03%. Do not confuse them.
@@ -126,6 +127,10 @@ Parse the document into structured JSON.
 - For temper_temperature, report the numeric value AND the unit separately. Use "C" for Celsius, "F" for Fahrenheit.
 - Heat treatment may be described as a multi-step sequence (e.g., "970°C 1HR + 225°C 2HR + 715°C 2HR"). Extract the TEMPERING step specifically. Look for keywords: temper, tempering, anlassen (German), revenu (French). The tempering step is typically the last or second-to-last step, performed at a lower temperature than the austenitizing/hardening step.
 - For charpy_temperature, report the numeric value AND the unit separately. Charpy impact test temperatures are frequently NEGATIVE (e.g., -40°C, -20°F, -46°C). Always preserve the negative sign. Common Charpy test temperatures are: -196°C, -101°C, -75°C, -50°C, -46°C, -40°C, -29°C, -20°C, -10°C, 0°C. OCR may misread a minus sign as a digit or drop it entirely. If the document says something like "10°C" but the context suggests a sub-zero test (e.g., impact testing, low-temperature toughness), double-check for a missing minus sign. Report the exact value and unit as printed on the document.
+
+**TABLE LOCATIONS**:
+- For "table_regions", report which page (1-indexed) contains the chemistry table and the mechanical properties table, and their approximate vertical position as a percentage of the page height (0=top, 100=bottom).
+- For example, if the chemistry table starts 25% from the top and ends 50% from the top on page 1: {{"page": 1, "top_pct": 25, "bottom_pct": 50}}.
 
 **MULTI-DOCUMENT PDFs**:
 - This PDF may contain multiple documents from different companies (packing slips, distributor certs, mill certs). Always prefer the ORIGINAL MILL TEST REPORT as the authoritative source for chemistry and mechanical properties. If different pages show conflicting chemistry, use the mill's values, not the distributor's.
@@ -167,7 +172,11 @@ Parse the document into structured JSON.
   "temper_temperature": null,
   "temper_temperature_unit": null,
   "nace_compliant": null,
-  "grain_size": null
+  "grain_size": null,
+  "table_regions": {{
+    "chemistry": {{"page": 1, "top_pct": 0, "bottom_pct": 100}},
+    "mechanical": {{"page": 1, "top_pct": 0, "bottom_pct": 100}}
+  }}
 }}
 """
 
@@ -315,6 +324,174 @@ def _encode_images(image_paths: List[str]) -> List[Dict[str, Any]]:
             }
         })
     return blocks
+
+
+OPUS_TABLE_PROMPT = """\
+Read the heat number, chemistry table, and mechanical properties from this Mill Test Certificate.
+
+**HEAT NUMBER**:
+- Find the heat number (also called "Heat No.", "Heat #", "Schmelze", "Charge"). It uniquely identifies the melt/batch.
+
+**CHEMISTRY TABLE**:
+- Tables often have rows: Min. (spec minimum), Max. (spec maximum), Cer./Cert./Actual/Heat/Ladle/Product (measured values).
+- Extract ONLY the ACTUAL/CERTIFICATE row — NEVER the Min or Max rows.
+- If rows are labeled Min., Max., Cer. — extract the Cer. row.
+- If rows are labeled R, L, P — extract P (product) or L (ladle), not R.
+- Element symbols: C, Mn, P, S, Si, Cr, Ni, Mo, Cu, V, Nb, Ti, Al, N, B, W, Co, Sn, Ta, Fe.
+- Cb = Nb (columbium = niobium). S ≠ Sn.
+- Values with "<" qualifiers: report number without "<" in chemistry, add qualifier to chemistry_qualifiers.
+
+**MECHANICAL PROPERTIES**:
+- For multiple specimens under the SAME condition, report averages.
+- If separate conditions exist (Before/After Heat Treat), use FINAL condition values only.
+
+Return ONLY valid JSON:
+{
+  "heat_number": "string",
+  "chemistry": {"C": 0.00, "Mn": 0.00},
+  "chemistry_qualifiers": {},
+  "mechanical": {
+    "yield_strength": 0.0,
+    "yield_strength_unit": "ksi",
+    "tensile_strength": 0.0,
+    "tensile_strength_unit": "ksi",
+    "elongation": 0.0,
+    "reduction_of_area": 0.0,
+    "hardness_hbw": null,
+    "hardness_hrc": null
+  }
+}
+"""
+
+
+def crop_table_regions(
+    image_paths: List[str],
+    table_regions: Dict[str, Any],
+) -> List[str]:
+    """Crop chemistry and mechanical table regions from page images.
+
+    Uses the table_regions dict from Sonnet extraction to cut out only
+    the relevant portions of each page, dramatically reducing the image
+    area (and tokens) sent to Opus.
+
+    Args:
+        image_paths: Full page image paths.
+        table_regions: {"chemistry": {"page": 1, "top_pct": 25, "bottom_pct": 50}, ...}
+
+    Returns:
+        List of cropped image paths (saved as PNGs in temp dir).
+    """
+    import tempfile
+    from PIL import Image as PILImage
+
+    if not table_regions or not image_paths:
+        return image_paths[:1]  # fallback: just page 1
+
+    output_dir = Path(tempfile.gettempdir()) / 'mtr_table_crops'
+    output_dir.mkdir(exist_ok=True)
+
+    crops = []
+    # Collect unique page regions and merge overlapping ones
+    page_regions: Dict[int, list] = {}
+    for table_name in ('chemistry', 'mechanical'):
+        region = table_regions.get(table_name)
+        if not region or not isinstance(region, dict):
+            continue
+        page_idx = int(region.get('page', 1)) - 1  # 0-indexed
+        top_pct = max(0, float(region.get('top_pct', 0)) - 5)  # 5% padding
+        bottom_pct = min(100, float(region.get('bottom_pct', 100)) + 5)
+        if page_idx not in page_regions:
+            page_regions[page_idx] = []
+        page_regions[page_idx].append((top_pct, bottom_pct))
+
+    if not page_regions:
+        return image_paths[:1]
+
+    for page_idx, regions in sorted(page_regions.items()):
+        if page_idx >= len(image_paths):
+            continue
+
+        img = PILImage.open(image_paths[page_idx])
+        w, h = img.size
+
+        # Merge overlapping regions on the same page
+        regions.sort()
+        merged = [regions[0]]
+        for top, bottom in regions[1:]:
+            if top <= merged[-1][1]:
+                merged[-1] = (merged[-1][0], max(merged[-1][1], bottom))
+            else:
+                merged.append((top, bottom))
+
+        for i, (top_pct, bottom_pct) in enumerate(merged):
+            y_top = int(h * top_pct / 100)
+            y_bottom = int(h * bottom_pct / 100)
+            cropped = img.crop((0, y_top, w, y_bottom))
+
+            crop_path = output_dir / f"table_crop_p{page_idx+1}_{i}.png"
+            cropped.save(str(crop_path))
+            crops.append(str(crop_path))
+            logger.info("Cropped table region p%d: %d%%-%d%% (%dx%d -> %dx%d)",
+                         page_idx + 1, top_pct, bottom_pct, w, h, w, y_bottom - y_top)
+
+    return crops if crops else image_paths[:1]
+
+
+def extract_tables_with_opus(
+    image_paths: List[str],
+    api_key: str,
+) -> Optional[Dict[str, Any]]:
+    """Focused Opus call to extract ONLY chemistry and mechanical tables.
+
+    Uses a minimal prompt — no OCR text, no spec context — to keep token
+    count (and cost) low.  Opus is much more accurate than Sonnet at reading
+    dense multi-row chemistry tables.
+
+    Returns dict with 'chemistry', 'chemistry_qualifiers', 'mechanical' keys,
+    or None on failure.
+    """
+    import time as _time
+    import anthropic
+
+    if not image_paths:
+        return None
+
+    t0 = _time.time()
+
+    # Encode images (reuse existing helper)
+    image_blocks = _encode_images(image_paths[:MAX_IMAGE_PAGES])
+    if not image_blocks:
+        return None
+
+    content: list = list(image_blocks)
+    content.append({"type": "text", "text": OPUS_TABLE_PROMPT})
+
+    client = anthropic.Anthropic(api_key=api_key)
+    model_id = MODEL_IDS['opus']
+
+    logger.info("[TIMING] Opus table extraction — %d images...", len(image_blocks))
+    message = client.messages.create(
+        model=model_id,
+        max_tokens=1024,
+        messages=[{"role": "user", "content": content}],
+    )
+    api_elapsed = _time.time() - t0
+
+    usage = getattr(message, 'usage', None)
+    if usage:
+        logger.info("[TIMING] Opus table call: %.1fs | %d in + %d out tokens",
+                     api_elapsed,
+                     getattr(usage, 'input_tokens', 0),
+                     getattr(usage, 'output_tokens', 0))
+    else:
+        logger.info("[TIMING] Opus table call: %.1fs", api_elapsed)
+
+    result = _parse_response(message.content[0].text)
+    if result.get('_extraction_status') != 'success':
+        logger.warning("Opus table extraction failed to parse")
+        return None
+
+    return result
 
 
 def _resolve_model(model: str) -> str:

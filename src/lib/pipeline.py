@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .assembly import AssemblyResult, detect_assembly, process_assembly
 from .extractor import pdf_to_images, normalize_extracted_data
 from .preprocessor import extract_native_text, is_digital_native, preprocess_images, fix_rotated_pages
 from .paddle_ocr import extract_text as paddle_extract_text
@@ -45,7 +46,7 @@ def _get_ocr_func(use_gpu: bool = True):
     if use_gpu and _gpu_ocr_available:
         return gpu_extract_text, "gpu"
     return paddle_extract_text, "cpu"
-from .claude_parser import parse_and_validate
+from .claude_parser import parse_and_validate, extract_tables_with_opus, crop_table_regions
 from .matcher import SpecMatcher
 from .validator import SpecValidator, CertValidation
 from .sanity import run_all_sanity_checks
@@ -68,6 +69,7 @@ class PipelineResult:
     compliance_flags: List[Dict[str, Any]] = field(default_factory=list)
     output_tiff_path: Optional[str] = None
     archive_filename: Optional[str] = None
+    assembly_result: Optional[AssemblyResult] = None
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
 
@@ -258,6 +260,7 @@ def process_document(
     extraction_model: str = "sonnet",
     pre_extracted: Optional[tuple] = None,
     use_gpu_ocr: bool = True,
+    force_assembly: Optional[bool] = None,
 ) -> PipelineResult:
     """
     Process an MTR document through the full pipeline.
@@ -334,6 +337,93 @@ def process_document(
             result.errors.append("OCR extracted no text from document.")
             return result
 
+        # --- Render high-quality images at 300 DPI ---
+        # Raw grayscale (no posterize) for Claude — maximum detail for table reading.
+        # Posterized grayscale for TIFF — compact archive output.
+        enhanced_image_paths = None  # posterized, for TIFF
+        claude_hq_paths = None       # raw grayscale, for Claude
+        if is_pdf:
+            try:
+                _progress("Rendering enhanced images...", 0.33)
+                from gui.tiff_export import render_enhanced_pages
+                t_enhance = time.time()
+                claude_hq_paths = render_enhanced_pages(pdf_path, dpi=tiff_dpi, posterize=False)
+                enhanced_image_paths = render_enhanced_pages(pdf_path, dpi=tiff_dpi, posterize=True)
+                logger.info("[TIMING] %s | render_enhanced_pages@%d: %.1fs (%d pages)",
+                            filename, tiff_dpi, time.time() - t_enhance, len(enhanced_image_paths))
+            except Exception as e:
+                logger.warning("Enhanced image rendering failed, using raw images: %s", e)
+
+        # Raw 300 DPI for Claude (max detail), fall back to OCR images
+        claude_image_paths = claude_hq_paths or image_paths
+
+        # --- Assembly detection and processing ---
+        is_assembly = False
+        if force_assembly is True:
+            is_assembly = True
+        elif force_assembly is False:
+            is_assembly = False
+        elif len(image_paths) >= 3:
+            # Auto-detect: only check multi-page docs (assemblies have COC + MTRs)
+            _progress("Checking for assembly packet...", 0.32)
+            try:
+                is_assembly = detect_assembly(image_paths, anthropic_api_key)
+            except Exception as e:
+                logger.warning("Assembly detection failed: %s", e)
+
+        if is_assembly:
+            _progress("Processing assembly packet...", 0.35)
+            try:
+                assembly_result = process_assembly(
+                    image_paths=image_paths,
+                    api_key=anthropic_api_key,
+                    on_progress=on_progress,
+                )
+                result.assembly_result = assembly_result
+                result.success = True
+
+                # Store key fields for TIFF naming / display
+                result.extracted_data = {
+                    'po_number': assembly_result.po_number,
+                    'customer_part_number': assembly_result.customer_part_number,
+                    'heat_number': 'ASSEMBLY',
+                    'material_grade': assembly_result.assembly_description,
+                    '_assembly': True,
+                }
+                result.warnings.extend(assembly_result.warnings)
+
+                # TIFF to staging
+                if output_dir and is_pdf:
+                    _progress("Assembling TIFF (staging)...", 0.90)
+                    staging_dir = Path(tempfile.gettempdir()) / 'material-validator-staging'
+                    staging_dir.mkdir(parents=True, exist_ok=True)
+                    po = assembly_result.po_number or 'UNKNOWN-PO'
+                    staging_name = f"staging_ASSY_{po}_{int(time.time())}.tiff"
+                    staging_path = str(staging_dir / staging_name)
+                    t_tiff = time.time()
+                    if enhanced_image_paths:
+                        from gui.tiff_export import enhanced_images_to_tiff
+                        success_tiff, msg = enhanced_images_to_tiff(enhanced_image_paths, staging_path, dpi=tiff_dpi)
+                    else:
+                        from gui.tiff_export import pdf_to_tiff
+                        success_tiff, msg = pdf_to_tiff(pdf_path, staging_path, tiff_dpi, tiff_compression)
+                    logger.info("[TIMING] %s | TIFF conversion: %.1fs", filename, time.time() - t_tiff)
+                    if success_tiff:
+                        result.output_tiff_path = staging_path
+                    else:
+                        result.warnings.append(f"TIFF conversion failed: {msg}")
+
+                total_pipeline = time.time() - t_pipeline_start
+                _progress("Assembly validation complete.", 1.0)
+                logger.info("[TIMING] %s | process_document (assembly) TOTAL: %.1fs",
+                            filename, total_pipeline)
+                return result
+
+            except Exception as e:
+                logger.exception("Assembly pipeline error: %s", e)
+                result.errors.append(f"Assembly processing failed: {e}")
+                return result
+
         # Detect Vendor Spec mode (extract only, no validation)
         vendor_spec_mode = (spec_id == "Vendor Spec")
 
@@ -350,7 +440,7 @@ def process_document(
             api_key=anthropic_api_key,
             spec=spec_data,
             spec_id=spec_id if not vendor_spec_mode else None,
-            image_paths=image_paths,
+            image_paths=claude_image_paths,
             model=extraction_model,
         )
         logger.info("[TIMING] %s | Claude parse (%s, %d images): %.1fs",
@@ -364,42 +454,45 @@ def process_document(
         result.extracted_data = raw_data
         result.compliance_flags = raw_data.pop('compliance_flags', [])
 
+        # Step 5b: Opus precision pass for chemistry & mechanical tables
+        # Sonnet misreads dense multi-row tables (Min/Max/Cer). Opus is
+        # much more accurate, so we do a focused call for just the tables
+        # and merge the results into Sonnet's extraction.
+        if extraction_model != 'opus' and not vendor_spec_mode and image_paths:
+            _progress("Reading tables with Opus...", 0.50)
+            opus_tables = None
+            try:
+                # Crop table regions identified by Sonnet to minimize Opus tokens
+                table_regions = raw_data.get('table_regions')
+                if table_regions:
+                    opus_images = crop_table_regions(claude_image_paths, table_regions)
+                    logger.info("Cropped %d table region(s) for Opus", len(opus_images))
+                else:
+                    opus_images = claude_image_paths[:1]  # fallback: page 1 only
+                    logger.info("No table_regions from Sonnet, sending page 1 to Opus")
+                t_opus = time.time()
+                opus_tables = extract_tables_with_opus(opus_images, anthropic_api_key)
+                logger.info("[TIMING] %s | Opus table extraction: %.1fs", filename, time.time() - t_opus)
+            except Exception as e:
+                logger.warning("Opus table extraction failed: %s", e)
+            if opus_tables:
+                if opus_tables.get('heat_number'):
+                    raw_data['heat_number'] = opus_tables['heat_number']
+                    logger.info("Merged Opus heat_number: %s", opus_tables['heat_number'])
+                if opus_tables.get('chemistry'):
+                    raw_data['chemistry'] = opus_tables['chemistry']
+                    logger.info("Merged Opus chemistry: %d elements", len(opus_tables['chemistry']))
+                if opus_tables.get('chemistry_qualifiers'):
+                    raw_data['chemistry_qualifiers'] = opus_tables['chemistry_qualifiers']
+                if opus_tables.get('mechanical'):
+                    raw_data['mechanical'] = opus_tables['mechanical']
+                    logger.info("Merged Opus mechanical: %d properties", len(opus_tables['mechanical']))
+
         # Step 6: Normalize extracted data
         _progress("Normalizing data...", 0.55)
         normalized = normalize_extracted_data(raw_data)
 
         result.normalized_data = normalized
-
-        # Step 6b: Detect suspicious chemistry and retry with Opus if needed
-        from .sanity import detect_suspicious_chemistry
-        spec_chem = spec_data.get('chemistry') if spec_data else None
-        if (extraction_model != 'opus'
-                and not vendor_spec_mode
-                and normalized.get('chemistry')
-                and detect_suspicious_chemistry(normalized['chemistry'], spec_chem)):
-            logger.warning("Suspicious chemistry detected — retrying with Opus...")
-            _progress("Suspicious chemistry detected, retrying with Opus...", 0.50)
-            t_opus = time.time()
-            raw_data_opus = parse_and_validate(
-                ocr_text=ocr_text,
-                api_key=anthropic_api_key,
-                spec=spec_data,
-                spec_id=spec_id if not vendor_spec_mode else None,
-                image_paths=image_paths,
-                model='opus',
-            )
-            logger.info("[TIMING] %s | Opus retry: %.1fs", filename, time.time() - t_opus)
-            if raw_data_opus.get('_extraction_status') != 'error':
-                normalized_opus = normalize_extracted_data(raw_data_opus)
-                if not detect_suspicious_chemistry(normalized_opus.get('chemistry', {}), spec_chem):
-                    logger.info("Opus extraction resolved suspicious chemistry — using Opus result")
-                    raw_data = raw_data_opus
-                    normalized = normalized_opus
-                    result.extracted_data = raw_data
-                    result.compliance_flags = raw_data.pop('compliance_flags', [])
-                    result.normalized_data = normalized
-                else:
-                    logger.warning("Opus extraction still shows suspicious chemistry — using original")
 
         if vendor_spec_mode:
             # Vendor Spec: skip auto-detect and validation, create review-only result
@@ -451,10 +544,9 @@ def process_document(
             for item in sanity.get(category, []):
                 result.warnings.append(f"Sanity {category}: {item[0]} = {item[1]} - {item[2]}")
 
-        # Step 10: PDF -> TIFF (staging — user approves before archiving)
+        # Step 10: Assemble TIFF from enhanced images (or fall back to pdf_to_tiff)
         if output_dir and is_pdf:
-            _progress("Converting to TIFF (staging)...", 0.85)
-            from gui.tiff_export import pdf_to_tiff
+            _progress("Assembling TIFF (staging)...", 0.85)
 
             staging_dir = Path(tempfile.gettempdir()) / 'material-validator-staging'
             staging_dir.mkdir(parents=True, exist_ok=True)
@@ -464,8 +556,13 @@ def process_document(
             staging_path = str(staging_dir / staging_name)
 
             t_tiff = time.time()
-            success, msg = pdf_to_tiff(pdf_path, staging_path, tiff_dpi, tiff_compression)
-            logger.info("[TIMING] %s | TIFF conversion: %.1fs", filename, time.time() - t_tiff)
+            if enhanced_image_paths:
+                from gui.tiff_export import enhanced_images_to_tiff
+                success, msg = enhanced_images_to_tiff(enhanced_image_paths, staging_path, dpi=tiff_dpi)
+            else:
+                from gui.tiff_export import pdf_to_tiff
+                success, msg = pdf_to_tiff(pdf_path, staging_path, tiff_dpi, tiff_compression)
+            logger.info("[TIMING] %s | TIFF assembly: %.1fs", filename, time.time() - t_tiff)
             if success:
                 result.output_tiff_path = staging_path
                 logger.info("Staging TIFF saved: %s", staging_path)
