@@ -61,7 +61,11 @@ def pdf_to_images(pdf_path: str, dpi: int = 150) -> list:
     
     for page_num in range(len(doc)):
         page = doc[page_num]
-        pix = page.get_pixmap(matrix=mat)
+        # Apply page rotation so text renders horizontally
+        page_mat = mat
+        if page.rotation:
+            page_mat = fitz.Matrix(scale, scale).prerotate(page.rotation)
+        pix = page.get_pixmap(matrix=page_mat)
         
         output_path = output_dir / f"{pdf_path.stem}_page{page_num + 1}.png"
         pix.save(str(output_path))

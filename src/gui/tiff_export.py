@@ -54,11 +54,15 @@ def render_enhanced_pages(pdf_path: str, dpi: int = 300, posterize: bool = True)
     output_dir.mkdir(exist_ok=True)
 
     scale = dpi / 72.0
-    mat = fitz.Matrix(scale, scale)
+    base_mat = fitz.Matrix(scale, scale)
     image_paths = []
 
     for page_num in range(len(doc)):
         page = doc[page_num]
+        # Apply page rotation so text renders horizontally
+        mat = fitz.Matrix(scale, scale)
+        if page.rotation:
+            mat = mat.prerotate(page.rotation)
         pix = page.get_pixmap(matrix=mat, colorspace=fitz.csGRAY)
         img = Image.frombytes("L", [pix.width, pix.height], pix.samples)
         if posterize:
@@ -210,7 +214,11 @@ def pdf_to_tiff(
 
         for page_num in range(len(doc)):
             page = doc[page_num]
-            pix = page.get_pixmap(matrix=mat, colorspace=fitz.csGRAY)
+            # Apply page rotation so text renders horizontally
+            page_mat = mat
+            if page.rotation:
+                page_mat = fitz.Matrix(scale, scale).prerotate(page.rotation)
+            pix = page.get_pixmap(matrix=page_mat, colorspace=fitz.csGRAY)
 
             img = Image.frombytes("L", [pix.width, pix.height], pix.samples)
             # Posterize: quantize to 8 gray levels (preserves text anti-aliasing)

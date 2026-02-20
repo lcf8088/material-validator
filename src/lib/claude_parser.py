@@ -74,7 +74,7 @@ def _strip_chemistry_table_from_ocr(ocr_text: str) -> str:
 
 # Model ID mapping
 MODEL_IDS = {
-    'sonnet': 'claude-sonnet-4-5-20250929',
+    'sonnet': 'claude-sonnet-4-6',
     'opus': 'claude-opus-4-6',
 }
 
@@ -354,6 +354,8 @@ Read the heat number, chemistry table, and mechanical properties from this Mill 
 - For multiple specimens under the SAME condition, report averages.
 - If separate conditions exist (Before/After Heat Treat), use FINAL condition values only.
 - Stress values: note whether they are in ksi, MPa, or psi. Report the unit exactly as shown.
+- **COLUMN ALIGNMENT**: Tensile test tables have columns like YS (yield), TS (tensile), EL (elongation), RA (reduction of area). Read each column header carefully and match values by visual position. YS is ALWAYS less than TS for steel — if your extracted yield > tensile, you have a column shift error.
+- **FOOTNOTE DISAMBIGUATION**: On some certs (e.g., Nippon Steel), the SAME footnote marker (like *3) has DIFFERENT meanings in different table sections. In chemistry, *3 may mean "multiply by X1000". In tensile test, *3 may mean "unit is ksi". Do NOT apply chemistry multipliers to mechanical property values — mechanical values are already in their stated units (ksi, MPa, %, etc.).
 
 Return ONLY valid JSON:
 {
@@ -707,11 +709,11 @@ def test_connection(api_key: str) -> tuple[bool, str]:
     try:
         client = anthropic.Anthropic(api_key=api_key)
         client.messages.create(
-            model="claude-sonnet-4-5-20250929",
+            model="claude-sonnet-4-6",
             max_tokens=10,
             messages=[{"role": "user", "content": "Hi"}],
         )
-        return True, "Connected to Anthropic API (Claude Sonnet 4.5)"
+        return True, "Connected to Anthropic API (Claude Sonnet 4.6)"
     except anthropic.AuthenticationError:
         return False, "Invalid API key"
     except Exception as e:

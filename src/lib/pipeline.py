@@ -6,6 +6,7 @@ Single entry point for processing MTR documents end-to-end.
 """
 
 import logging
+import re
 import tempfile
 import time
 from dataclasses import dataclass, field
@@ -53,6 +54,214 @@ from .sanity import run_all_sanity_checks
 from .spec_loader import SpecLoader
 
 logger = logging.getLogger(__name__)
+
+# Regex to detect compact integer notation legend in OCR text
+_COMPACT_NOTATION_RE = re.compile(
+    r'\*\d\s*:\s*X\s*\d+|OTHER\s*:\s*X\s*\d+', re.IGNORECASE)
+
+
+def _fix_compact_notation_chemistry(
+    chemistry: Dict[str, Any],
+    spec: Optional[Dict[str, Any]],
+    ocr_text: str,
+) -> Dict[str, Any]:
+    """Correct chemistry values when compact integer notation multiplier was misapplied.
+
+    Detects compact notation certs (footnotes like *2:X10, OTHER:X100) and for
+    each out-of-spec element, tries dividing/multiplying by 10 to see if the
+    result falls in spec.  This catches the common case where Claude applies
+    the wrong column multiplier (e.g. X10 instead of X100).
+    """
+    if not spec or not chemistry:
+        return chemistry
+    # Only run on compact notation certs
+    if not _COMPACT_NOTATION_RE.search(ocr_text):
+        return chemistry
+
+    chem_spec = spec.get('chemistry') or {}
+    fixed = dict(chemistry)
+
+    for elem, value in chemistry.items():
+        if elem.endswith('_unit') or value is None:
+            continue
+        limits = chem_spec.get(elem) or {}
+        spec_max = limits.get('max')
+        spec_min = limits.get('min')
+        if spec_max is None and spec_min is None:
+            continue
+
+        try:
+            val = float(value)
+        except (ValueError, TypeError):
+            continue
+
+        # Check if current value is out of spec
+        in_spec = True
+        if spec_max is not None and val > float(spec_max):
+            in_spec = False
+        if spec_min is not None and val < float(spec_min):
+            in_spec = False
+
+        if in_spec:
+            continue
+
+        # Try shifting multiplier by factors of 10 (divide or multiply)
+        for factor in [10, 0.1, 100, 0.01]:
+            candidate = val / factor if factor > 1 else val * (1 / factor)
+            candidate_ok = True
+            if spec_max is not None and candidate > float(spec_max):
+                candidate_ok = False
+            if spec_min is not None and candidate < float(spec_min):
+                candidate_ok = False
+            if candidate_ok and candidate > 0:
+                logger.warning(
+                    "Compact notation fix: %s=%.4g out of spec (min=%s max=%s), "
+                    "corrected to %.4g (factor=1/%g)",
+                    elem, val, spec_min, spec_max, candidate, factor)
+                fixed[elem] = candidate
+                break
+
+    return fixed
+
+
+def _spec_aware_merge(
+    sonnet_data: Dict[str, Any],
+    opus_data: Dict[str, Any],
+    spec: Optional[Dict[str, Any]],
+    section: str,
+) -> Dict[str, Any]:
+    """Merge Opus extraction into Sonnet with spec-aware validation.
+
+    For each field, Opus values override Sonnet UNLESS:
+    - Opus value is null → keep Sonnet value
+    - Spec is available AND Opus value is wildly out of range
+      (>5x spec max or <spec_min/5) AND Sonnet value is more
+      reasonable → keep Sonnet value
+
+    This catches cases where Opus misreads dense tables (e.g. column
+    shifts in compact integer notation Japanese certs) while still
+    preferring Opus for normal extractions.
+    """
+    merged = dict(sonnet_data)
+    spec_limits = (spec or {}).get(section) or {}
+
+    for key, opus_val in opus_data.items():
+        if opus_val is None:
+            continue
+
+        sonnet_val = sonnet_data.get(key)
+        limits = spec_limits.get(key) or {}
+
+        # Skip unit fields — no spec validation needed
+        if key.endswith('_unit'):
+            merged[key] = opus_val
+            continue
+
+        # Try numeric comparison when spec limits exist
+        try:
+            opus_num = float(opus_val)
+        except (ValueError, TypeError):
+            merged[key] = opus_val
+            continue
+
+        spec_max = limits.get('max')
+        spec_min = limits.get('min')
+        wildly_off = False
+
+        if spec_max is not None:
+            try:
+                if opus_num > float(spec_max) * 5:
+                    wildly_off = True
+            except (ValueError, TypeError):
+                pass
+
+        if spec_min is not None and not wildly_off:
+            try:
+                smin = float(spec_min)
+                if smin > 0 and opus_num < smin / 5:
+                    wildly_off = True
+            except (ValueError, TypeError):
+                pass
+
+        if wildly_off and sonnet_val is not None:
+            try:
+                sonnet_num = float(sonnet_val)
+                # Check if Sonnet is more reasonable (within 5x of spec range)
+                sonnet_ok = True
+                if spec_max is not None:
+                    try:
+                        if sonnet_num > float(spec_max) * 5:
+                            sonnet_ok = False
+                    except (ValueError, TypeError):
+                        pass
+                if spec_min is not None:
+                    try:
+                        smin = float(spec_min)
+                        if smin > 0 and sonnet_num < smin / 5:
+                            sonnet_ok = False
+                    except (ValueError, TypeError):
+                        pass
+                if sonnet_ok:
+                    logger.warning(
+                        "Opus %s.%s=%.4g wildly off spec (min=%s max=%s), "
+                        "keeping Sonnet value %.4g",
+                        section, key, opus_num, spec_min, spec_max, sonnet_num)
+                    continue  # keep Sonnet value in merged
+            except (ValueError, TypeError):
+                pass
+
+        logger.info("Merge %s.%s: Sonnet=%s -> Opus=%s", section, key, sonnet_val, opus_val)
+
+        # If Opus is out of spec and Sonnet is in spec, prefer Sonnet
+        # (catches column shifts, wrong multipliers in compact notation)
+        if sonnet_val is not None and (spec_max is not None or spec_min is not None):
+            try:
+                sonnet_num = float(sonnet_val)
+                opus_in_spec = True
+                sonnet_in_spec = True
+                if spec_max is not None:
+                    smax = float(spec_max)
+                    if opus_num > smax:
+                        opus_in_spec = False
+                    if sonnet_num > smax:
+                        sonnet_in_spec = False
+                if spec_min is not None:
+                    smin = float(spec_min)
+                    if opus_num < smin:
+                        opus_in_spec = False
+                    if sonnet_num < smin:
+                        sonnet_in_spec = False
+                if not opus_in_spec and sonnet_in_spec:
+                    logger.warning(
+                        "Opus %s.%s=%.4g out of spec (min=%s max=%s), "
+                        "Sonnet value %.4g is in spec — keeping Sonnet",
+                        section, key, opus_num, spec_min, spec_max, sonnet_num)
+                    continue  # keep Sonnet value in merged
+            except (ValueError, TypeError):
+                pass
+
+        merged[key] = opus_val
+
+    # --- Steel sanity: YS must be < TS ---
+    # If Opus swapped columns (reads TS as YS), prefer Sonnet's values
+    if section == 'mechanical':
+        try:
+            ys = float(merged.get('yield_strength') or 0)
+            ts = float(merged.get('tensile_strength') or 0)
+            if ys > 0 and ts > 0 and ys >= ts:
+                logger.warning(
+                    "Opus YS(%.1f) >= TS(%.1f) — column shift detected, "
+                    "reverting mechanical to Sonnet values", ys, ts)
+                # Revert YS and TS to Sonnet values if available
+                for fld in ('yield_strength', 'tensile_strength'):
+                    sv = sonnet_data.get(fld)
+                    if sv is not None:
+                        merged[fld] = sv
+                        logger.info("Reverted %s to Sonnet value: %s", fld, sv)
+        except (ValueError, TypeError):
+            pass
+
+    return merged
 
 
 @dataclass
@@ -454,6 +663,21 @@ def process_document(
         result.extracted_data = raw_data
         result.compliance_flags = raw_data.pop('compliance_flags', [])
 
+        # Step 5a: Early spec detection for merge validation
+        # If no spec_id was provided, try auto-detecting now so the Opus
+        # merge can use spec limits to catch wrong-multiplier errors.
+        if not spec_id and not vendor_spec_mode:
+            try:
+                _normalized_early = normalize_extracted_data(dict(raw_data))
+                matcher = SpecMatcher()
+                early_match = matcher.select_best_spec(_normalized_early)
+                if early_match:
+                    spec_id, _conf, _reason = early_match
+                    spec_data = spec_loader.get(spec_id)
+                    logger.info("Early spec detection for merge: %s (%.0f%%)", spec_id, _conf * 100)
+            except Exception as e:
+                logger.debug("Early spec detection failed: %s", e)
+
         # Step 5b: Opus precision pass for chemistry & mechanical tables
         # Sonnet misreads dense multi-row tables (Min/Max/Cer). Opus is
         # much more accurate, so we do a focused call for just the tables
@@ -480,26 +704,30 @@ def process_document(
                     raw_data['heat_number'] = opus_tables['heat_number']
                     logger.info("Merged Opus heat_number: %s", opus_tables['heat_number'])
                 if opus_tables.get('chemistry'):
-                    raw_data['chemistry'] = opus_tables['chemistry']
-                    logger.info("Merged Opus chemistry: %d elements", len(opus_tables['chemistry']))
+                    # Spec-aware chemistry merge: field-level with validation
+                    sonnet_chem = raw_data.get('chemistry') or {}
+                    opus_chem = opus_tables['chemistry']
+                    merged_chem = _spec_aware_merge(
+                        sonnet_chem, opus_chem, spec_data, 'chemistry')
+                    raw_data['chemistry'] = merged_chem
+                    logger.info("Merged Opus chemistry: %d elements", len(merged_chem))
                 if opus_tables.get('chemistry_qualifiers'):
                     raw_data['chemistry_qualifiers'] = opus_tables['chemistry_qualifiers']
                 if opus_tables.get('mechanical'):
-                    # Field-level merge: Opus values override Sonnet, but
-                    # preserve Sonnet values for fields Opus returned as null
-                    # (e.g. hardness on a separate page that Opus didn't see)
+                    # Spec-aware mechanical merge: field-level with validation
                     sonnet_mech = raw_data.get('mechanical') or {}
                     opus_mech = opus_tables['mechanical']
-                    merged_mech = dict(sonnet_mech)
-                    opus_filled = 0
-                    for k, v in opus_mech.items():
-                        if v is not None:
-                            merged_mech[k] = v
-                            opus_filled += 1
+                    merged_mech = _spec_aware_merge(
+                        sonnet_mech, opus_mech, spec_data, 'mechanical')
                     raw_data['mechanical'] = merged_mech
-                    logger.info("Merged Opus mechanical: %d/%d non-null fields (kept %d from Sonnet)",
-                                opus_filled, len(opus_mech),
-                                len(merged_mech) - opus_filled)
+                    logger.info("Merged Opus mechanical: %d properties", len(merged_mech))
+
+        # Step 5c: Compact notation correction
+        # Both models can misapply multipliers in compact integer notation certs.
+        # Use spec limits to detect and correct wrong-multiplier chemistry values.
+        if raw_data.get('chemistry') and spec_data and ocr_text:
+            raw_data['chemistry'] = _fix_compact_notation_chemistry(
+                raw_data['chemistry'], spec_data, ocr_text)
 
         # Step 6: Normalize extracted data
         _progress("Normalizing data...", 0.55)
