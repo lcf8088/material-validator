@@ -152,7 +152,7 @@ def _spec_aware_merge(
         sonnet_val = sonnet_data.get(key)
         limits = spec_limits.get(key) or {}
 
-        # Skip unit fields — no spec validation needed
+        # Skip unit fields — they are set alongside their numeric field
         if key.endswith('_unit'):
             merged[key] = opus_val
             continue
@@ -206,6 +206,10 @@ def _spec_aware_merge(
                         "Opus %s.%s=%.4g wildly off spec (min=%s max=%s), "
                         "keeping Sonnet value %.4g",
                         section, key, opus_num, spec_min, spec_max, sonnet_num)
+                    # Revert unit field to Sonnet's unit as well
+                    unit_key = key + '_unit'
+                    if unit_key in merged and unit_key in sonnet_data:
+                        merged[unit_key] = sonnet_data[unit_key]
                     continue  # keep Sonnet value in merged
             except (ValueError, TypeError):
                 pass
@@ -236,6 +240,10 @@ def _spec_aware_merge(
                         "Opus %s.%s=%.4g out of spec (min=%s max=%s), "
                         "Sonnet value %.4g is in spec — keeping Sonnet",
                         section, key, opus_num, spec_min, spec_max, sonnet_num)
+                    # Revert unit field to Sonnet's unit as well
+                    unit_key = key + '_unit'
+                    if unit_key in merged and unit_key in sonnet_data:
+                        merged[unit_key] = sonnet_data[unit_key]
                     continue  # keep Sonnet value in merged
             except (ValueError, TypeError):
                 pass
@@ -252,12 +260,15 @@ def _spec_aware_merge(
                 logger.warning(
                     "Opus YS(%.1f) >= TS(%.1f) — column shift detected, "
                     "reverting mechanical to Sonnet values", ys, ts)
-                # Revert YS and TS to Sonnet values if available
+                # Revert YS and TS (and their units) to Sonnet values if available
                 for fld in ('yield_strength', 'tensile_strength'):
                     sv = sonnet_data.get(fld)
                     if sv is not None:
                         merged[fld] = sv
                         logger.info("Reverted %s to Sonnet value: %s", fld, sv)
+                        unit_key = fld + '_unit'
+                        if unit_key in sonnet_data:
+                            merged[unit_key] = sonnet_data[unit_key]
         except (ValueError, TypeError):
             pass
 
