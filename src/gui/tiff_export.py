@@ -6,7 +6,9 @@ Converts PDFs to TIFF format with proper naming convention.
 text while keeping files compact (~900 KB for a typical 3-page MTR).
 """
 
+import io
 import logging
+import os
 import re
 import tempfile
 from pathlib import Path
@@ -342,6 +344,90 @@ def image_to_tiff(
         return False, "Missing dependency: pillow. Install with: pip install pillow"
     except Exception as e:
         return False, f"Conversion failed: {e}"
+
+
+def compress_pdf(src_path: str, dst_path: str, render_dpi: int = 150,
+                  jpeg_quality: int = 35) -> bool:
+    """Compress a PDF for archival storage.
+
+    Tries two strategies and keeps the smaller result:
+      1. Optimize the original (garbage-collect unused objects + deflate).
+      2. Re-render every page as a grayscale JPEG at *render_dpi*.
+
+    Args:
+        src_path: Original PDF file path.
+        dst_path: Destination path for the compressed PDF.
+        render_dpi: DPI for the rasterized variant (default 150).
+        jpeg_quality: JPEG quality for the rasterized variant (default 35).
+
+    Returns:
+        True on success, False on failure.
+    """
+    try:
+        import fitz
+        from PIL import Image
+
+        src_path = str(src_path)
+        dst_path = str(dst_path)
+
+        # --- Strategy 1: optimize original ---
+        doc = fitz.open(src_path)
+        opt_tmp = dst_path + '.opt.tmp'
+        doc.save(opt_tmp, garbage=4, deflate=True, clean=True)
+        doc.close()
+        opt_size = os.path.getsize(opt_tmp)
+
+        # --- Strategy 2: render to grayscale JPEG ---
+        doc = fitz.open(src_path)
+        rendered = fitz.open()
+        scale = render_dpi / 72.0
+        mat = fitz.Matrix(scale, scale)
+
+        for page in doc:
+            page_mat = mat
+            if page.rotation:
+                page_mat = fitz.Matrix(scale, scale).prerotate(page.rotation)
+            pix = page.get_pixmap(matrix=page_mat, colorspace=fitz.csGRAY)
+            img = Image.frombytes("L", [pix.width, pix.height], pix.samples)
+            img = img.convert("RGB")
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=jpeg_quality)
+            new_page = rendered.new_page(
+                width=page.rect.width, height=page.rect.height
+            )
+            new_page.insert_image(
+                fitz.Rect(0, 0, page.rect.width, page.rect.height),
+                stream=buf.getvalue(),
+            )
+        doc.close()
+
+        rnd_tmp = dst_path + '.rnd.tmp'
+        rendered.save(rnd_tmp, deflate=True, garbage=4)
+        rendered.close()
+        rnd_size = os.path.getsize(rnd_tmp)
+
+        # --- Pick the smaller one ---
+        if opt_size <= rnd_size:
+            os.replace(opt_tmp, dst_path)
+            os.remove(rnd_tmp)
+            logger.info("Archive PDF (optimized original): %s (%d KB)",
+                        dst_path, opt_size // 1024)
+        else:
+            os.replace(rnd_tmp, dst_path)
+            os.remove(opt_tmp)
+            logger.info("Archive PDF (rendered %d DPI): %s (%d KB)",
+                        render_dpi, dst_path, rnd_size // 1024)
+        return True
+
+    except Exception as e:
+        logger.error("compress_pdf failed: %s", e)
+        # Clean up temp files on error
+        for tmp in [dst_path + '.opt.tmp', dst_path + '.rnd.tmp']:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+        return False
 
 
 def tiff_to_pdf(tiff_path: str, pdf_path: str, quality: int = 40) -> bool:

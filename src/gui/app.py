@@ -47,7 +47,7 @@ from lib.watcher import FolderWatcher
 from .config import Config
 from .tiff_export import (
     generate_archive_filename, generate_assembly_archive_filename,
-    sanitize_filename, parse_input_filename, tiff_to_pdf,
+    sanitize_filename, parse_input_filename, tiff_to_pdf, compress_pdf,
 )
 from .settings import SettingsPanel
 from .override_dialog import OverrideDialog
@@ -2654,10 +2654,19 @@ class MaterialValidatorApp:
 
             # Generate compressed PDF alongside TIFF (background — don't block GUI)
             pdf_path = final_path.with_suffix('.pdf')
-            threading.Thread(
-                target=tiff_to_pdf, args=(str(final_path), str(pdf_path)),
-                daemon=True,
-            ).start()
+            if self.current_file and Path(self.current_file).suffix.lower() == '.pdf':
+                # Original is PDF — optimize it (picks smaller of optimized vs rendered)
+                threading.Thread(
+                    target=compress_pdf,
+                    args=(self.current_file, str(pdf_path)),
+                    daemon=True,
+                ).start()
+            else:
+                # Non-PDF input (image/TIFF) — convert from the staging TIFF
+                threading.Thread(
+                    target=tiff_to_pdf, args=(str(final_path), str(pdf_path)),
+                    daemon=True,
+                ).start()
         else:
             # No staging TIFF (e.g. non-PDF input) — nothing to move
             logger.info("Approved (no TIFF): %s", archive_name)
