@@ -44,7 +44,7 @@ def list_specs(loader: SpecLoader) -> None:
     for spec_id in sorted(loader.list_ids()):
         spec = loader.get(spec_id)
         material = spec.get('material', 'Unknown')[:33]
-        uns = spec.get('uns', '-')
+        uns = spec.get('uns') or '-'
         print(f"{spec_id:<15} {material:<35} {uns:<10}")
 
     print("=" * 65)

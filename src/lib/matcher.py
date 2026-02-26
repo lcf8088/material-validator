@@ -67,6 +67,63 @@ _GRADE_ALIASES = {
 }
 
 
+# Material keyword synonyms → canonical form (for polymer/elastomer matching)
+_MATERIAL_SYNONYMS = {
+    'TEFLON': 'PTFE',
+    'POLYTETRAFLUOROETHYLENE': 'PTFE',
+    'MOS2': 'MOLY',
+    'MOLYBDENUM': 'MOLY',
+    'MOLYBDENUM DISULFIDE': 'MOLY',
+    'MOLY DISULFIDE': 'MOLY',
+    'GLASS FIBER': 'GLASS',
+    'GLASS FIBRE': 'GLASS',
+    'FIBERGLASS': 'GLASS',
+    'CARBON FIBER': 'CARBON',
+    'CARBON FIBRE': 'CARBON',
+    'VITON': 'FKM',
+    'FLUOROELASTOMER': 'FKM',
+    'AFLAS': 'FEPM',
+    'PEEK': 'PEEK',
+    'POLYETHERETHERKETONE': 'PEEK',
+    'NYLON': 'NYLON',
+    'POLYAMIDE': 'NYLON',
+    'BUNA': 'NBR',
+    'NITRILE': 'NBR',
+    'HNBR': 'HNBR',
+    'HSN': 'HNBR',
+}
+
+# Noise words to strip when extracting material keywords
+_NOISE_WORDS = {'FILLED', 'COMPOUND', 'VIRGIN', 'MODIFIED', 'GRADE', 'TYPE',
+                'TECH', 'FINE', 'WITH', 'AND', 'THE', 'OF', 'FOR', 'PLUS'}
+
+
+def _extract_material_keywords(text: str) -> set:
+    """Extract canonical material keywords from a text string.
+
+    Tokenizes the text, applies synonym mapping, and returns a set
+    of canonical material terms (e.g., 'PTFE', 'GLASS', 'MOLY').
+    """
+    import re
+    text = text.upper()
+    # Try multi-word synonyms first (longest match)
+    for phrase, canonical in sorted(_MATERIAL_SYNONYMS.items(),
+                                     key=lambda x: -len(x[0])):
+        if phrase in text:
+            text = text.replace(phrase, canonical)
+
+    tokens = set(re.split(r'[^A-Z0-9]+', text)) - _NOISE_WORDS - {''}
+    # Map remaining single-word synonyms, skip pure numbers and short tokens
+    result = set()
+    for t in tokens:
+        if re.match(r'^\d+$', t):
+            continue  # skip pure numbers (percentages, quantities)
+        if len(t) < 3:
+            continue  # skip very short tokens
+        result.add(_MATERIAL_SYNONYMS.get(t, t))
+    return result
+
+
 def _extract_family_number(spec_id: str) -> str:
     """Extract the 4-digit family number from a DDIC spec ID."""
     import re
@@ -111,7 +168,8 @@ class SpecMatcher:
             # Score each dimension
             chem_score, chem_detail = self._score_chemistry(spec, mtr_chem)
             mech_score, mech_detail = self._score_mechanical(spec, mtr_mech)
-            id_score, id_detail = self._score_identity(spec, mtr_uns, mtr_grade)
+            mtr_product_form = (mtr_data.get('product_form') or '').upper().strip()
+            id_score, id_detail = self._score_identity(spec, mtr_uns, mtr_grade, mtr_product_form)
 
             # Weighted combination
             # If chemistry data is missing, shift weight to identity
@@ -265,7 +323,7 @@ class SpecMatcher:
 
     # ------------------------------------------------------------------ Identity scoring
     def _score_identity(self, spec: dict, mtr_uns: str,
-                        mtr_grade: str) -> Tuple[float, str]:
+                        mtr_grade: str, mtr_product_form: str = '') -> Tuple[float, str]:
         """Score UNS and grade name match. Returns (score 0.0-1.0, detail string)."""
         spec_uns = (spec.get('uns') or '').upper().strip()
         spec_grades = [g.upper() for g in spec.get('grades', [])]
@@ -274,38 +332,53 @@ class SpecMatcher:
         if mtr_uns and spec_uns and mtr_uns == spec_uns:
             return (SCORE_UNS_MATCH, f"UNS: {mtr_uns}")
 
-        if not mtr_grade:
+        if not mtr_grade and not mtr_product_form:
             return (0.0, '')
 
         # Exact grade match
-        if mtr_grade in spec_grades:
+        if mtr_grade and mtr_grade in spec_grades:
             return (SCORE_GRADE_EXACT, f"Grade: {mtr_grade}")
 
         # Normalized match
-        mtr_norm = self._normalize_grade(mtr_grade)
+        mtr_norm = self._normalize_grade(mtr_grade) if mtr_grade else ''
         for sg in spec_grades:
-            if self._normalize_grade(sg) == mtr_norm:
+            if mtr_norm and self._normalize_grade(sg) == mtr_norm:
                 return (SCORE_GRADE_EXACT, f"Grade: {mtr_grade}~{sg}")
 
         # Trade name alias match
-        alias_grades = _GRADE_ALIASES.get(mtr_grade, [])
-        if not alias_grades:
-            alias_grades = _GRADE_ALIASES.get(mtr_norm, [])
-        for alias in alias_grades:
-            alias_upper = alias.upper()
-            if alias_upper in spec_grades:
-                return (SCORE_GRADE_ALIAS, f"Alias: {mtr_grade}->{alias}")
-            for sg in spec_grades:
-                if self._normalize_grade(sg) == self._normalize_grade(alias_upper):
-                    return (SCORE_GRADE_ALIAS, f"Alias: {mtr_grade}->{alias}~{sg}")
+        if mtr_grade:
+            alias_grades = _GRADE_ALIASES.get(mtr_grade, [])
+            if not alias_grades:
+                alias_grades = _GRADE_ALIASES.get(mtr_norm, [])
+            for alias in alias_grades:
+                alias_upper = alias.upper()
+                if alias_upper in spec_grades:
+                    return (SCORE_GRADE_ALIAS, f"Alias: {mtr_grade}->{alias}")
+                for sg in spec_grades:
+                    if self._normalize_grade(sg) == self._normalize_grade(alias_upper):
+                        return (SCORE_GRADE_ALIAS, f"Alias: {mtr_grade}->{alias}~{sg}")
 
-        # Partial match
-        for sg in spec_grades:
-            if mtr_grade in sg or sg in mtr_grade:
-                return (SCORE_GRADE_PARTIAL, f"Partial: {mtr_grade}~{sg}")
-            sg_norm = self._normalize_grade(sg)
-            if mtr_norm in sg_norm or sg_norm in mtr_norm:
-                return (SCORE_GRADE_PARTIAL, f"Partial: {mtr_grade}~{sg}")
+        # Partial match on grade
+        if mtr_grade:
+            for sg in spec_grades:
+                if mtr_grade in sg or sg in mtr_grade:
+                    return (SCORE_GRADE_PARTIAL, f"Partial: {mtr_grade}~{sg}")
+                sg_norm = self._normalize_grade(sg)
+                if mtr_norm in sg_norm or sg_norm in mtr_norm:
+                    return (SCORE_GRADE_PARTIAL, f"Partial: {mtr_grade}~{sg}")
+
+        # Keyword-based product form match — handles reordered terms and synonyms
+        # e.g., "Teflon Glass Moly" matches spec grade "PTFE 15% Glass 5% Moly"
+        if mtr_product_form:
+            # Combine grade + product form for maximum signal
+            mtr_text = f"{mtr_grade} {mtr_product_form}"
+            mtr_keywords = _extract_material_keywords(mtr_text)
+            for sg in spec_grades:
+                sg_keywords = _extract_material_keywords(sg)
+                # Require at least 2 keyword overlap and all spec keywords present
+                if len(sg_keywords) >= 2 and sg_keywords.issubset(mtr_keywords):
+                    matched = ', '.join(sorted(sg_keywords))
+                    return (SCORE_GRADE_PARTIAL, f"Keywords({matched})~{sg}")
 
         return (0.0, '')
 

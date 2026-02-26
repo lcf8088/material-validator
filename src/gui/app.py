@@ -45,7 +45,10 @@ from lib.pipeline import process_document, pre_extract, PipelineResult
 from lib.watcher import FolderWatcher
 
 from .config import Config
-from .tiff_export import generate_archive_filename, generate_assembly_archive_filename, sanitize_filename
+from .tiff_export import (
+    generate_archive_filename, generate_assembly_archive_filename,
+    sanitize_filename, parse_input_filename, tiff_to_pdf,
+)
 from .settings import SettingsPanel
 from .override_dialog import OverrideDialog
 from .theme import COLORS, FONTS, ICONS, SIDEBAR_WIDTH, status_color, ScrollableComboBox
@@ -453,11 +456,10 @@ class MaterialValidatorApp:
         )
         self.batch_status_label.pack(side='left', padx=(8, 0))
 
-        # Controls row: Spec selector + PO field + action buttons
+        # Row 1: Spec selector + input fields
         controls_row = ctk.CTkFrame(view, fg_color='transparent')
         controls_row.pack(fill='x', padx=4, pady=(8, 0))
 
-        # -- Left group: Spec + PO --
         left_controls = ctk.CTkFrame(controls_row, fg_color='transparent')
         left_controls.pack(side='left')
 
@@ -483,43 +485,78 @@ class MaterialValidatorApp:
         ctk.CTkLabel(
             left_controls, text="PO#:", font=FONTS['label'],
             text_color=COLORS['text_secondary'],
-        ).pack(side='left', padx=(16, 6))
+        ).pack(side='left', padx=(16, 4))
 
         self.po_var = ctk.StringVar(value='')
         self.po_entry = ctk.CTkEntry(
-            left_controls, textvariable=self.po_var, width=140,
-            placeholder_text="Enter or scan PO",
+            left_controls, textvariable=self.po_var, width=120,
+            placeholder_text="PO number",
             fg_color=COLORS['bg_input'], border_color=COLORS['border'],
             text_color=COLORS['text_primary'], font=FONTS['body'],
         )
         self.po_entry.pack(side='left')
 
-        ctk.CTkButton(
-            left_controls, text="Clear", width=50, height=28,
-            font=FONTS['small'],
-            fg_color='transparent', hover_color=COLORS['surface_hl'],
+        # Line item field (sticky)
+        ctk.CTkLabel(
+            left_controls, text="LN#:", font=FONTS['label'],
             text_color=COLORS['text_secondary'],
-            command=lambda: self.po_var.set(''),
-        ).pack(side='left', padx=(4, 0))
+        ).pack(side='left', padx=(12, 4))
 
-        # Approved By field (sticky — persists between validations)
+        self.ln_var = ctk.StringVar(value='')
+        self.ln_entry = ctk.CTkEntry(
+            left_controls, textvariable=self.ln_var, width=50,
+            placeholder_text="Line",
+            fg_color=COLORS['bg_input'], border_color=COLORS['border'],
+            text_color=COLORS['text_primary'], font=FONTS['body'],
+        )
+        self.ln_entry.pack(side='left')
+
+        # Identifier field — Heat# or Batch# (sticky)
+        ctk.CTkLabel(
+            left_controls, text="ID#:", font=FONTS['label'],
+            text_color=COLORS['text_secondary'],
+        ).pack(side='left', padx=(12, 4))
+
+        self.id_var = ctk.StringVar(value='')
+        self.id_entry = ctk.CTkEntry(
+            left_controls, textvariable=self.id_var, width=110,
+            placeholder_text="Heat/Batch",
+            fg_color=COLORS['bg_input'], border_color=COLORS['border'],
+            text_color=COLORS['text_primary'], font=FONTS['body'],
+        )
+        self.id_entry.pack(side='left')
+
+        # Approved By field (sticky)
         ctk.CTkLabel(
             left_controls, text="Approved By:", font=FONTS['label'],
             text_color=COLORS['text_secondary'],
-        ).pack(side='left', padx=(16, 6))
+        ).pack(side='left', padx=(12, 4))
 
         self.approved_by_var = ctk.StringVar(value='')
         self.approved_by_entry = ctk.CTkEntry(
-            left_controls, textvariable=self.approved_by_var, width=150,
+            left_controls, textvariable=self.approved_by_var, width=130,
             placeholder_text="Your name",
             fg_color=COLORS['bg_input'], border_color=COLORS['border'],
             text_color=COLORS['text_primary'], font=FONTS['body'],
         )
         self.approved_by_entry.pack(side='left')
 
-        # -- Right group: action buttons --
-        btn_frame = ctk.CTkFrame(controls_row, fg_color='transparent')
-        btn_frame.pack(side='right')
+        # Clear all fields button
+        ctk.CTkButton(
+            left_controls, text="Clear Fields", width=80, height=28,
+            font=FONTS['small'],
+            fg_color='transparent', hover_color=COLORS['surface_hl'],
+            text_color=COLORS['text_secondary'],
+            command=lambda: (self.po_var.set(''), self.ln_var.set(''),
+                             self.id_var.set(''), self.approved_by_var.set('')),
+        ).pack(side='left', padx=(8, 0))
+
+        # Row 2: Action buttons
+        btn_row = ctk.CTkFrame(view, fg_color='transparent')
+        btn_row.pack(fill='x', padx=4, pady=(4, 0))
+
+        btn_frame = ctk.CTkFrame(btn_row, fg_color='transparent')
+        btn_frame.pack(side='left')
 
         self.extract_btn = ctk.CTkButton(
             btn_frame, text="Extract & Validate", width=160,
@@ -1721,6 +1758,16 @@ class MaterialValidatorApp:
         self._clear_text(self.data_text)
         self._clear_text(self.result_text)
 
+        # Pre-populate PO#, LN#, ID# from input filename
+        if ctk:
+            parsed = parse_input_filename(filename)
+            if parsed.get('po_number') and not self.po_var.get().strip():
+                self.po_var.set(parsed['po_number'])
+            if parsed.get('line_item') and not self.ln_var.get().strip():
+                self.ln_var.set(parsed['line_item'])
+            if parsed.get('identifier') and not self.id_var.get().strip():
+                self.id_var.set(parsed['identifier'])
+
     # ============================================================= Pipeline
     def _extract(self):
         """Run the full OCR + Claude extraction pipeline."""
@@ -2106,11 +2153,25 @@ class MaterialValidatorApp:
         # Determine identifier label (Heat# vs Batch#)
         id_label, id_value = _get_identifier(self.extracted_data)
 
-        # Auto-populate PO field from extracted data (don't overwrite manual entry)
+        # Auto-populate fields from extracted data (don't overwrite manual entry)
+        extracted_po = self.extracted_data.get('po_number', '') or ''
         if ctk and hasattr(self, 'po_var'):
-            extracted_po = self.extracted_data.get('po_number', '')
             if extracted_po and not self.po_var.get().strip():
                 self.po_var.set(extracted_po)
+        if ctk and hasattr(self, 'id_var'):
+            if id_value and id_value != 'N/A' and not self.id_var.get().strip():
+                self.id_var.set(id_value)
+
+        # Log mismatches between filename-parsed values and extracted data
+        if self.current_file:
+            parsed = parse_input_filename(Path(self.current_file).name)
+            if parsed.get('po_number') and extracted_po and parsed['po_number'] != extracted_po:
+                logger.warning("Filename PO '%s' differs from extracted PO '%s'",
+                               parsed['po_number'], extracted_po)
+            if parsed.get('identifier') and id_value and id_value != 'N/A':
+                if parsed['identifier'] != id_value:
+                    logger.warning("Filename ID '%s' differs from extracted %s '%s'",
+                                   parsed['identifier'], id_label, id_value)
 
         if result.validation:
             if ctk:
@@ -2543,58 +2604,46 @@ class MaterialValidatorApp:
             self._navigate_to('settings')
             return
 
+        # --- Gather naming fields from GUI ---
+        po_number = self.po_var.get().strip() if hasattr(self, 'po_var') else ''
+        line_item = self.ln_var.get().strip() if hasattr(self, 'ln_var') else ''
+        identifier = self.id_var.get().strip() if hasattr(self, 'id_var') else ''
+
         if is_assembly:
-            # Assembly naming: PO_CustomerPartNumber.tiff
-            po_number = self.po_var.get().strip() if hasattr(self, 'po_var') else ''
             if not po_number:
                 po_number = self._assembly_result.po_number
             if not po_number:
                 po_number = self._prompt_for_po()
+            if not line_item:
+                line_item = '00'
 
-            cust_part = self.cust_part_var.get().strip() if hasattr(self, 'cust_part_var') else ''
-            if not cust_part:
-                cust_part = self._assembly_result.customer_part_number
-            if not cust_part:
-                if ctk:
-                    dialog = ctk.CTkInputDialog(
-                        text="Enter Customer Part Number:",
-                        title="Customer Part Number Required",
-                    )
-                    cust_part = dialog.get_input() or ''
-                else:
-                    from tkinter import simpledialog
-                    cust_part = simpledialog.askstring("Customer Part Number", "Enter Customer Part Number:") or ''
-
-            archive_name = generate_assembly_archive_filename(po_number, cust_part)
+            archive_name = generate_assembly_archive_filename(po_number, line_item)
         else:
-            # Standard single-part naming: HeatNumber-PO.tiff
-            _, id_value = _get_identifier(self.extracted_data)
-            heat_number = id_value if id_value != 'N/A' else 'UNKNOWN'
-
-            po_number = None
-            if ctk and hasattr(self, 'po_var'):
-                po_number = self.po_var.get().strip()
+            # Fallback: populate from extracted data if GUI fields are empty
             if not po_number:
                 po_number = self.extracted_data.get('po_number')
             if not po_number:
                 po_number = self._prompt_for_po()
+            if not line_item:
+                line_item = '00'
+            if not identifier:
+                _, id_value = _get_identifier(self.extracted_data)
+                identifier = id_value if id_value != 'N/A' else None
 
-            archive_name = generate_archive_filename(heat_number, po_number)
+            archive_name = generate_archive_filename(po_number, line_item, identifier)
+
         effective_output_dir = Path(archive_folder)
-        if self.config.get('organize_by_po', False) and po_number:
-            effective_output_dir = effective_output_dir / sanitize_filename(po_number)
-            effective_output_dir.mkdir(parents=True, exist_ok=True)
-        else:
-            effective_output_dir.mkdir(parents=True, exist_ok=True)
+        effective_output_dir.mkdir(parents=True, exist_ok=True)
 
         final_path = effective_output_dir / archive_name
 
         # Handle filename conflicts
         if final_path.exists():
             base = final_path.stem
+            ext = final_path.suffix
             counter = 1
             while final_path.exists():
-                final_path = effective_output_dir / f"{base}_{counter}.tiff"
+                final_path = effective_output_dir / f"{base}_{counter}{ext}"
                 counter += 1
 
         # Move staging TIFF to archive
@@ -2602,9 +2651,16 @@ class MaterialValidatorApp:
             shutil.move(self.staging_tiff_path, str(final_path))
             self.staging_tiff_path = None
             logger.info("Approved: %s -> %s", archive_name, final_path)
+
+            # Generate compressed PDF alongside TIFF (background — don't block GUI)
+            pdf_path = final_path.with_suffix('.pdf')
+            threading.Thread(
+                target=tiff_to_pdf, args=(str(final_path), str(pdf_path)),
+                daemon=True,
+            ).start()
         else:
             # No staging TIFF (e.g. non-PDF input) — nothing to move
-            logger.info("Approved (no TIFF): %s", heat_number)
+            logger.info("Approved (no TIFF): %s", archive_name)
 
         # Generate verification report alongside the TIFF
         report_path = final_path.with_suffix('').with_name(
@@ -2624,12 +2680,26 @@ class MaterialValidatorApp:
         except Exception as e:
             logger.error("Failed to write verification report: %s", e)
 
+        # Stamp approved GUI field values into extracted_data for history
+        if self.extracted_data is not None:
+            if po_number:
+                self.extracted_data['po_number'] = po_number
+            if line_item:
+                self.extracted_data['line_item'] = line_item
+            if not is_assembly and identifier:
+                # Store the approved identifier as the appropriate field
+                _, id_label_lower = _get_identifier(self.extracted_data)
+                if self.extracted_data.get('batch_number') and not self.extracted_data.get('heat_number'):
+                    self.extracted_data['batch_number'] = identifier
+                else:
+                    self.extracted_data['heat_number'] = identifier
+
         # Approve the existing pending history record (or create one if missing)
         if self._current_history_id:
-            # Update validation_details in case overrides were applied
+            # Update validation_details and mtr_data with approved values
+            update_fields = {}
             if self.validation_result:
-                self.history.update(
-                    self._current_history_id,
+                update_fields.update(
                     validation_details=self.validation_result.to_dict(),
                     result=self.validation_result.overall_status,
                     summary={
@@ -2638,6 +2708,10 @@ class MaterialValidatorApp:
                         'missing_count': self.validation_result.missing_count,
                     },
                 )
+            if self.extracted_data is not None:
+                update_fields['mtr_data'] = self.extracted_data
+            if update_fields:
+                self.history.update(self._current_history_id, **update_fields)
             self.history.approve(self._current_history_id, approved_by)
             self._current_history_id = None
         elif self.validation_result:

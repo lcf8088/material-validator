@@ -1,9 +1,13 @@
 """
-Test 10: TIFF export - filename generation and sanitization.
+Test 10: TIFF export - filename generation, sanitization, and input parsing.
 """
 
+import re
 import pytest
-from gui.tiff_export import sanitize_filename, generate_archive_filename
+from gui.tiff_export import (
+    sanitize_filename, generate_archive_filename,
+    generate_assembly_archive_filename, parse_input_filename,
+)
 
 
 class TestSanitizeFilename:
@@ -36,32 +40,117 @@ class TestSanitizeFilename:
 
 
 class TestGenerateArchiveFilename:
-    def test_heat_and_po(self):
-        result = generate_archive_filename("D2213660", "PO-12345")
-        assert result == "D2213660-PO-12345.tiff"
+    """Tests for YYYY.MM.PO#.LN#.ID.tiff naming scheme."""
 
-    def test_heat_only(self):
-        result = generate_archive_filename("Y75T")
-        assert result == "Y75T.tiff"
+    def test_full_metal(self):
+        result = generate_archive_filename("000254", "01", "D2213660")
+        # Pattern: YYYY.MM.000254.01.D2213660.tiff
+        assert result.endswith(".000254.01.D2213660.tiff")
+        assert re.match(r"\d{4}\.\d{2}\.", result)
 
-    def test_heat_none_po(self):
-        result = generate_archive_filename("Y75T", None)
-        assert result == "Y75T.tiff"
+    def test_assembly_no_identifier(self):
+        result = generate_archive_filename("000254", "03")
+        assert result.endswith(".000254.03.tiff")
+        # No extra dot before .tiff
+        assert not result.endswith("..tiff")
 
-    def test_empty_heat(self):
-        result = generate_archive_filename("")
+    def test_none_identifier_omitted(self):
+        result = generate_archive_filename("PO123", "05", None)
+        assert result.endswith(".PO123.05.tiff")
+
+    def test_empty_po(self):
+        result = generate_archive_filename("", "01", "HEAT1")
         assert "UNKNOWN" in result
 
-    def test_none_heat(self):
-        result = generate_archive_filename(None)
+    def test_none_po(self):
+        result = generate_archive_filename(None, "01", "HEAT1")
         assert "UNKNOWN" in result
+
+    def test_none_line_item_defaults(self):
+        result = generate_archive_filename("PO1", None, "HEAT1")
+        assert ".00." in result
 
     def test_custom_extension(self):
-        result = generate_archive_filename("H1", "P1", extension=".pdf")
+        result = generate_archive_filename("PO1", "01", "H1", extension=".pdf")
         assert result.endswith(".pdf")
 
-    def test_special_chars_in_heat(self):
-        result = generate_archive_filename("H/1:2", "PO?3")
+    def test_special_chars_sanitized(self):
+        result = generate_archive_filename("PO/1:2", "L?3", "H*4")
         assert "/" not in result
         assert ":" not in result
         assert "?" not in result
+        assert "*" not in result
+
+    def test_numeric_po_zero_padded_to_6(self):
+        result = generate_archive_filename("254", "01", "HEAT1")
+        assert ".000254." in result
+
+    def test_long_numeric_po_not_truncated(self):
+        result = generate_archive_filename("1234567", "01", "HEAT1")
+        assert ".1234567." in result
+
+    def test_non_numeric_po_not_padded(self):
+        result = generate_archive_filename("PO-254", "01", "HEAT1")
+        assert ".PO-254." in result
+
+
+class TestGenerateAssemblyArchiveFilename:
+    def test_assembly_naming(self):
+        result = generate_assembly_archive_filename("000254", "03")
+        assert result.endswith(".000254.03.tiff")
+
+    def test_assembly_custom_extension(self):
+        result = generate_assembly_archive_filename("PO1", "01", extension=".pdf")
+        assert result.endswith(".PO1.01.pdf")
+
+
+class TestParseInputFilename:
+    def test_metal_three_segments(self):
+        result = parse_input_filename("000254.01.A1B2C3.pdf")
+        assert result == {
+            'po_number': '000254',
+            'line_item': '01',
+            'identifier': 'A1B2C3',
+        }
+
+    def test_assembly_two_segments(self):
+        result = parse_input_filename("000254.03.pdf")
+        assert result == {
+            'po_number': '000254',
+            'line_item': '03',
+            'identifier': None,
+        }
+
+    def test_single_segment(self):
+        result = parse_input_filename("document.pdf")
+        assert result == {
+            'po_number': 'document',
+            'line_item': None,
+            'identifier': None,
+        }
+
+    def test_extra_dots_in_identifier(self):
+        result = parse_input_filename("000254.01.HEAT.123.pdf")
+        assert result['po_number'] == '000254'
+        assert result['line_item'] == '01'
+        assert result['identifier'] == 'HEAT.123'
+
+    def test_no_real_extension(self):
+        # Path treats ".HEAT1" as extension, so stem is "000254.01"
+        result = parse_input_filename("000254.01.HEAT1")
+        assert result['po_number'] == '000254'
+        assert result['line_item'] == '01'
+        # .HEAT1 is consumed as extension by Path.stem — identifier lost
+        assert result['identifier'] is None
+
+    def test_empty_filename(self):
+        result = parse_input_filename("")
+        assert result['po_number'] is None
+        assert result['line_item'] is None
+        assert result['identifier'] is None
+
+    def test_full_path(self):
+        result = parse_input_filename("C:/folder/000254.01.ABC.pdf")
+        assert result['po_number'] == '000254'
+        assert result['line_item'] == '01'
+        assert result['identifier'] == 'ABC'

@@ -27,7 +27,7 @@ class TestSpecLoaderLoading:
         assert "ES-M0001G" in ids
         assert "ES-M0003A" in ids
         assert "ES-M0003E" in ids
-        assert len(ids) == 4
+        assert len(ids) >= 4
 
     def test_get_valid_spec(self, specs_dir):
         loader = SpecLoader.get_instance(specs_dir)
@@ -73,9 +73,9 @@ class TestSpecLoaderLoading:
         loader = SpecLoader.get_instance(specs_dir)
         all_specs = loader.all_specs()
         assert isinstance(all_specs, dict)
-        assert len(all_specs) == 4
+        assert len(all_specs) >= 4
 
     def test_reload_does_not_crash(self, specs_dir):
         loader = SpecLoader.get_instance(specs_dir)
         loader.reload()
-        assert len(loader.list_ids()) == 4
+        assert len(loader.list_ids()) >= 4

@@ -10,6 +10,9 @@ grades:
   - "PTFE Glass Moly"
   - "PTFE 15% Glass 5% Moly"
   - "Filled PTFE"
+  - "IT-GL15-M5"
+  - "IT-GL15-M5-1"
+  - "85% Virgin PTFE + 15% Glass Fiber + 5% MoS2"
 uns: null
 condition: "Filled"
 

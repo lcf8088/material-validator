@@ -127,6 +127,47 @@ def enhanced_images_to_tiff(
         return False, f"TIFF assembly failed: {e}"
 
 
+def parse_input_filename(filename: str) -> dict:
+    """Parse MTR input filename to extract PO#, LN#, and identifier (Heat#/Batch#).
+
+    Expected patterns:
+        PO#.LN#.HEAT#.pdf   → metals/elastomers (3 segments)
+        PO#.LN#.pdf          → assemblies (2 segments)
+
+    Returns dict with keys: po_number, line_item, identifier (None if assembly).
+    """
+    stem = Path(filename).stem
+    # Split on '.' separator
+    parts = [p.strip() for p in stem.split('.') if p.strip()]
+
+    if len(parts) >= 3:
+        # Metal/elastomer: PO#.LN#.ID (extra dots become part of ID)
+        return {
+            'po_number': parts[0],
+            'line_item': parts[1],
+            'identifier': '.'.join(parts[2:]),
+        }
+    elif len(parts) == 2:
+        # Assembly: PO#.LN#
+        return {
+            'po_number': parts[0],
+            'line_item': parts[1],
+            'identifier': None,
+        }
+    elif len(parts) == 1:
+        return {
+            'po_number': parts[0],
+            'line_item': None,
+            'identifier': None,
+        }
+    else:
+        return {
+            'po_number': None,
+            'line_item': None,
+            'identifier': None,
+        }
+
+
 def sanitize_filename(text: str) -> str:
     """Remove/replace characters that are invalid in filenames."""
     # Replace common problematic characters
@@ -139,35 +180,44 @@ def sanitize_filename(text: str) -> str:
 
 
 def generate_archive_filename(
-    heat_number: str,
-    po_number: Optional[str] = None,
+    po_number: str,
+    line_item: str,
+    identifier: Optional[str] = None,
     extension: str = '.tiff'
 ) -> str:
     """
-    Generate archive filename per convention: HEAT_NUMBER-PO_NUMBER.tiff
-    
-    If no PO number, just uses heat number.
+    Generate archive filename: YYYY.MM.PO#.LN#.ID.tiff
+
+    Metals use heat number as ID, elastomers use batch number.
+    Assemblies omit the ID segment.
+    Duplicate handling (_1, _2 suffix) is done by the caller.
     """
-    heat = sanitize_filename(heat_number or 'UNKNOWN')
-    
-    if po_number:
-        po = sanitize_filename(po_number)
-        return f"{heat}-{po}{extension}"
-    else:
-        return f"{heat}{extension}"
+    from datetime import datetime
+    now = datetime.now()
+    date_prefix = f"{now.year}.{now.month:02d}"
+
+    po_raw = sanitize_filename(po_number or 'UNKNOWN')
+    # Zero-pad numeric PO numbers to 6 digits
+    po = po_raw.zfill(6) if po_raw.isdigit() else po_raw
+    ln = sanitize_filename(line_item or '00')
+
+    parts = [date_prefix, po, ln]
+    if identifier:
+        parts.append(sanitize_filename(identifier))
+
+    return '.'.join(parts) + extension
 
 
 def generate_assembly_archive_filename(
     po_number: str,
-    customer_part_number: str,
+    line_item: str,
     extension: str = '.tiff'
 ) -> str:
     """
-    Generate archive filename for assembly packets: PO_CustomerPartNumber.tiff
+    Generate archive filename for assembly packets: YYYY.MM.PO#.LN#.tiff
+    No material-specific identifier is appended for assemblies.
     """
-    po = sanitize_filename(po_number or 'UNKNOWN-PO')
-    part = sanitize_filename(customer_part_number or 'UNKNOWN-PART')
-    return f"{po}_{part}{extension}"
+    return generate_archive_filename(po_number, line_item, identifier=None, extension=extension)
 
 
 def pdf_to_tiff(
@@ -294,6 +344,87 @@ def image_to_tiff(
         return False, f"Conversion failed: {e}"
 
 
+def tiff_to_pdf(tiff_path: str, pdf_path: str, quality: int = 40) -> bool:
+    """Convert a multi-page TIFF to a compact JPEG-compressed PDF.
+
+    Uses PyMuPDF (fitz) to embed JPEG-compressed images into a PDF,
+    producing files significantly smaller than the source TIFF.
+
+    Args:
+        tiff_path: Path to the input TIFF file.
+        pdf_path: Path for the output PDF file.
+        quality: JPEG quality (1-95, default 40 — readable text, compact file).
+
+    Returns:
+        True on success, False on failure.
+    """
+    try:
+        import io
+        import fitz  # pymupdf
+        from PIL import Image
+
+        tiff_path = Path(tiff_path)
+        pdf_path = Path(pdf_path)
+
+        if not tiff_path.exists():
+            logger.error("TIFF not found for PDF conversion: %s", tiff_path)
+            return False
+
+        img = Image.open(tiff_path)
+        pdf_doc = fitz.open()
+
+        page_idx = 0
+        try:
+            while True:
+                img.seek(page_idx)
+                page_img = img.copy()
+
+                # Encode as JPEG in memory
+                buf = io.BytesIO()
+                if page_img.mode == 'L':
+                    # Grayscale — convert to RGB for JPEG
+                    page_img = page_img.convert('RGB')
+                elif page_img.mode not in ('RGB',):
+                    page_img = page_img.convert('RGB')
+                page_img.save(buf, format='JPEG', quality=quality)
+                buf.seek(0)
+
+                # Insert JPEG as a full-page image in the PDF
+                w, h = page_img.size
+                # Scale to points (72 dpi reference)
+                dpi = img.info.get('dpi', (300, 300))
+                dpi_x = dpi[0] if isinstance(dpi, (tuple, list)) else dpi
+                dpi_y = dpi[1] if isinstance(dpi, (tuple, list)) else dpi
+                pt_w = w * 72.0 / dpi_x
+                pt_h = h * 72.0 / dpi_y
+
+                pdf_page = pdf_doc.new_page(width=pt_w, height=pt_h)
+                pdf_page.insert_image(
+                    fitz.Rect(0, 0, pt_w, pt_h),
+                    stream=buf.getvalue(),
+                )
+
+                page_idx += 1
+        except EOFError:
+            pass
+
+        if page_idx == 0:
+            logger.error("No pages found in TIFF: %s", tiff_path)
+            pdf_doc.close()
+            return False
+
+        pdf_path.parent.mkdir(parents=True, exist_ok=True)
+        pdf_doc.save(str(pdf_path), deflate=True, garbage=4)
+        pdf_doc.close()
+
+        logger.info("PDF created: %s (%d pages)", pdf_path, page_idx)
+        return True
+
+    except Exception as e:
+        logger.error("TIFF-to-PDF conversion failed: %s", e)
+        return False
+
+
 def convert_to_archive(
     input_path: str,
     archive_folder: str,
@@ -311,8 +442,8 @@ def convert_to_archive(
     input_path = Path(input_path)
     archive_folder = Path(archive_folder)
     
-    # Generate filename
-    filename = generate_archive_filename(heat_number, po_number, '.tiff')
+    # Generate filename (legacy: no line_item, use heat as identifier)
+    filename = generate_archive_filename(po_number or 'UNKNOWN', '00', heat_number)
     output_path = archive_folder / filename
     
     # Check for existing file
@@ -347,6 +478,7 @@ def convert_to_archive(
 
 if __name__ == '__main__':
     # Quick test
-    print(generate_archive_filename("D2213660", "PO-12345"))
-    print(generate_archive_filename("Y75T", None))
-    print(generate_archive_filename("ABC/123", "PO:456"))
+    print(generate_archive_filename("PO-12345", "01", "D2213660"))
+    print(generate_archive_filename("PO-12345", "01"))
+    print(parse_input_filename("000254.01.A1B2C3.pdf"))
+    print(parse_input_filename("000254.03.pdf"))
