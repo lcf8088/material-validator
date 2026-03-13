@@ -7,6 +7,7 @@ Validates that all COC-listed heat numbers have matching MTRs in the packet.
 """
 
 import base64
+import concurrent.futures
 import io
 import logging
 import re
@@ -254,11 +255,17 @@ Example output format:
 }"""
 
 
-def parse_coc_cover_sheet(image_paths: List[str], api_key: str) -> AssemblyResult:
-    """Parse the COC cover sheet (page 1) to extract component table.
+def parse_coc_cover_sheet(image_paths: List[str], api_key: str,
+                          coc_page_index: int = 0) -> AssemblyResult:
+    """Parse the COC cover sheet to extract component table.
 
     Uses Sonnet vision for accurate table extraction.
     Cost: ~$0.01, ~5s.
+
+    Args:
+        image_paths: All page images.
+        api_key: Anthropic API key.
+        coc_page_index: 0-based index of the COC page in image_paths.
     """
     result = AssemblyResult(is_assembly=True)
 
@@ -267,7 +274,7 @@ def parse_coc_cover_sheet(image_paths: List[str], api_key: str) -> AssemblyResul
         return result
 
     t0 = time.time()
-    img_block = _encode_single_image(image_paths[0])
+    img_block = _encode_single_image(image_paths[coc_page_index])
     if not img_block:
         result.warnings.append("Could not encode cover sheet image")
         return result
@@ -321,79 +328,92 @@ def parse_coc_cover_sheet(image_paths: List[str], api_key: str) -> AssemblyResul
 # Step 3: MTR heat number extraction
 # ---------------------------------------------------------------------------
 
-HEAT_EXTRACT_PROMPT = """\
-This is a page from a material test report (MTR), certificate of test, \
-certificate of analysis, or similar material certification document.
+CLASSIFY_EXTRACT_PROMPT = """\
+Classify this page and extract info.
 
-What is the HEAT NUMBER (also called lot number, coil ID, or melt number) \
-on this document?
+- If this is a Certificate of Compliance (COC) or Certificate of Conformance \
+listing MULTIPLE components with heat numbers in a table → reply: COC
+- If this is a material test report (MTR), certificate of test, certificate of \
+analysis, or similar material certification document → reply: MTR <heat_number>
+  (where <heat_number> is the primary heat/lot/coil/melt number on the page)
+- Otherwise (packing slip, shipping doc, purchase order, drawing, etc.) → reply: OTHER
 
 Rules:
-- Return ONLY the heat number value, nothing else.
-- If multiple heat numbers appear, return the PRIMARY one (usually the largest/most prominent).
-- If no heat number is found, return "NONE".
-- Do NOT include labels like "Heat:" or "Heat Number:" — just the value itself.
+- Return ONLY one line: COC, MTR <heat>, or OTHER.
+- For MTR pages, return the PRIMARY heat number (usually the largest/most prominent).
+- If an MTR page has no identifiable heat number, reply: MTR NONE
 - Common heat number formats: alphanumeric codes like "D1914127", "JT707", "K31C", "505544"."""
 
 
-def extract_mtr_heats(image_paths: List[str], api_key: str,
-                      start_page: int = 1) -> Dict[int, str]:
-    """Extract heat numbers from MTR pages (pages after the cover sheet).
+def classify_and_extract_pages(
+    image_paths: List[str], api_key: str,
+) -> Dict[int, Tuple[str, Optional[str]]]:
+    """Classify every page and extract heat numbers in one Haiku call per page.
 
-    Sends each page to Haiku individually for heat number extraction.
-    Groups consecutive pages with the same heat as one MTR document.
-
-    Args:
-        image_paths: All page images (index 0 = cover sheet).
-        api_key: Anthropic API key.
-        start_page: Index to start from (1 = skip cover sheet).
+    Uses ThreadPoolExecutor for parallel API calls (~5-8s for 19 pages
+    instead of ~50s sequential).
 
     Returns:
-        Dict mapping page number (1-indexed) to heat number.
+        Dict mapping 1-indexed page number to (page_type, heat_or_none).
+        page_type is 'COC', 'MTR', or 'OTHER'.
     """
-    mtr_heats: Dict[int, str] = {}
+    results: Dict[int, Tuple[str, Optional[str]]] = {}
 
-    if len(image_paths) <= start_page:
-        return mtr_heats
+    if not image_paths:
+        return results
 
     t0 = time.time()
-    pages_to_scan = image_paths[start_page:]
 
-    for i, img_path in enumerate(pages_to_scan):
-        page_num = i + start_page + 1  # 1-indexed, accounting for cover sheet
-
+    def _classify_page(idx: int, img_path: str) -> Tuple[int, str, Optional[str]]:
+        page_num = idx + 1  # 1-indexed
         img_block = _encode_single_image(img_path)
         if not img_block:
-            continue
+            return (page_num, 'OTHER', None)
 
         content = [
             img_block,
-            {"type": "text", "text": HEAT_EXTRACT_PROMPT},
+            {"type": "text", "text": CLASSIFY_EXTRACT_PROMPT},
         ]
 
         try:
             answer = _call_model(api_key, HAIKU_MODEL, content, max_tokens=50)
-            heat = answer.strip()
-            if heat and heat.upper() != 'NONE':
-                # Clean up common artifacts
-                heat = re.sub(r'^["\']|["\']$', '', heat)  # strip quotes
-                heat = heat.strip()
-                mtr_heats[page_num] = heat
-                logger.debug("Page %d heat: %s", page_num, heat)
+            line = answer.strip().split('\n')[0].strip()
+
+            if line.upper() == 'COC':
+                return (page_num, 'COC', None)
+            elif line.upper().startswith('MTR'):
+                parts = line.split(None, 1)
+                heat = parts[1].strip() if len(parts) > 1 else None
+                if heat:
+                    heat = re.sub(r'^["\']|["\']$', '', heat).strip()
+                    if heat.upper() == 'NONE':
+                        heat = None
+                return (page_num, 'MTR', heat)
             else:
-                logger.debug("Page %d: no heat number found", page_num)
+                return (page_num, 'OTHER', None)
         except Exception as e:
-            logger.warning("Heat extraction failed for page %d: %s", page_num, e)
+            logger.warning("Page %d classify failed: %s", page_num, e)
+            return (page_num, 'OTHER', None)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        futures = [pool.submit(_classify_page, i, p)
+                   for i, p in enumerate(image_paths)]
+        for fut in concurrent.futures.as_completed(futures):
+            page_num, ptype, heat = fut.result()
+            results[page_num] = (ptype, heat)
+            logger.debug("Page %d: %s %s", page_num, ptype, heat or '')
 
     elapsed = time.time() - t0
-    logger.info("[TIMING] extract_mtr_heats (Haiku, %d pages): %.1fs (%.1fs/page)",
-                len(pages_to_scan), elapsed,
-                elapsed / len(pages_to_scan) if pages_to_scan else 0)
-    logger.info("Found heats on %d/%d pages: %s",
-                len(mtr_heats), len(pages_to_scan),
-                {k: v for k, v in sorted(mtr_heats.items())})
+    coc_pages = [p for p, (t, _) in results.items() if t == 'COC']
+    mtr_pages = {p: h for p, (t, h) in results.items() if t == 'MTR' and h}
+    logger.info("[TIMING] classify_and_extract_pages (Haiku, %d pages): %.1fs (%.1fs/page)",
+                len(image_paths), elapsed,
+                elapsed / len(image_paths) if image_paths else 0)
+    logger.info("Classification: COC pages=%s, MTR heats=%s, OTHER=%d",
+                coc_pages, {k: v for k, v in sorted(mtr_pages.items())},
+                sum(1 for _, (t, _) in results.items() if t == 'OTHER'))
 
-    return mtr_heats
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -529,21 +549,32 @@ def process_assembly(
 
     t0 = time.time()
 
-    # Step 1: Parse COC cover sheet
-    _progress("Parsing COC cover sheet...", 0.10)
-    result = parse_coc_cover_sheet(image_paths, api_key)
+    # Step 1: Classify all pages + extract heats in one parallel pass
+    _progress("Classifying pages and extracting heats...", 0.10)
+    page_results = classify_and_extract_pages(image_paths, api_key)
+
+    # Find COC page (0-based index); default to page 1 (index 0) if none found
+    coc_idx = next(
+        (pg - 1 for pg, (typ, _) in sorted(page_results.items()) if typ == 'COC'),
+        0
+    )
+
+    # Collect MTR heats (excluding COC page)
+    mtr_heats = {pg: heat for pg, (typ, heat) in page_results.items()
+                 if typ == 'MTR' and heat}
+
+    # Step 2: Parse COC cover sheet with Sonnet
+    _progress("Parsing COC cover sheet (page %d)..." % (coc_idx + 1), 0.50)
+    result = parse_coc_cover_sheet(image_paths, api_key, coc_page_index=coc_idx)
 
     if not result.components:
         result.warnings.append("No components found on cover sheet")
         result.overall_status = 'WARN'
         return result
 
-    # Step 2: Extract heat numbers from MTR pages
-    _progress("Extracting heat numbers from MTR pages...", 0.30)
-    result.mtr_heats = extract_mtr_heats(image_paths, api_key, start_page=1)
-
     # Step 3: Cross-reference
     _progress("Cross-referencing heats...", 0.80)
+    result.mtr_heats = mtr_heats
     result = cross_reference(result)
 
     elapsed = time.time() - t0
