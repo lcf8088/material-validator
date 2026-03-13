@@ -1,0 +1,44 @@
+# ============================================================
+# DDIC Material Specification: ES-M0003G — NKK (NK CR13S-95)
+# ============================================================
+
+id: "ES-M0003G-NKK"
+revision: 0
+date: "2024-04-01"
+material: "Super 13Cr Martensitic Stainless Steel 95MYS — NKK (NK CR13S-95)"
+grades:
+  - "Super 13Cr"
+  - "S13Cr"
+  - "NK CR13S-95"
+  - "NKK"
+uns: ""
+condition: "Quench and Tempered"
+
+chemistry:
+  C:  { max: 0.05 }
+  Mn: { max: 0.50 }
+  P:  { max: 0.020 }
+  S:  { max: 0.005 }
+  Si: { max: 1.00 }
+  Cr: { min: 12.00, max: 14.00 }
+  Ni: { min: 4.50, max: 6.00 }
+  Mo: { min: 1.80, max: 2.50 }
+  Cu: { max: 0.030 }
+
+mechanical:
+  yield_strength:    { min: 95, max: 110, unit: ksi }
+  tensile_strength:  { min: 105, unit: ksi }
+  elongation:        { min: 20, unit: '%' }
+  reduction_of_area: { min: 40, unit: '%' }
+  hardness_hrc:      { max: 29 }
+
+special_requirements:
+  - type: nace_compliance
+    required: true
+    note: "NACE MR0175 approved for sour service; max H2S partial pressure 1.5 psi, pH >= 3.5"
+  - type: charpy_impact
+    min_avg: 44
+    unit: "ft-lbs"
+    temperature: 14
+    temp_unit: "°F"
+    note: "3 specimens at +14°F (-10°C); no individual below 29.5 ft-lbs"

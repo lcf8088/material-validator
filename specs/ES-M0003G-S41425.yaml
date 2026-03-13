@@ -1,18 +1,18 @@
 # ============================================================
-# DDIC Material Specification: ES-M0003G
+# DDIC Material Specification: ES-M0003G — UNS S41425 (Foroni)
 # ============================================================
 
-id: "ES-M0003G"
+id: "ES-M0003G-S41425"
 revision: 0
 date: "2024-04-01"
-material: "Super 13Cr Martensitic Stainless Steel 95MYS"
+material: "Super 13Cr Martensitic Stainless Steel 95MYS — UNS S41425 (Foroni)"
 grades:
   - "Super 13Cr"
   - "S13Cr"
   - "13-5-2"
   - "UNS S41425"
-  - "UNS S41426"
-  - "UNS S41427"
+  - "S41425"
+  - "Foroni"
 uns: "S41425"
 condition: "Quench and Tempered"
 
@@ -24,7 +24,9 @@ chemistry:
   Si: { max: 0.50 }
   Cr: { min: 12.00, max: 15.00 }
   Ni: { min: 4.00, max: 7.00 }
-  Mo: { min: 1.50, max: 3.00 }
+  Mo: { min: 1.50, max: 2.00 }
+  N:  { min: 0.06, max: 0.12 }
+  Cu: { max: 0.30 }
 
 mechanical:
   yield_strength:    { min: 95, unit: ksi }
@@ -43,3 +45,5 @@ special_requirements:
     temperature: 14
     temp_unit: "°F"
     note: "3 specimens at +14°F (-10°C); no individual below 29.5 ft-lbs"
+  - type: heat_treatment
+    note: "Tempered at 1050°F (566°C) or higher for minimum 30 minutes"

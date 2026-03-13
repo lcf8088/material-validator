@@ -1,0 +1,49 @@
+# ============================================================
+# DDIC Material Specification: ES-M0003G — UNS S41426 (Sumitomo/BGH)
+# ============================================================
+
+id: "ES-M0003G-S41426"
+revision: 0
+date: "2024-04-01"
+material: "Super 13Cr Martensitic Stainless Steel 95MYS — UNS S41426 (Sumitomo/BGH)"
+grades:
+  - "Super 13Cr"
+  - "S13Cr"
+  - "UNS S41426"
+  - "S41426"
+  - "Sumitomo"
+  - "BGH"
+uns: "S41426"
+condition: "Quench and Tempered"
+
+chemistry:
+  C:  { max: 0.03 }
+  Mn: { max: 0.50 }
+  P:  { max: 0.020 }
+  S:  { max: 0.005 }
+  Si: { max: 0.50 }
+  Cr: { min: 11.80, max: 13.50 }
+  Ni: { min: 4.50, max: 6.50 }
+  Mo: { min: 1.50, max: 3.00 }
+  Ti: { min: 0.01, max: 0.50 }
+  V:  { max: 0.50 }
+
+mechanical:
+  yield_strength:    { min: 95, unit: ksi }
+  tensile_strength:  { min: 105, unit: ksi }
+  elongation:        { min: 15, unit: '%' }
+  reduction_of_area: { min: 40, unit: '%' }
+  hardness_hrc:      { max: 27 }
+
+special_requirements:
+  - type: nace_compliance
+    required: true
+    note: "NACE MR0175 approved for sour service; max H2S partial pressure 1.5 psi, pH >= 3.5"
+  - type: charpy_impact
+    min_avg: 44
+    unit: "ft-lbs"
+    temperature: 14
+    temp_unit: "°F"
+    note: "3 specimens at +14°F (-10°C); no individual below 29.5 ft-lbs"
+  - type: heat_treatment
+    note: "Tempered at 1050°F (566°C) or higher for minimum 30 minutes"
