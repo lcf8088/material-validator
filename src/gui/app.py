@@ -1766,7 +1766,9 @@ class MaterialValidatorApp:
             if parsed.get('line_item') and not self.ln_var.get().strip():
                 self.ln_var.set(parsed['line_item'])
             if parsed.get('identifier') and not self.id_var.get().strip():
-                self.id_var.set(parsed['identifier'])
+                # Don't pre-populate ID with the assembly trigger keyword
+                if parsed['identifier'].lower() != 'assy':
+                    self.id_var.set(parsed['identifier'])
 
     # ============================================================= Pipeline
     def _extract(self):
@@ -2168,7 +2170,7 @@ class MaterialValidatorApp:
             if parsed.get('po_number') and extracted_po and parsed['po_number'] != extracted_po:
                 logger.warning("Filename PO '%s' differs from extracted PO '%s'",
                                parsed['po_number'], extracted_po)
-            if parsed.get('identifier') and id_value and id_value != 'N/A':
+            if parsed.get('identifier') and parsed['identifier'].lower() != 'assy' and id_value and id_value != 'N/A':
                 if parsed['identifier'] != id_value:
                     logger.warning("Filename ID '%s' differs from extracted %s '%s'",
                                    parsed['identifier'], id_label, id_value)

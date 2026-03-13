@@ -184,19 +184,12 @@ def normalize_extracted_data(data: Dict[str, Any]) -> Dict[str, Any]:
             if val is not None and unit and unit.lower() != 'ksi':
                 try:
                     num = float(val)
-                    # Sanity: steel stress in MPa is typically 200-2000+.
-                    # If labeled MPa but value < 200, unit is likely wrong
-                    # (e.g. 83 "MPa" is really 83 ksi — 83 MPa = 12 ksi, absurdly low).
-                    if unit.lower() == 'mpa' and num < 200:
-                        logger.warning(
-                            "yield_strength=%.1f labeled MPa but < 200 — "
-                            "likely already ksi, skipping conversion", num)
-                    else:
-                        val = round(convert_stress(num, unit, 'ksi'), 1)
-                        logger.info("Converted yield_strength from %s to ksi: %.1f", unit, val)
+                    val = round(convert_stress(num, unit, 'ksi'), 1)
+                    logger.info("Converted yield_strength from %s to ksi: %.1f", unit, val)
                 except (ValueError, TypeError):
                     pass
             normalized['mechanical']['yield_strength'] = val
+            normalized['mechanical']['yield_strength_unit'] = 'ksi'
 
         # Tensile strength
         if 'tensile_strength' in mech:
@@ -207,16 +200,12 @@ def normalize_extracted_data(data: Dict[str, Any]) -> Dict[str, Any]:
             if val is not None and unit and unit.lower() != 'ksi':
                 try:
                     num = float(val)
-                    if unit.lower() == 'mpa' and num < 200:
-                        logger.warning(
-                            "tensile_strength=%.1f labeled MPa but < 200 — "
-                            "likely already ksi, skipping conversion", num)
-                    else:
-                        val = round(convert_stress(num, unit, 'ksi'), 1)
-                        logger.info("Converted tensile_strength from %s to ksi: %.1f", unit, val)
+                    val = round(convert_stress(num, unit, 'ksi'), 1)
+                    logger.info("Converted tensile_strength from %s to ksi: %.1f", unit, val)
                 except (ValueError, TypeError):
                     pass
             normalized['mechanical']['tensile_strength'] = val
+            normalized['mechanical']['tensile_strength_unit'] = 'ksi'
         
         # Other mechanical properties (simple copy)
         for field in ['elongation', 'reduction_of_area', 'hardness_hbw', 

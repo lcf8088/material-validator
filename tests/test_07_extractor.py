@@ -93,7 +93,7 @@ class TestNormalizeExtractedData:
         norm = normalize_extracted_data(data)
         # MPa should be auto-converted to ksi (1 decimal place)
         assert norm["mechanical"]["yield_strength"] == 119.9
-        assert "yield_strength_unit" not in norm["mechanical"]
+        assert norm["mechanical"]["yield_strength_unit"] == "ksi"
 
     def test_special_fields_preserved(self):
         data = {

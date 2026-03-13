@@ -579,11 +579,17 @@ def process_document(
 
         # --- Assembly detection and processing ---
         is_assembly = False
+
+        # Filename-based assembly detection: "assy" in filename forces assembly mode
+        if force_assembly is None and re.search(r'(?i)\bassy\b', Path(pdf_path).stem):
+            is_assembly = True
+            logger.info("Assembly detected via filename keyword 'assy': %s", filename)
+
         if force_assembly is True:
             is_assembly = True
         elif force_assembly is False:
             is_assembly = False
-        elif len(image_paths) >= 3:
+        elif not is_assembly and len(image_paths) >= 3:
             # Auto-detect: only check multi-page docs (assemblies have COC + MTRs)
             _progress("Checking for assembly packet...", 0.32)
             try:
