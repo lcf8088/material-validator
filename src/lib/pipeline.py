@@ -144,6 +144,7 @@ def _spec_aware_merge(
     """
     merged = dict(sonnet_data)
     spec_limits = (spec or {}).get(section) or {}
+    kept_from_sonnet = set()  # Track keys where Sonnet value was preferred
 
     for key, opus_val in opus_data.items():
         if opus_val is None:
@@ -152,8 +153,13 @@ def _spec_aware_merge(
         sonnet_val = sonnet_data.get(key)
         limits = spec_limits.get(key) or {}
 
-        # Skip unit fields — they are set alongside their numeric field
+        # Skip unit fields — they follow their numeric field.
+        # If the numeric field was kept from Sonnet, keep Sonnet's unit too.
         if key.endswith('_unit'):
+            value_key = key[:-5]  # e.g. 'yield_strength_unit' → 'yield_strength'
+            if value_key in kept_from_sonnet:
+                # Value was kept from Sonnet, don't override its unit with Opus's
+                continue
             merged[key] = opus_val
             continue
 
@@ -206,10 +212,7 @@ def _spec_aware_merge(
                         "Opus %s.%s=%.4g wildly off spec (min=%s max=%s), "
                         "keeping Sonnet value %.4g",
                         section, key, opus_num, spec_min, spec_max, sonnet_num)
-                    # Revert unit field to Sonnet's unit as well
-                    unit_key = key + '_unit'
-                    if unit_key in merged and unit_key in sonnet_data:
-                        merged[unit_key] = sonnet_data[unit_key]
+                    kept_from_sonnet.add(key)
                     continue  # keep Sonnet value in merged
             except (ValueError, TypeError):
                 pass
@@ -240,10 +243,7 @@ def _spec_aware_merge(
                         "Opus %s.%s=%.4g out of spec (min=%s max=%s), "
                         "Sonnet value %.4g is in spec — keeping Sonnet",
                         section, key, opus_num, spec_min, spec_max, sonnet_num)
-                    # Revert unit field to Sonnet's unit as well
-                    unit_key = key + '_unit'
-                    if unit_key in merged and unit_key in sonnet_data:
-                        merged[unit_key] = sonnet_data[unit_key]
+                    kept_from_sonnet.add(key)
                     continue  # keep Sonnet value in merged
             except (ValueError, TypeError):
                 pass

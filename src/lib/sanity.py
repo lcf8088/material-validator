@@ -230,10 +230,30 @@ def check_chemistry_sanity(chemistry: Dict[str, float]) -> List[Tuple[str, str, 
     return warnings
 
 
-def check_mechanical_sanity(mechanical: Dict[str, Any]) -> List[Tuple[str, str, str]]:
+def _is_austenitic(chemistry: Optional[Dict[str, Any]] = None) -> bool:
+    """Detect austenitic stainless steel from chemistry (high Cr + high Ni)."""
+    if not chemistry:
+        return False
+    try:
+        cr = float(chemistry.get('Cr', 0) or 0)
+        ni = float(chemistry.get('Ni', 0) or 0)
+    except (ValueError, TypeError):
+        return False
+    # Austenitic SS: Cr >= 16% and Ni >= 6% (covers 303, 304, 316, 321, 347)
+    return cr >= 16 and ni >= 6
+
+
+def check_mechanical_sanity(
+    mechanical: Dict[str, Any],
+    chemistry: Optional[Dict[str, Any]] = None,
+) -> List[Tuple[str, str, str]]:
     """
     Check mechanical properties for obvious errors.
-    
+
+    Args:
+        mechanical: Extracted mechanical properties dict.
+        chemistry: Optional chemistry dict for material-type-aware ratio checks.
+
     Returns list of (property, value, warning_message) tuples.
     """
     warnings = []
@@ -299,20 +319,42 @@ def check_mechanical_sanity(mechanical: Dict[str, Any]) -> List[Tuple[str, str, 
             "Tensile < Yield - impossible, extraction error"
         ))
     
-    # Typical TS/YS ratio is 1.05-1.5 for most steels
-    if ys and ts and ys > 0:
-        ratio = ts / ys
-        if ratio > 2.0:
+    # YS/TS ratio thresholds depend on material type:
+    #   Austenitic SS (303,304,316): 0.30-0.65 typical (low yield, high work hardening)
+    #   Other steels (carbon, martensitic, ferritic): 0.60-0.92 typical
+    austenitic = _is_austenitic(chemistry)
+    if austenitic:
+        error_lo, warn_lo, warn_hi = 0.20, 0.30, 0.75
+        mat_label = "austenitic SS"
+    else:
+        error_lo, warn_lo, warn_hi = 0.40, 0.55, 0.95
+        mat_label = "steel"
+
+    if ys and ts and ts > 0:
+        ratio = ys / ts
+        if ratio > 1.0:
             warnings.append((
-                'TS/YS ratio',
-                f"{ratio:.2f}",
-                "Unusually high TS/YS ratio - verify values"
+                'YS/TS ratio',
+                f"{ratio:.2f} (YS={ys}, TS={ts})",
+                "Yield > Tensile - impossible, extraction error"
             ))
-        elif ratio < 1.0:
+        elif ratio < error_lo:
             warnings.append((
-                'TS/YS ratio',
-                f"{ratio:.2f}",
-                "TS/YS < 1.0 - impossible, extraction error"
+                'YS/TS ratio',
+                f"{ratio:.2f} (YS={ys}, TS={ts})",
+                f"YS/TS ratio below {error_lo} for {mat_label} - impossible, extraction error"
+            ))
+        elif ratio < warn_lo:
+            warnings.append((
+                'YS/TS ratio',
+                f"{ratio:.2f} (YS={ys}, TS={ts})",
+                f"YS/TS ratio below {warn_lo} for {mat_label} - unusual, verify values"
+            ))
+        elif ratio > warn_hi:
+            warnings.append((
+                'YS/TS ratio',
+                f"{ratio:.2f} (YS={ys}, TS={ts})",
+                f"YS/TS ratio above {warn_hi} for {mat_label} - unusually close, verify values"
             ))
     
     return warnings
@@ -423,7 +465,7 @@ def run_all_sanity_checks(mtr_data: Dict[str, Any], spec: Dict[str, Any] = None)
     
     # Mechanical sanity
     if 'mechanical' in mtr_data:
-        for item in check_mechanical_sanity(mtr_data['mechanical']):
+        for item in check_mechanical_sanity(mtr_data['mechanical'], mtr_data.get('chemistry')):
             if 'impossible' in item[2].lower() or 'error' in item[2].lower():
                 results['errors'].append(item)
             else:
