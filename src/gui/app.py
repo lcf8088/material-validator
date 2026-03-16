@@ -577,6 +577,16 @@ class MaterialValidatorApp:
         )
         self.validate_btn.pack(side='left', padx=4)
 
+        self.reextract_btn = ctk.CTkButton(
+            btn_frame, text="Re-Extract", width=110,
+            font=FONTS['badge'], state='disabled',
+            fg_color=COLORS['accent'], hover_color=COLORS['accent_hover'],
+            border_color=COLORS['border'], border_width=1,
+            text_color='#FFFFFF', text_color_disabled=COLORS['btn_disabled_text'],
+            command=self._reextract,
+        )
+        self.reextract_btn.pack(side='left', padx=4)
+
         self.override_btn = ctk.CTkButton(
             btn_frame, text="Override", width=100,
             font=FONTS['badge'], state='disabled',
@@ -1320,6 +1330,7 @@ class MaterialValidatorApp:
                 self._update_header_status(overall, f"Assembly | PO {assy.po_number or 'N/A'}")
                 self._set_button_state(self.approve_btn, 'normal')
                 self._set_button_state(self.validate_btn, 'normal')
+                self._set_button_state(self.reextract_btn, 'normal' if self.current_file else 'disabled')
                 self._set_button_state(self.override_btn, 'normal')
                 if assy.missing_count > 0:
                     self.add_heat_btn.pack_forget()
@@ -1374,6 +1385,7 @@ class MaterialValidatorApp:
         # Enable buttons
         if ctk:
             self._set_button_state(self.approve_btn, 'normal')
+            self._set_button_state(self.reextract_btn, 'normal' if self.current_file else 'disabled')
             if self.validation_result:
                 self._set_button_state(self.override_btn, 'normal')
                 self._set_button_state(self.validate_btn, 'normal')
@@ -2099,6 +2111,7 @@ class MaterialValidatorApp:
                 )
 
             self._set_button_state(self.extract_btn, 'normal')
+            self._set_button_state(self.reextract_btn, 'normal')
             self._set_button_state(self.validate_btn, 'normal')
             self._set_button_state(self.override_btn, 'normal')
             if self.staging_tiff_path and Path(self.staging_tiff_path).exists():
@@ -2113,7 +2126,7 @@ class MaterialValidatorApp:
             else:
                 self.add_heat_btn.pack_forget()
 
-            # Record assembly to history using a minimal CertValidation
+            # Record assembly to history using a minimal CertValidation (or update existing)
             try:
                 assy_validation = CertValidation(
                     spec_id=f"Assembly: {assy.customer_part_number or 'N/A'}",
@@ -2121,19 +2134,37 @@ class MaterialValidatorApp:
                     material_grade=assy.assembly_description or 'Assembly',
                     overall_status=assy.overall_status,
                 )
-                assy_spec = {'material': assy.assembly_description or 'Assembly'}
-                vid = self.history.record(
-                    assy_validation,
-                    self.extracted_data,
-                    assy_spec,
-                    self.current_file,
-                    staging_tiff_path=self.staging_tiff_path,
-                )
-                self._current_history_id = vid
+                if self._current_history_id:
+                    # Re-extraction: update existing history record in place
+                    self.history.update(
+                        self._current_history_id,
+                        mtr_data=self.extracted_data,
+                        validation_details=assy_validation.to_dict(),
+                        result=assy.overall_status,
+                        spec_id=assy_validation.spec_id,
+                        heat_number=assy_validation.heat_number,
+                        material_grade=assy_validation.material_grade,
+                        staging_tiff_path=self.staging_tiff_path or '',
+                        assembly_data=assy.to_dict(),
+                        approved=False,
+                        approved_by='',
+                        approved_at='',
+                    )
+                    vid = self._current_history_id
+                else:
+                    assy_spec = {'material': assy.assembly_description or 'Assembly'}
+                    vid = self.history.record(
+                        assy_validation,
+                        self.extracted_data,
+                        assy_spec,
+                        self.current_file,
+                        staging_tiff_path=self.staging_tiff_path,
+                    )
+                    self._current_history_id = vid
+                    # Store the full assembly result in the validation record
+                    self.history.update(vid, assembly_data=assy.to_dict())
                 if elapsed > 0:
                     self.history.update(vid, processing_time=round(elapsed, 1))
-                # Store the full assembly result in the validation record
-                self.history.update(vid, assembly_data=assy.to_dict())
                 self.validation_result = assy_validation
             except Exception as e:
                 logger.warning("Could not record assembly to history: %s", e)
@@ -2215,6 +2246,7 @@ class MaterialValidatorApp:
                 self._insert_text(self.result_text, flags_text)
 
         self._set_button_state(self.extract_btn, 'normal')
+        self._set_button_state(self.reextract_btn, 'normal')
 
         # Enable Re-Validate when we have extracted data
         if self.extracted_data:
@@ -2226,16 +2258,38 @@ class MaterialValidatorApp:
         elif result.spec_id and hasattr(self, 'spec_var'):
             self.spec_var.set(result.spec_id)
 
-        # Record to history immediately as PENDING
+        # Record to history immediately as PENDING (or update existing)
         if result.validation:
             spec_id = result.spec_id
             spec = self.spec_loader.get(spec_id) if spec_id else {}
-            vid = self.history.record(
-                result.validation, self.extracted_data, spec,
-                self.current_file,
-                staging_tiff_path=self.staging_tiff_path,
-            )
-            self._current_history_id = vid
+            if self._current_history_id:
+                # Re-extraction: update existing history record in place
+                self.history.update(
+                    self._current_history_id,
+                    mtr_data=self.extracted_data,
+                    validation_details=result.validation.to_dict(),
+                    result=result.validation.overall_status,
+                    spec_id=spec_id,
+                    heat_number=result.validation.heat_number,
+                    material_grade=result.validation.material_grade,
+                    staging_tiff_path=self.staging_tiff_path or '',
+                    summary={
+                        'pass_count': result.validation.pass_count,
+                        'fail_count': result.validation.fail_count,
+                        'missing_count': result.validation.missing_count,
+                    },
+                    approved=False,
+                    approved_by='',
+                    approved_at='',
+                )
+                vid = self._current_history_id
+            else:
+                vid = self.history.record(
+                    result.validation, self.extracted_data, spec,
+                    self.current_file,
+                    staging_tiff_path=self.staging_tiff_path,
+                )
+                self._current_history_id = vid
             # Store processing time in history
             if elapsed > 0:
                 self.history.update(vid, processing_time=round(elapsed, 1))
@@ -2253,6 +2307,8 @@ class MaterialValidatorApp:
         """Handle extraction error."""
         self._set_status(f"Error: {error}")
         self._set_button_state(self.extract_btn, 'normal')
+        if self.current_file:
+            self._set_button_state(self.reextract_btn, 'normal')
         self._set_progress(0)
         if ctk:
             self._update_header_status('ERROR')
@@ -2496,6 +2552,24 @@ class MaterialValidatorApp:
             )
 
         self._set_status(f"{result.overall_status} - {id_label}# {id_value} (Spec: {spec_id}) — Review & Approve")
+
+    def _reextract(self):
+        """Re-run the full OCR + Claude extraction pipeline on the current file."""
+        if not self.current_file:
+            return
+        if not Path(self.current_file).exists():
+            messagebox.showwarning("File Not Found", f"Source file no longer exists:\n{self.current_file}")
+            return
+        # Clean up old staging TIFF before re-extraction
+        self._cleanup_staging()
+        # Keep _current_history_id so _on_pipeline_complete updates the existing record
+        self.staging_tiff_path = None
+        self.pipeline_result = None
+        self._assembly_result = None
+        # Disable buttons during processing
+        self._set_button_state(self.reextract_btn, 'disabled')
+        # Run the full pipeline (same as Extract & Validate)
+        self._extract()
 
     def _open_override_dialog(self):
         """Open the override dialog for the current validation result."""
