@@ -472,7 +472,7 @@ class MaterialValidatorApp:
         specs = ['Auto-detect', 'Vendor Spec'] + self._spec_display_list()
         self.spec_var = ctk.StringVar(value='Auto-detect')
         self.spec_dropdown = ScrollableComboBox(
-            left_controls, values=specs, variable=self.spec_var, width=300,
+            left_controls, values=specs, variable=self.spec_var, width=500,
             fg_color=COLORS['bg_input'], border_color=COLORS['border'],
             button_color=COLORS['accent'], button_hover_color=COLORS['accent_hover'],
             dropdown_fg_color=COLORS['bg_card'], dropdown_hover_color=COLORS['surface_hl'],
@@ -1092,6 +1092,38 @@ class MaterialValidatorApp:
             text_color=COLORS['text_secondary'],
         ).pack(side='right', padx=(0, 8))
 
+    def _set_fields_readonly(self, readonly: bool):
+        """Toggle PO/LN/ID/Approved By entry fields between read-only and editable."""
+        state = 'disabled' if readonly else 'normal'
+        for entry in (self.po_entry, self.ln_entry, self.id_entry, self.approved_by_entry):
+            entry.configure(state=state)
+
+    def _populate_fields_from_record(self, record: dict):
+        """Populate PO/LN/ID/Approved By GUI fields from a history record."""
+        mtr = record.get('mtr_data', {})
+
+        # Temporarily enable fields so we can set values (they may be disabled)
+        self._set_fields_readonly(False)
+
+        # PO number
+        po = mtr.get('po_number', '') or ''
+        self.po_var.set(po)
+
+        # Line item
+        ln = mtr.get('line_item', '') or ''
+        self.ln_var.set(ln)
+
+        # Identifier (Heat# or Batch#)
+        id_label, id_value = _get_identifier(mtr)
+        if id_value and id_value != 'N/A':
+            self.id_var.set(id_value)
+        else:
+            self.id_var.set('')
+
+        # Approved By
+        approved_by = record.get('approved_by', '') or ''
+        self.approved_by_var.set(approved_by)
+
     def _copy_identifier(self, value: str, label: str = "Heat"):
         """Copy heat/batch number to clipboard with visual feedback."""
         self.root.clipboard_clear()
@@ -1103,6 +1135,12 @@ class MaterialValidatorApp:
         """Load a history record into the validate view as a full report."""
         # Switch to validate view
         self._navigate_to('validate')
+
+        # Populate PO/LN/ID/Approved By fields from record (read-only for approved)
+        self._populate_fields_from_record(record)
+        is_approved = record.get('approved', False)
+        if is_approved:
+            self._set_fields_readonly(True)
 
         # Populate extracted data panel from stored mtr_data
         mtr_data = record.get('mtr_data', {})
@@ -1273,6 +1311,9 @@ class MaterialValidatorApp:
 
         # Switch to validate view
         self._navigate_to('validate')
+
+        # Populate PO/LN/ID/Approved By fields from record (editable for pending)
+        self._populate_fields_from_record(record)
 
         # Check for assembly record
         assembly_data = record.get('assembly_data')
@@ -1739,6 +1780,9 @@ class MaterialValidatorApp:
 
     def _load_file(self, file_path: str):
         """Load a file for processing."""
+        # Re-enable fields in case they were set read-only from a history view
+        self._set_fields_readonly(False)
+
         # Don't delete staging TIFF — it's now tracked in history for pending records
         self.staging_tiff_path = None
         self._current_history_id = None
@@ -2377,7 +2421,7 @@ class MaterialValidatorApp:
         return f"{int(m)}m {s:.0f}s"
 
     @staticmethod
-    def _abbreviate_material(name: str, max_len: int = 26) -> str:
+    def _abbreviate_material(name: str, max_len: int = 60) -> str:
         """Shorten a material name to fit the spec dropdown."""
         # Common abbreviations (order matters — longest/most-specific first)
         abbrevs = [
