@@ -6,9 +6,13 @@ pipeline (de-skew, contrast enhancement, binarization) to improve
 OCR accuracy on scanned documents.
 """
 
+import base64
+import logging
 import tempfile
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 def extract_native_text(pdf_path: str, return_page_texts: bool = False):
@@ -82,6 +86,116 @@ def fix_rotated_pages(image_paths: List[str]) -> List[str]:
             result_paths.append(out_path)
         else:
             result_paths.append(img_path)
+
+    return result_paths
+
+
+def fix_upside_down_pages(
+    image_paths: List[str],
+    api_key: str,
+) -> Tuple[List[str], List[int]]:
+    """Detect and fix 180-degree (upside-down) page rotation using Haiku vision.
+
+    Sends each page image to Haiku and asks if the text is upside down.
+    Rotates any upside-down pages 180 degrees in place.
+
+    Args:
+        image_paths: List of page image file paths
+        api_key: Anthropic API key for Haiku calls
+
+    Returns:
+        (updated_image_paths, rotated_indices) where rotated_indices is a
+        list of 0-based indices that were flipped 180 degrees.
+    """
+    import anthropic
+    import cv2
+
+    if not image_paths or not api_key:
+        return image_paths, []
+
+    client = anthropic.Anthropic(api_key=api_key)
+    rotated_indices = []
+    result_paths = list(image_paths)
+
+    for i, img_path in enumerate(image_paths):
+        try:
+            with open(img_path, "rb") as f:
+                img_bytes = f.read()
+            img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+
+            suffix = Path(img_path).suffix.lower()
+            media_type = "image/png" if suffix == ".png" else "image/jpeg"
+
+            response = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=10,
+                messages=[{
+                    "role": "user",
+                    "content": [
+                        {"type": "image", "source": {
+                            "type": "base64",
+                            "media_type": media_type,
+                            "data": img_b64,
+                        }},
+                        {"type": "text", "text":
+                            "Is the text on this page upside down (rotated 180 degrees)? "
+                            "Answer YES or NO only."},
+                    ],
+                }],
+            )
+            answer = response.content[0].text.strip().upper()
+            logger.info("Page %d upside-down check: %s", i + 1, answer)
+
+            if answer.startswith("YES"):
+                img = cv2.imread(img_path)
+                if img is not None:
+                    flipped = cv2.rotate(img, cv2.ROTATE_180)
+                    out_path = str(Path(img_path).with_name(
+                        Path(img_path).stem + '_flip180.png'))
+                    cv2.imwrite(out_path, flipped)
+                    result_paths[i] = out_path
+                    rotated_indices.append(i)
+                    logger.info("Page %d rotated 180 degrees", i + 1)
+
+        except Exception as e:
+            logger.warning("Upside-down check failed for page %d: %s", i + 1, e)
+
+    return result_paths, rotated_indices
+
+
+def rotate_pages_180(image_paths: List[str], indices: List[int]) -> List[str]:
+    """Rotate specific pages 180 degrees.
+
+    Applies the same 180-degree rotation detected by fix_upside_down_pages
+    to a different set of images (e.g. enhanced TIFF images, Claude HQ images).
+
+    Args:
+        image_paths: List of page image file paths
+        indices: 0-based page indices to rotate
+
+    Returns:
+        Updated list of image paths with rotated pages saved to new files.
+    """
+    import cv2
+
+    if not indices:
+        return image_paths
+
+    result_paths = list(image_paths)
+    for i in indices:
+        if i >= len(image_paths):
+            continue
+        img_path = image_paths[i]
+        try:
+            img = cv2.imread(img_path)
+            if img is not None:
+                flipped = cv2.rotate(img, cv2.ROTATE_180)
+                out_path = str(Path(img_path).with_name(
+                    Path(img_path).stem + '_flip180.png'))
+                cv2.imwrite(out_path, flipped)
+                result_paths[i] = out_path
+        except Exception as e:
+            logger.warning("Failed to rotate page %d: %s", i + 1, e)
 
     return result_paths
 

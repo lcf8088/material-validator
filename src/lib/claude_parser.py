@@ -165,7 +165,8 @@ Parse the document into structured JSON.
     "elongation": 0.0,
     "reduction_of_area": 0.0,
     "hardness_hbw": null,
-    "hardness_hrc": null
+    "hardness_hrc": null,
+    "hardness_hrb": null
   }},
   "charpy_impact": null,
   "charpy_temperature": null,
@@ -370,7 +371,8 @@ Return ONLY valid JSON:
     "elongation": 0.0,
     "reduction_of_area": 0.0,
     "hardness_hbw": null,
-    "hardness_hrc": null
+    "hardness_hrc": null,
+    "hardness_hrb": null
   }
 }
 """

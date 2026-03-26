@@ -149,6 +149,7 @@ PROPERTY_ALIASES = {
     'reduction_of_area': ['reduction_of_area', 'ra', 'reduction', 'roa', 'red_of_area'],
     'hardness_hrc': ['hardness_hrc', 'hrc', 'hardness_rc', 'rockwell_c'],
     'hardness_hbw': ['hardness_hbw', 'hbw', 'hb', 'brinell', 'hardness_bhn', 'bhn'],
+    'hardness_hrb': ['hardness_hrb', 'hrb', 'hardness_rb', 'rockwell_b'],
 }
 
 
@@ -349,17 +350,29 @@ class SpecValidator:
     def _try_hardness_conversion(self, mtr_mech: Dict[str, Any], prop_name: str, vr: ValidationResult) -> Optional[float]:
         """Try to convert between hardness scales if needed."""
         if prop_name == 'hardness_hrc':
+            # Try HBW first, then HRB
             hbw_val, _ = self._find_property_value(mtr_mech, 'hardness_hbw')
             if hbw_val is not None:
                 converted = normalize_hardness(hbw_val, 'HBW')
                 vr.note = f"Converted from {hbw_val:.0f} HBW"
                 return converted['hrc']
-        
+            hrb_val, _ = self._find_property_value(mtr_mech, 'hardness_hrb')
+            if hrb_val is not None:
+                converted = normalize_hardness(hrb_val, 'HRB')
+                vr.note = f"Converted from {hrb_val:.1f} HRB"
+                return converted['hrc']
+
         elif prop_name == 'hardness_hbw':
+            # Try HRC first, then HRB
             hrc_val, _ = self._find_property_value(mtr_mech, 'hardness_hrc')
             if hrc_val is not None:
                 converted = normalize_hardness(hrc_val, 'HRC')
                 vr.note = f"Converted from {hrc_val:.1f} HRc"
+                return converted['hbw']
+            hrb_val, _ = self._find_property_value(mtr_mech, 'hardness_hrb')
+            if hrb_val is not None:
+                converted = normalize_hardness(hrb_val, 'HRB')
+                vr.note = f"Converted from {hrb_val:.1f} HRB"
                 return converted['hbw']
         
         return None

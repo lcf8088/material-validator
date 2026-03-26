@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from .assembly import AssemblyResult, detect_assembly, process_assembly
 from .extractor import pdf_to_images, normalize_extracted_data
-from .preprocessor import extract_native_text, is_digital_native, preprocess_images, fix_rotated_pages
+from .preprocessor import extract_native_text, is_digital_native, preprocess_images, fix_rotated_pages, fix_upside_down_pages, rotate_pages_180
 from .paddle_ocr import extract_text as paddle_extract_text
 
 # GPU OCR availability (checked once at import time)
@@ -354,7 +354,7 @@ def pre_extract(
     """Phase A: Staged text extraction from a document.
 
     Tries stages in order: direct text -> OCR@150 -> OCR@300.
-    Returns (ocr_text, image_paths, is_pdf, stage_used).
+    Returns (ocr_text, image_paths, is_pdf, stage_used, flipped_indices).
     """
     t_start = time.time()
     filename = Path(pdf_path).name
@@ -389,9 +389,13 @@ def pre_extract(
             t1 = time.time()
             image_paths = fix_rotated_pages(image_paths)
             logger.info("[TIMING] %s | fix_rotated_pages: %.1fs", filename, time.time() - t1)
+            t1 = time.time()
+            image_paths, flipped = fix_upside_down_pages(image_paths, api_key)
+            logger.info("[TIMING] %s | fix_upside_down_pages: %.1fs (%d flipped)",
+                        filename, time.time() - t1, len(flipped))
             logger.info("[TIMING] %s | pre_extract TOTAL: %.1fs (stage=direct)",
                         filename, _elapsed())
-            return direct_text, image_paths, is_pdf, "direct"
+            return direct_text, image_paths, is_pdf, "direct", flipped
 
         logger.info("Stage 1 FAILED: direct text (%d chars), escalating to OCR@%d",
                      len(direct_text), ocr_dpi)
@@ -411,6 +415,10 @@ def pre_extract(
     t1 = time.time()
     image_paths = fix_rotated_pages(image_paths)
     logger.info("[TIMING] %s | fix_rotated_pages: %.1fs", filename, time.time() - t1)
+    t1 = time.time()
+    image_paths, flipped = fix_upside_down_pages(image_paths, api_key)
+    logger.info("[TIMING] %s | fix_upside_down_pages: %.1fs (%d flipped)",
+                filename, time.time() - t1, len(flipped))
 
     if scanned:
         t1 = time.time()
@@ -433,7 +441,7 @@ def pre_extract(
     if quality_ok:
         logger.info("[TIMING] %s | pre_extract TOTAL: %.1fs (stage=ocr_%d_%s)",
                     filename, _elapsed(), ocr_dpi, ocr_backend)
-        return ocr_text, image_paths, is_pdf, f"ocr_{ocr_dpi}"
+        return ocr_text, image_paths, is_pdf, f"ocr_{ocr_dpi}", flipped
 
     logger.info("Stage 2 FAILED: OCR@%d (%d chars), escalating to OCR@300", ocr_dpi, len(ocr_text))
 
@@ -446,6 +454,10 @@ def pre_extract(
         t1 = time.time()
         image_paths = fix_rotated_pages(image_paths)
         logger.info("[TIMING] %s | fix_rotated_pages: %.1fs", filename, time.time() - t1)
+        t1 = time.time()
+        image_paths, flipped = fix_upside_down_pages(image_paths, api_key)
+        logger.info("[TIMING] %s | fix_upside_down_pages: %.1fs (%d flipped)",
+                    filename, time.time() - t1, len(flipped))
         if scanned:
             t1 = time.time()
             ocr_images = preprocess_images(image_paths)
@@ -462,7 +474,7 @@ def pre_extract(
 
     logger.info("[TIMING] %s | pre_extract TOTAL: %.1fs (stage=ocr_300_%s)",
                 filename, _elapsed(), ocr_backend)
-    return ocr_text, image_paths, is_pdf, "ocr_300"
+    return ocr_text, image_paths, is_pdf, "ocr_300", flipped
 
 
 def process_document(
@@ -534,12 +546,16 @@ def process_document(
 
         # Steps 1-4: Text extraction (staged or pre-computed)
         if pre_extracted is not None:
-            ocr_text, image_paths, is_pdf, stage_used = pre_extracted
+            if len(pre_extracted) == 5:
+                ocr_text, image_paths, is_pdf, stage_used, flipped_indices = pre_extracted
+            else:
+                ocr_text, image_paths, is_pdf, stage_used = pre_extracted
+                flipped_indices = []
             _progress(f"Using pre-extracted text ({stage_used})...", 0.30)
             logger.info("Using pre-extracted text (%s, %d chars)", stage_used, len(ocr_text))
         else:
             _progress("Extracting text (staged)...", 0.05)
-            ocr_text, image_paths, is_pdf, stage_used = pre_extract(
+            ocr_text, image_paths, is_pdf, stage_used, flipped_indices = pre_extract(
                 pdf_path,
                 api_key=anthropic_api_key,
                 paddle_model_path=paddle_model_path,
@@ -573,6 +589,15 @@ def process_document(
                             filename, tiff_dpi, time.time() - t_enhance, len(enhanced_image_paths))
             except Exception as e:
                 logger.warning("Enhanced image rendering failed, using raw images: %s", e)
+
+        # Apply 180-degree rotation corrections to enhanced/HQ images
+        if flipped_indices:
+            if enhanced_image_paths:
+                enhanced_image_paths = rotate_pages_180(enhanced_image_paths, flipped_indices)
+                logger.info("Applied 180° rotation to %d enhanced image(s)", len(flipped_indices))
+            if claude_hq_paths:
+                claude_hq_paths = rotate_pages_180(claude_hq_paths, flipped_indices)
+                logger.info("Applied 180° rotation to %d Claude HQ image(s)", len(flipped_indices))
 
         # Raw 300 DPI for Claude (max detail), fall back to OCR images
         claude_image_paths = claude_hq_paths or image_paths
