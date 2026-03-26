@@ -2774,17 +2774,23 @@ class MaterialValidatorApp:
 
             # Generate compressed PDF alongside TIFF (background — don't block GUI)
             pdf_path = final_path.with_suffix('.pdf')
-            if self.current_file and Path(self.current_file).suffix.lower() == '.pdf':
-                # Original is PDF — optimize it (picks smaller of optimized vs rendered)
+            source_pdf = self.current_file
+            tiff_path_str = str(final_path)
+            if (source_pdf
+                    and Path(source_pdf).suffix.lower() == '.pdf'
+                    and Path(source_pdf).exists()):
+                # Original is PDF and still on disk — optimize it
                 threading.Thread(
                     target=compress_pdf,
-                    args=(self.current_file, str(pdf_path)),
+                    args=(source_pdf, str(pdf_path)),
                     daemon=True,
                 ).start()
             else:
-                # Non-PDF input (image/TIFF) — convert from the staging TIFF
+                # Original missing/renamed or non-PDF input — convert from archived TIFF
+                if source_pdf and Path(source_pdf).suffix.lower() == '.pdf':
+                    logger.warning("Source PDF missing, falling back to TIFF->PDF: %s", source_pdf)
                 threading.Thread(
-                    target=tiff_to_pdf, args=(str(final_path), str(pdf_path)),
+                    target=tiff_to_pdf, args=(tiff_path_str, str(pdf_path)),
                     daemon=True,
                 ).start()
         else:
