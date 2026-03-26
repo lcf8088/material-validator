@@ -744,8 +744,28 @@ def process_document(
                 logger.warning("Opus table extraction failed: %s", e)
             if opus_tables:
                 if opus_tables.get('heat_number'):
-                    raw_data['heat_number'] = opus_tables['heat_number']
-                    logger.info("Merged Opus heat_number: %s", opus_tables['heat_number'])
+                    sonnet_heat = raw_data.get('heat_number') or ''
+                    opus_heat = opus_tables['heat_number']
+                    if not sonnet_heat:
+                        # Sonnet missed it entirely — use Opus
+                        raw_data['heat_number'] = opus_heat
+                        logger.info("Merged Opus heat_number: %s", opus_heat)
+                    elif sonnet_heat != opus_heat:
+                        # Determine if this is an OCR digit discrepancy (same field)
+                        # vs a completely different field (e.g., Load # vs Heat #).
+                        # Same-field heuristic: similar length and >50% character overlap.
+                        len_ratio = min(len(sonnet_heat), len(opus_heat)) / max(len(sonnet_heat), len(opus_heat)) if sonnet_heat and opus_heat else 0
+                        common = sum(a == b for a, b in zip(sonnet_heat, opus_heat))
+                        overlap = common / max(len(sonnet_heat), len(opus_heat)) if sonnet_heat else 0
+                        if len_ratio > 0.7 and overlap > 0.5:
+                            # Looks like the same field with OCR differences — trust Opus precision
+                            raw_data['heat_number'] = opus_heat
+                            logger.info("Opus heat_number '%s' refines Sonnet '%s' (%.0f%% overlap) — using Opus",
+                                        opus_heat, sonnet_heat, overlap * 100)
+                        else:
+                            # Completely different values — Opus likely read the wrong field
+                            logger.warning("Opus heat_number '%s' differs from Sonnet '%s' (%.0f%% overlap) — keeping Sonnet",
+                                           opus_heat, sonnet_heat, overlap * 100)
                 if opus_tables.get('chemistry'):
                     # Spec-aware chemistry merge: field-level with validation
                     sonnet_chem = raw_data.get('chemistry') or {}

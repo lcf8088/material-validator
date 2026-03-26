@@ -47,7 +47,7 @@ from lib.watcher import FolderWatcher
 from .config import Config
 from .tiff_export import (
     generate_archive_filename, generate_assembly_archive_filename,
-    sanitize_filename, parse_input_filename, tiff_to_pdf, compress_pdf,
+    sanitize_filename, tiff_to_pdf, compress_pdf,
 )
 from .settings import SettingsPanel
 from .override_dialog import OverrideDialog
@@ -547,8 +547,7 @@ class MaterialValidatorApp:
             font=FONTS['small'],
             fg_color='transparent', hover_color=COLORS['surface_hl'],
             text_color=COLORS['text_secondary'],
-            command=lambda: (self.po_var.set(''), self.ln_var.set(''),
-                             self.id_var.set(''), self.approved_by_var.set('')),
+            command=self._clear_input_fields,
         ).pack(side='left', padx=(8, 0))
 
         # Row 2: Action buttons
@@ -1814,18 +1813,6 @@ class MaterialValidatorApp:
         self._clear_text(self.data_text)
         self._clear_text(self.result_text)
 
-        # Pre-populate PO#, LN#, ID# from input filename
-        if ctk:
-            parsed = parse_input_filename(filename)
-            if parsed.get('po_number') and not self.po_var.get().strip():
-                self.po_var.set(parsed['po_number'])
-            if parsed.get('line_item') and not self.ln_var.get().strip():
-                self.ln_var.set(parsed['line_item'])
-            if parsed.get('identifier') and not self.id_var.get().strip():
-                # Don't pre-populate ID with the assembly trigger keyword
-                if parsed['identifier'].lower() != 'assy':
-                    self.id_var.set(parsed['identifier'])
-
     # ============================================================= Pipeline
     def _extract(self):
         """Run the full OCR + Claude extraction pipeline."""
@@ -2238,17 +2225,6 @@ class MaterialValidatorApp:
         if ctk and hasattr(self, 'id_var'):
             if id_value and id_value != 'N/A' and not self.id_var.get().strip():
                 self.id_var.set(id_value)
-
-        # Log mismatches between filename-parsed values and extracted data
-        if self.current_file:
-            parsed = parse_input_filename(Path(self.current_file).name)
-            if parsed.get('po_number') and extracted_po and parsed['po_number'] != extracted_po:
-                logger.warning("Filename PO '%s' differs from extracted PO '%s'",
-                               parsed['po_number'], extracted_po)
-            if parsed.get('identifier') and parsed['identifier'].lower() != 'assy' and id_value and id_value != 'N/A':
-                if parsed['identifier'] != id_value:
-                    logger.warning("Filename ID '%s' differs from extracted %s '%s'",
-                                   parsed['identifier'], id_label, id_value)
 
         if result.validation:
             if ctk:
@@ -2878,6 +2854,8 @@ class MaterialValidatorApp:
         if not self._approval_queue:
             return
         next_result = self._approval_queue.pop(0)
+        # Clear stale fields from previous file before displaying new result
+        self._clear_input_fields()
         # Set the source file so _approve knows the origin
         self.current_file = next_result.source_file
         if ctk:
@@ -3182,6 +3160,7 @@ class MaterialValidatorApp:
                             else:
                                 # First result — display directly
                                 self._watch_first_shown = True
+                                self._clear_input_fields()
                                 self.current_file = fp
                                 if ctk:
                                     filename = Path(fp).name
@@ -3314,6 +3293,13 @@ class MaterialValidatorApp:
             except Exception:
                 pass
             self.progress_bar.configure(mode='determinate')
+
+    def _clear_input_fields(self):
+        """Clear PO/LN/ID/Approver input fields for a fresh file."""
+        self.po_var.set('')
+        self.ln_var.set('')
+        self.id_var.set('')
+        self.approved_by_var.set('')
 
     def _clear_text(self, widget):
         """Clear text widget."""

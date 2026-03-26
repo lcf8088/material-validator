@@ -97,6 +97,7 @@ Parse the document into structured JSON.
 
 **RULES**:
 - Extract ONLY what is explicitly stated in the document. Do not guess or infer values.
+- For heat_number: extract the value labeled "Heat Number", "Heat No.", "Heat #", "Schmelze", or "Charge". Do NOT use "Load Number", "Load No.", "Lot Number", or "Order Number" — these are different identifiers. The heat number uniquely identifies the steel melt/cast.
 - Chemistry values are percentages by weight (e.g., 0.04 means 0.04%).
 - Stress values: note whether they are in ksi, MPa, or psi. Report the unit exactly as shown on the document.
 - If a field is not present in the document, use null.
@@ -334,6 +335,7 @@ Read the heat number, chemistry table, and mechanical properties from this Mill 
 
 **HEAT NUMBER**:
 - Find the heat number (also called "Heat No.", "Heat #", "Schmelze", "Charge"). It uniquely identifies the melt/batch.
+- Do NOT use "Load Number", "Load No.", "Lot Number", or "Order Number" — these are different identifiers.
 
 **CHEMISTRY TABLE**:
 - Tables often have rows: Min. (spec minimum), Max. (spec maximum), Cer./Cert./Actual/Heat/Ladle/Product (measured values).
