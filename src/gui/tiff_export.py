@@ -199,9 +199,12 @@ def generate_archive_filename(
     date_prefix = f"{now.year}.{now.month:02d}"
 
     po_raw = sanitize_filename(po_number or 'UNKNOWN')
-    # Zero-pad numeric PO numbers to 6 digits
-    po = po_raw.zfill(6) if po_raw.isdigit() else po_raw
-    ln = sanitize_filename(line_item or '00')
+    # Strip non-digit characters (e.g. "PO001934" -> "001934") and zero-pad to 6 digits
+    po_digits = re.sub(r'\D', '', po_raw)
+    po = po_digits.zfill(6) if po_digits else po_raw
+    ln_raw = sanitize_filename(line_item or '00')
+    # Zero-pad numeric line items to 3 digits
+    ln = ln_raw.zfill(3) if ln_raw.isdigit() else ln_raw
 
     parts = [date_prefix, po, ln]
     if identifier:

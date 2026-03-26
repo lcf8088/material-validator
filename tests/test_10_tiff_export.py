@@ -44,19 +44,19 @@ class TestGenerateArchiveFilename:
 
     def test_full_metal(self):
         result = generate_archive_filename("000254", "01", "D2213660")
-        # Pattern: YYYY.MM.000254.01.D2213660.tiff
-        assert result.endswith(".000254.01.D2213660.tiff")
+        # Pattern: YYYY.MM.000254.001.D2213660.tiff
+        assert result.endswith(".000254.001.D2213660.tiff")
         assert re.match(r"\d{4}\.\d{2}\.", result)
 
     def test_assembly_no_identifier(self):
         result = generate_archive_filename("000254", "03")
-        assert result.endswith(".000254.03.tiff")
+        assert result.endswith(".000254.003.tiff")
         # No extra dot before .tiff
         assert not result.endswith("..tiff")
 
     def test_none_identifier_omitted(self):
         result = generate_archive_filename("PO123", "05", None)
-        assert result.endswith(".PO123.05.tiff")
+        assert result.endswith(".000123.005.tiff")
 
     def test_empty_po(self):
         result = generate_archive_filename("", "01", "HEAT1")
@@ -68,7 +68,7 @@ class TestGenerateArchiveFilename:
 
     def test_none_line_item_defaults(self):
         result = generate_archive_filename("PO1", None, "HEAT1")
-        assert ".00." in result
+        assert ".000." in result
 
     def test_custom_extension(self):
         result = generate_archive_filename("PO1", "01", "H1", extension=".pdf")
@@ -89,19 +89,19 @@ class TestGenerateArchiveFilename:
         result = generate_archive_filename("1234567", "01", "HEAT1")
         assert ".1234567." in result
 
-    def test_non_numeric_po_not_padded(self):
+    def test_alpha_prefix_stripped_and_padded(self):
         result = generate_archive_filename("PO-254", "01", "HEAT1")
-        assert ".PO-254." in result
+        assert ".000254." in result
 
 
 class TestGenerateAssemblyArchiveFilename:
     def test_assembly_naming(self):
         result = generate_assembly_archive_filename("000254", "03")
-        assert result.endswith(".000254.03.tiff")
+        assert result.endswith(".000254.003.tiff")
 
     def test_assembly_custom_extension(self):
         result = generate_assembly_archive_filename("PO1", "01", extension=".pdf")
-        assert result.endswith(".PO1.01.pdf")
+        assert result.endswith(".000001.001.pdf")
 
 
 class TestParseInputFilename:
