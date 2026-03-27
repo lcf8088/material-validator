@@ -40,23 +40,23 @@ class TestSanitizeFilename:
 
 
 class TestGenerateArchiveFilename:
-    """Tests for YYYY.MM.PO#.LN#.ID.tiff naming scheme."""
+    """Tests for YYYY.MM.PO#.LN#.ID.tif naming scheme."""
 
     def test_full_metal(self):
         result = generate_archive_filename("000254", "01", "D2213660")
-        # Pattern: YYYY.MM.000254.001.D2213660.tiff
-        assert result.endswith(".000254.001.D2213660.tiff")
+        # Pattern: YYYY.MM.000254.001.D2213660.tif
+        assert result.endswith(".000254.001.D2213660.tif")
         assert re.match(r"\d{4}\.\d{2}\.", result)
 
     def test_assembly_no_identifier(self):
         result = generate_archive_filename("000254", "03")
-        assert result.endswith(".000254.003.tiff")
-        # No extra dot before .tiff
-        assert not result.endswith("..tiff")
+        assert result.endswith(".000254.003.tif")
+        # No extra dot before .tif
+        assert not result.endswith("..tif")
 
     def test_none_identifier_omitted(self):
         result = generate_archive_filename("PO123", "05", None)
-        assert result.endswith(".000123.005.tiff")
+        assert result.endswith(".000123.005.tif")
 
     def test_empty_po(self):
         result = generate_archive_filename("", "01", "HEAT1")
@@ -97,7 +97,7 @@ class TestGenerateArchiveFilename:
 class TestGenerateAssemblyArchiveFilename:
     def test_assembly_naming(self):
         result = generate_assembly_archive_filename("000254", "03")
-        assert result.endswith(".000254.003.tiff")
+        assert result.endswith(".000254.003.tif")
 
     def test_assembly_custom_extension(self):
         result = generate_assembly_archive_filename("PO1", "01", extension=".pdf")

@@ -185,10 +185,10 @@ def generate_archive_filename(
     po_number: str,
     line_item: str,
     identifier: Optional[str] = None,
-    extension: str = '.tiff'
+    extension: str = '.tif'
 ) -> str:
     """
-    Generate archive filename: YYYY.MM.PO#.LN#.ID.tiff
+    Generate archive filename: YYYY.MM.PO#.LN#.ID.tif
 
     Metals use heat number as ID, elastomers use batch number.
     Assemblies omit the ID segment.
@@ -216,10 +216,10 @@ def generate_archive_filename(
 def generate_assembly_archive_filename(
     po_number: str,
     line_item: str,
-    extension: str = '.tiff'
+    extension: str = '.tif'
 ) -> str:
     """
-    Generate archive filename for assembly packets: YYYY.MM.PO#.LN#.tiff
+    Generate archive filename for assembly packets: YYYY.MM.PO#.LN#.tif
     No material-specific identifier is appended for assemblies.
     """
     return generate_archive_filename(po_number, line_item, identifier=None, extension=extension)
@@ -541,7 +541,7 @@ def convert_to_archive(
         base = output_path.stem
         counter = 1
         while output_path.exists():
-            output_path = archive_folder / f"{base}_{counter}.tiff"
+            output_path = archive_folder / f"{base}_{counter}.tif"
             counter += 1
     
     # Convert based on input type

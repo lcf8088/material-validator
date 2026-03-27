@@ -650,7 +650,7 @@ def process_document(
                     staging_dir.mkdir(parents=True, exist_ok=True)
                     po = assembly_result.po_number or 'UNKNOWN-PO'
                     safe_po = re.sub(r'[\\/:*?"<>|]', '_', po).strip()
-                    staging_name = f"staging_ASSY_{safe_po}_{int(time.time())}.tiff"
+                    staging_name = f"staging_ASSY_{safe_po}_{int(time.time())}.tif"
                     staging_path = str(staging_dir / staging_name)
                     t_tiff = time.time()
                     if enhanced_image_paths:
@@ -857,7 +857,7 @@ def process_document(
 
             heat_number = normalized.get('heat_number') or normalized.get('batch_number') or 'UNKNOWN'
             safe_heat = re.sub(r'[\\/:*?"<>|]', '_', heat_number).strip()
-            staging_name = f"staging_{safe_heat}_{int(time.time())}.tiff"
+            staging_name = f"staging_{safe_heat}_{int(time.time())}.tif"
             staging_path = str(staging_dir / staging_name)
 
             t_tiff = time.time()
