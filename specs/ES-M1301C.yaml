@@ -3,8 +3,8 @@
 # ============================================================
 
 id: "ES-M1301C"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "HNBR - HSN 90 Durometer"
 grades:
   - "HNBR"
@@ -19,5 +19,6 @@ chemistry: {}
 mechanical:
   tensile_strength: { min: 2300, unit: psi }
   elongation:       { min: 100, unit: '%' }
+  hardness_shore_a: { min: 85, max: 95 }
 
 special_requirements: []

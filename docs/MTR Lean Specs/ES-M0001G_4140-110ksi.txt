@@ -1,0 +1,45 @@
+## Scope
+
+AISI 4140/4142 (UNS G41400) low-alloy steel.
+
+## Chemical Composition
+
+| Element | Minimum (%) | Maximum (%) |
+|---------|-------------|-------------|
+| C       | 0.38        | 0.45        |
+| Mn      | 0.75        | 1.00        |
+| Cr      | 0.80        | 1.10        |
+| Mo      | 0.15        | 0.25        |
+| P       | -           | 0.035       |
+| S       | -           | 0.040       |
+| Si      | 0.15        | 0.35        |
+
+## Heat Treatment Condition
+
+Quenched and Tempered.
+
+## Mechanical Properties
+
+Mechanical properties shall be verified by tests conducted on a representative sample from the same heat, size, and heat treat lot. Material stress relieved after cold working in excess of 5% is exempt from re-testing provided the stress relief temperature does not exceed the original tempering temperature.
+
+| Property         | Minimum  | Maximum | Test Method    |
+|------------------|----------|---------|----------------|
+| Yield Strength   | 110 ksi  | -       | ASTM A370 / E8 |
+| Tensile Strength | 125 ksi  | -       | ASTM A370 / E8 |
+| Elongation       | 12%      | -       | ASTM A370 / E8 |
+| Hardness         | -        | 36 HRC  | ASTM E18       |
+
+## Receiving
+
+A Certificate of Conformance (CoC) and Material Test Report (MTR) are required; the MTR shall include grade, heat number, chemical analysis, mechanical properties, and endorsement by authorized personnel.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 01/21/2008 | Original version DDIMS05A – DDIMS05B |
+| - | B | 12/03/2020 | Removed call outs to Customer's Specifications |
+| Internal Audit CAR 198 | C | 01/06/2022 | 1.1 re-write scope, section 2.0 removed ASTM call outs, Section 4.0 added elongation, RIA, and tempering temp., Added section 5.0 conditions |
+| - | 0 | 04/01/2024 | Copy to new word format. Change specification number to new style, remove the DDIMS number. Change revision number from letters to numbers. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. C max corrected from 0.46% to 0.45% per ASTM A29 (4142 upper limit). |
+

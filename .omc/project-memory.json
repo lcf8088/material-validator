@@ -1,0 +1,421 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1776367025151,
+  "projectRoot": "C:\\Users\\qascanner\\Documents\\GitHub\\material-validator",
+  "techStack": {
+    "languages": [
+      {
+        "name": "Python",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "requirements.txt"
+        ]
+      }
+    ],
+    "frameworks": [],
+    "packageManager": "pip",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs",
+      "src",
+      "tests"
+    ],
+    "gitBranches": {
+      "defaultBranch": "master",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 22,
+      "lastAccessed": 1776367025126,
+      "keyFiles": [
+        "643473-1854.pdf",
+        "8bit.tiff",
+        "convert_to_html.py",
+        "critical-review-2026-02-13.html",
+        "critical-review-2026-02-13.md"
+      ]
+    },
+    "history": {
+      "path": "history",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1776367025126,
+      "keyFiles": [
+        "index.json",
+        "validations.jsonl"
+      ]
+    },
+    "specs": {
+      "path": "specs",
+      "purpose": null,
+      "fileCount": 59,
+      "lastAccessed": 1776367025127,
+      "keyFiles": [
+        "ES-M0001A.yaml",
+        "ES-M0001B.yaml",
+        "ES-M0001C.yaml",
+        "ES-M0001G.yaml",
+        "ES-M0001K.yaml"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 1,
+      "lastAccessed": 1776367025128,
+      "keyFiles": [
+        "NUL"
+      ]
+    },
+    "tests": {
+      "path": "tests",
+      "purpose": "Test files",
+      "fileCount": 21,
+      "lastAccessed": 1776367025129,
+      "keyFiles": [
+        "conftest.py",
+        "run_all_mtrs.py",
+        "test_01_imports.py",
+        "test_02_spec_loader.py",
+        "test_03_validator.py"
+      ]
+    },
+    "src\\lib": {
+      "path": "src\\lib",
+      "purpose": "Library code",
+      "fileCount": 17,
+      "lastAccessed": 1776367025131,
+      "keyFiles": [
+        "assembly.py",
+        "claude_parser.py",
+        "converters.py"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "specs\\ES-M0001A.yaml",
+      "accessCount": 5,
+      "lastAccessed": 1776370110979,
+      "type": "file"
+    },
+    {
+      "path": "specs\\ES-M0003G-JFE.yaml",
+      "accessCount": 5,
+      "lastAccessed": 1776370122079,
+      "type": "file"
+    },
+    {
+      "path": "specs\\ES-M0003G-S41425.yaml",
+      "accessCount": 5,
+      "lastAccessed": 1776370124366,
+      "type": "file"
+    },
+    {
+      "path": "specs\\ES-M0001C.yaml",
+      "accessCount": 4,
+      "lastAccessed": 1776370112340,
+      "type": "file"
+    },
+    {
+      "path": "specs\\ES-M0003A.yaml",
+      "accessCount": 3,
+      "lastAccessed": 1776367723826,
+      "type": "file"
+    },
+    {
+      "path": "specs\\ES-M1001A.yaml",
+      "accessCount": 3,
+      "lastAccessed": 1776367881154,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0001C_4140-80ksi.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367071892,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0003A_303.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367072251,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M1001A_FKM-75A.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367072691,
+      "type": "file"
+    },
+    {
+      "path": "src\\lib\\spec_loader.py",
+      "accessCount": 1,
+      "lastAccessed": 1776367091282,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0003G_Super13Cr.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367267430,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0001A_4130-QT.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367295481,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0001B_4130-80Rb.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367296395,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0001G_4140-110ksi.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367297239,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0001K_Nitriding.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367298658,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0001L_4140-6A.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367298716,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0001P_4130-6A.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367299017,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0002A_1018.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367299773,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0002B_1026-DOM.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367300689,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0002H_1075.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367301290,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0003B_304.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367306469,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0003C_316-Wire.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367307463,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0003E_420-Mod.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367308477,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0003J_17-4PH.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367308867,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0003L_316.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367309281,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0003M_18-8.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367310042,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0003N_440C.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367310917,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0003P_SS-Fasteners.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367312383,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0003Y_13Cr-L80.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367314453,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0004A_9Cr-1Mo.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367314572,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0004E_4340-Annealed.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367320093,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0004F_8620.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367320171,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0004G_4340-150ksi.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367320407,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0004J_52100.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367321117,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0005A_6061-T6.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367321861,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0007A_Brass.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367322728,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0007B_CuNiSn-Bronze.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367323836,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0008B_WC-Balls.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367324575,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0009A_718.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367324929,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0009B_X750-Spring.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367327393,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0009C_MP35N.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367331542,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0009D_925.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367331940,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0009E_Elgiloy.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367333141,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0009F_718-14A.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367334043,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0009G_X750-14A.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367339248,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0011A_Nylatron-GS.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367339316,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0009K_Elgiloy-14A.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367339338,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0010A_S7.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367339359,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0009H_MP35N-14A.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367339390,
+      "type": "file"
+    },
+    {
+      "path": "docs\\MTR Lean Specs\\ES-M0009J_925-14A.txt",
+      "accessCount": 1,
+      "lastAccessed": 1776367339407,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

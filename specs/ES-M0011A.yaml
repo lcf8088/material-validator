@@ -3,8 +3,8 @@
 # ============================================================
 
 id: "ES-M0011A"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "Nylatron GS PA66 + MoS2 Extruded Nylon"
 grades:
   - "Nylatron GS"
@@ -16,7 +16,9 @@ condition: "Extruded"
 chemistry: {}
 
 mechanical:
-  tensile_strength: { min: 12500, unit: psi }
-  elongation:       { min: 20, unit: '%' }
+  # Lean spec: "Tensile Strength at Yield" = yield point for ductile thermoplastics
+  yield_strength:    { min: 12500, unit: psi }
+  elongation:        { min: 20, unit: '%' }
+  hardness_shore_d:  { min: 80 }
 
 special_requirements: []

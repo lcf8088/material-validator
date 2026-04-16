@@ -3,8 +3,8 @@
 # ============================================================
 
 id: "ES-M1101C"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "FEPM - AFLAS 90 Durometer"
 grades:
   - "FEPM"
@@ -19,5 +19,6 @@ chemistry: {}
 mechanical:
   tensile_strength: { min: 1450, unit: psi }
   elongation:       { min: 100, unit: '%' }
+  hardness_shore_a: { min: 85, max: 95 }
 
 special_requirements: []

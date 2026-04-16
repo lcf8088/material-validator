@@ -143,13 +143,40 @@ class CertValidation:
 
 # Property name aliases for flexible matching
 PROPERTY_ALIASES = {
-    'yield_strength': ['yield_strength', 'ys', 'yield', '0.2% offset yield', '0.2%_yield'],
-    'tensile_strength': ['tensile_strength', 'ts', 'tensile', 'uts', 'ultimate_tensile'],
-    'elongation': ['elongation', 'elong', 'el', 'elongation_2in', 'elongation_4d', 'el_2in'],
+    # For ductile thermoplastics (PEEK, Nylatron), "tensile strength at yield"
+    # IS the yield strength — include alias so MTR extraction maps correctly.
+    'yield_strength': ['yield_strength', 'ys', 'yield', '0.2% offset yield',
+                       '0.2%_yield', 'tensile_strength_at_yield', 'yield_at_tensile'],
+    # For elastomers/PTFE, "tensile strength at break" IS the tensile strength.
+    'tensile_strength': ['tensile_strength', 'ts', 'tensile', 'uts',
+                         'ultimate_tensile', 'tensile_strength_at_break',
+                         'tensile_at_break'],
+    'elongation': ['elongation', 'elong', 'el', 'elongation_2in',
+                   'elongation_4d', 'el_2in', 'elongation_at_break',
+                   'elongation_at_yield'],
     'reduction_of_area': ['reduction_of_area', 'ra', 'reduction', 'roa', 'red_of_area'],
     'hardness_hrc': ['hardness_hrc', 'hrc', 'hardness_rc', 'rockwell_c'],
     'hardness_hbw': ['hardness_hbw', 'hbw', 'hb', 'brinell', 'hardness_bhn', 'bhn'],
     'hardness_hrb': ['hardness_hrb', 'hrb', 'hardness_rb', 'rockwell_b'],
+    # Rockwell A scale — used for cemented carbides (ES-M0008B WC balls).
+    'hardness_hra': ['hardness_hra', 'hra', 'rockwell_a'],
+    # Shore A — elastomers (FKM, FEPM, HNBR).
+    'hardness_shore_a': ['hardness_shore_a', 'shore_a', 'shorea', 'durometer_a'],
+    # Shore D — rigid plastics (PTFE filled, PEEK, Nylatron).
+    'hardness_shore_d': ['hardness_shore_d', 'shore_d', 'shored', 'durometer_d'],
+    # Density — PTFE, PEEK, filled compounds.
+    'specific_gravity': ['specific_gravity', 'sg', 'density', 'specific_density'],
+    # Modulus — PEEK and rigid plastics.
+    'modulus_of_elasticity': ['modulus_of_elasticity', 'elastic_modulus',
+                               'youngs_modulus', 'young_modulus', 'tensile_modulus'],
+    # 100% modulus — elastomers (info-only in most lean specs).
+    'tensile_modulus_100': ['tensile_modulus_100', 'tensile_modulus_at_100',
+                             'modulus_100', 'm100'],
+    # TRS — cemented carbides (ES-M0008B).
+    'transverse_rupture_strength': ['transverse_rupture_strength', 'trs',
+                                      'transverse_rupture', 'bend_strength'],
+    # Compression set — elastomers (info-only in most lean specs).
+    'compression_set': ['compression_set', 'comp_set', 'cs'],
 }
 
 
@@ -380,11 +407,11 @@ class SpecValidator:
     def _validate_special(self, mtr_data: Dict[str, Any], special_reqs: List[dict]) -> List[ValidationResult]:
         """Validate special requirements."""
         results = []
-        
+
         for req in special_reqs:
             req_type = req.get('type', 'unknown')
             vr = ValidationResult(property_name=req_type, note=req.get('note', ''))
-            
+
             if req_type == 'nace_compliance':
                 vr = self._validate_nace(mtr_data, vr)
             elif req_type == 'temper_temperature':
@@ -394,11 +421,11 @@ class SpecValidator:
             else:
                 vr.status = 'SKIP'
                 vr.note = f"Unknown requirement type: {req_type}"
-            
+
             results.append(vr)
-        
+
         return results
-    
+
     def _validate_nace(self, mtr_data: Dict[str, Any], vr: ValidationResult) -> ValidationResult:
         """Validate NACE compliance requirement."""
         nace = mtr_data.get('nace_compliant')
@@ -412,7 +439,7 @@ class SpecValidator:
             vr.status = 'MISSING'
             vr.note = 'NACE compliance not stated'
         return vr
-    
+
     def _validate_temper(self, mtr_data: Dict[str, Any], req: dict, vr: ValidationResult) -> ValidationResult:
         """Validate tempering temperature requirement."""
         temper = mtr_data.get('temper_temperature')
@@ -443,7 +470,7 @@ class SpecValidator:
             vr.status = 'MISSING'
             vr.note = 'Temper temperature not stated'
         return vr
-    
+
     def _validate_charpy(self, mtr_data: Dict[str, Any], req: dict, vr: ValidationResult) -> ValidationResult:
         """Validate Charpy impact requirement."""
         charpy = mtr_data.get('charpy_impact')

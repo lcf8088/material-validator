@@ -1,0 +1,43 @@
+## Scope
+
+17-4PH (UNS S17400) precipitation-hardened stainless steel in the solution annealed and double-aged (H1150-D) condition, qualified for sour service per ANSI/NACE MR0175 / ISO 15156-3.
+
+## Chemical Composition
+
+| Element  | Minimum (%) | Maximum (%) |
+|----------|-------------|-------------|
+| C        | -           | 0.07        |
+| Cr       | 15.00       | 17.50       |
+| Ni       | 3.00        | 5.00        |
+| Cu       | 3.00        | 5.00        |
+| Cb/Nb+Ta | 0.15        | 0.45        |
+| P        | -           | 0.04        |
+| S        | -           | 0.030       |
+
+## Heat Treatment Condition
+
+Solution Annealed and Double Precipitation Hardened (H1150-D) per ASTM A564. Equivalent designations: HH1150, DH1150, H1150 Double Aged. Double aging is required by ANSI/NACE MR0175 / ISO 15156-3 for sour service qualification of UNS S17400.
+
+## Mechanical Properties
+
+Mechanical properties shall be verified by tests conducted on a representative sample from the same heat, size, and heat treat lot. Material stress relieved after cold working in excess of 5% is exempt from re-testing provided the stress relief temperature does not exceed the original tempering temperature.
+
+| Property         | Minimum | Maximum | Test Method    |
+|------------------|---------|---------|----------------|
+| Yield Strength   | 105 ksi | -       | ASTM A370 / E8 |
+| Tensile Strength | 125 ksi | -       | ASTM A370 / E8 |
+| Elongation       | 16%     | -       | ASTM A370 / E8 |
+| Hardness         | -       | 33 HRC  | ASTM E18       |
+
+## Receiving
+
+A Certificate of Conformance (CoC) and Material Test Report (MTR) are required; the MTR shall include grade, heat number, chemical analysis, mechanical properties, heat treating condition, hardness, and endorsement by authorized personnel.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 01/21/2008 | Original version, DDIMS35A |
+| - | 0 | 04/01/2024 | Copy to new word format. Change specification number to new style, remove the DDIMS number. Change revision number from letters to numbers. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Heat treatment condition confirmed as H1150-D (double aged) per ANSI/NACE MR0175 / ISO 15156-3 requirement for sour service qualification of UNS S17400. Mechanical property minimums aligned with ASTM A564 H1150-D (UTS 125 ksi min, YS 105 ksi min, El 16% min). Hardness maximum 33 HRC per NACE cap; no minimum hardness specified — NACE sets maximum only and A564 H1150-D has no hardness minimum. Chemistry reduced to alloy-defining and critical elements only. |
+

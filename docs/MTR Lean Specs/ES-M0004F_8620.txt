@@ -1,0 +1,36 @@
+## Scope
+
+AISI 8620 (UNS G86200) low-alloy steel.
+
+## Chemical Composition
+
+| Element | Minimum (%) | Maximum (%) |
+|---------|-------------|-------------|
+| C       | 0.18        | 0.23        |
+| Mn      | 0.70        | 0.90        |
+| P       | -           | 0.035       |
+| S       | -           | 0.040       |
+| Si      | 0.15        | 0.35        |
+| Ni      | 0.40        | 0.70        |
+| Cr      | 0.40        | 0.60        |
+| Mo      | 0.15        | 0.25        |
+
+## Heat Treatment Condition
+
+As supplied (no specific heat treatment condition required). Material is typically purchased for subsequent case hardening by the manufacturer.
+
+## Mechanical Properties
+
+Chemistry-only specification. No incoming mechanical property acceptance criteria. Mechanical properties are established by the manufacturer's subsequent case hardening process.
+
+## Receiving
+
+A Certificate of Conformance (CoC) and Material Test Report (MTR) are required; the MTR shall include grade, heat number, chemical analysis, and endorsement by authorized personnel.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 01/21/2008 | Original version, DDIMS06 |
+| - | 0 | 04/01/2024 | Copy to new word format. Change specification number to new style, remove the DDIMS number. Change revision number from letters to numbers. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Added Ni 0.40-0.70% to chemistry per ASTM A29 (defining element of 8620, was omitted). |

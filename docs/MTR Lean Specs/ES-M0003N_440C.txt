@@ -1,0 +1,35 @@
+## Scope
+
+AISI 440C (UNS S44004) martensitic stainless steel.
+
+## Chemical Composition
+
+| Element | Minimum (%) | Maximum (%) |
+|---------|-------------|-------------|
+| C       | 0.95        | 1.20        |
+| Cr      | 16.00       | 18.00       |
+| Mo      | -           | 0.75        |
+
+## Heat Treatment Condition
+
+Hardened and Tempered.
+
+## Mechanical Properties
+
+Mechanical properties shall be verified by tests conducted on a representative sample from the same heat, size, and heat treat lot. Material stress relieved after cold working in excess of 5% is exempt from re-testing provided the stress relief temperature does not exceed the original tempering temperature.
+
+| Property | Minimum | Maximum | Test Method |
+|----------|---------|---------|-------------|
+| Hardness | 56 HRC  | 60 HRC  | ASTM E18    |
+
+## Receiving
+
+A Certificate of Conformance (CoC) and Material Test Report (MTR) are required; the MTR shall include grade, heat number, chemical analysis, hardness, and endorsement by authorized personnel.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 01/21/2008 | Original version |
+| - | 0 | 04/01/2024 | Copy to new word format. Change specification number to new style, remove the DDIMS number. Change revision number from letters to numbers. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Corrected UNS from S44000 (440A) to S44004 (440C). Corrected Mo max from 1.00% to 0.75% per ASTM A276. Changed HT condition from "Hardened" to "Hardened and Tempered". Chemistry reduced to alloy-defining and critical elements only. |

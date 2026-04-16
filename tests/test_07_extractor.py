@@ -91,8 +91,9 @@ class TestNormalizeExtractedData:
             }
         }
         norm = normalize_extracted_data(data)
-        # MPa should be auto-converted to ksi (1 decimal place)
-        assert norm["mechanical"]["yield_strength"] == 119.9
+        # MPa auto-converted to ksi (3-decimal precision preserves
+        # psi-level accuracy for low-stress polymer specs).
+        assert norm["mechanical"]["yield_strength"] == pytest.approx(119.946, abs=0.01)
         assert norm["mechanical"]["yield_strength_unit"] == "ksi"
 
     def test_special_fields_preserved(self):

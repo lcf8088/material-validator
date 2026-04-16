@@ -1,0 +1,40 @@
+# ============================================================
+# DDIC Material Specification: ES-M0009A
+# Alloy 718 (N07718) — new in Rev 1 lean spec transition.
+# ============================================================
+
+id: "ES-M0009A"
+revision: 1
+date: "2026-03-25"
+material: "Nickel Chrome Alloy 718 (Inconel 718)"
+grades:
+  - "718"
+  - "Alloy 718"
+  - "Inconel 718"
+  - "N07718"
+  - "UNS N07718"
+uns: "N07718"
+condition: "Solution Annealed and Aged"
+
+chemistry:
+  Ni: { min: 50.0, max: 55.0 }
+  Cr: { min: 17.0, max: 21.0 }
+  Mo: { min: 2.80, max: 3.30 }
+  Nb: { min: 4.75, max: 5.50 }
+  Ti: { min: 0.65, max: 1.15 }
+  Al: { min: 0.20, max: 0.80 }
+  S:  { max: 0.015 }
+
+mechanical:
+  yield_strength:    { min: 120, unit: ksi }
+  tensile_strength:  { min: 185, unit: ksi }
+  elongation:        { min: 12, unit: '%' }
+  hardness_hrc:      { max: 40 }
+
+special_requirements:
+  - type: charpy_impact
+    min_avg: 35
+    unit: "ft-lbs"
+    temperature: -75
+    temp_unit: "°F"
+    note: "3 specimens at -75°F (-59°C); no individual below 30 ft-lbs; min lateral expansion 15 mils"

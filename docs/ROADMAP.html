@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Material Cert Validator - Roadmap to Production</title>
+
+<style>
+  @media print {
+    body { margin: 0.5in; }
+    h1 { page-break-before: avoid; }
+    table, pre, blockquote { page-break-inside: avoid; }
+  }
+  body {
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #000;
+    background: #fff;
+    max-width: 8.5in;
+    margin: 0 auto;
+    padding: 0.5in;
+  }
+  h1 { font-size: 18pt; border-bottom: 2px solid #000; padding-bottom: 4pt; margin-top: 24pt; }
+  h2 { font-size: 14pt; border-bottom: 1px solid #000; padding-bottom: 3pt; margin-top: 20pt; }
+  h3 { font-size: 12pt; margin-top: 16pt; }
+  h4 { font-size: 11pt; margin-top: 12pt; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12pt 0;
+    font-size: 10pt;
+  }
+  th, td {
+    border: 1px solid #000;
+    padding: 4pt 6pt;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #e0e0e0;
+    font-weight: bold;
+  }
+  tr:nth-child(even) td {
+    background: #f5f5f5;
+  }
+  code {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 10pt;
+    background: #f0f0f0;
+    padding: 1pt 3pt;
+    border: 1px solid #ccc;
+  }
+  pre {
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 8pt;
+    overflow-x: auto;
+    font-size: 9pt;
+    line-height: 1.4;
+  }
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  blockquote {
+    border-left: 3px solid #000;
+    margin: 12pt 0;
+    padding: 4pt 12pt;
+    color: #333;
+    background: #f9f9f9;
+  }
+  hr {
+    border: none;
+    border-top: 1px solid #000;
+    margin: 20pt 0;
+  }
+  strong { font-weight: bold; }
+  ul, ol { margin: 6pt 0; padding-left: 24pt; }
+  li { margin: 3pt 0; }
+  a { color: #000; text-decoration: underline; }
+</style>
+
+</head>
+<body>
+<h1 id="material-cert-validator-roadmap-to-production">Material Cert Validator - Roadmap to Production</h1>
+<h2 id="current-state-assessment">Current State Assessment</h2>
+<p><strong>What Works:</strong>
+- ✅ CLI validates MTR JSON against YAML specs
+- ✅ 4 specs loaded with chemistry + mechanical + special requirements
+- ✅ Auto-detection by UNS/grade/yield strength
+- ✅ Vision extraction tested (manual workflow)
+- ✅ Unit conversions (ksi↔MPa, HRc↔HBW)
+- ✅ Color-coded pass/fail output</p>
+<p><strong>What's Missing:</strong>
+- ❌ End-to-end automation (still requires manual steps)
+- ✅ Validation history / audit trail
+- ❌ Batch processing
+- ✅ Sanity checks and borderline warnings for extracted data
+- ❌ Spec revision management</p>
+<hr />
+<h2 id="gap-analysis-by-category">Gap Analysis by Category</h2>
+<h3 id="1-workflow-usability">1. WORKFLOW &amp; USABILITY</h3>
+<p><strong>Current Pain Points:</strong>
+- Must convert PDF → images → copy JSON → run CLI
+- Technical barrier: requires command line knowledge
+- No feedback loop for extraction errors
+- Results disappear after viewing</p>
+<p><strong>Needed Improvements:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Priority</th>
+<th>Feature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P0</td>
+<td><strong>One-Command Validation</strong></td>
+<td><code>validate mtr.pdf</code> does everything</td>
+</tr>
+<tr>
+<td>P1</td>
+<td><strong>Extraction Review</strong></td>
+<td>Show extracted data for approval before validation</td>
+</tr>
+<tr>
+<td>P1</td>
+<td><strong>Result Storage</strong></td>
+<td>Save all validations to searchable history</td>
+</tr>
+<tr>
+<td>P2</td>
+<td><strong>Batch Mode</strong></td>
+<td>Validate folder of MTRs, generate summary report</td>
+</tr>
+<tr>
+<td>P2</td>
+<td><strong>Quick Re-validate</strong></td>
+<td>Re-run validation when spec changes</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Ideal Workflow:</strong></p>
+<pre><code>Lance drops MTR PDF into desktop app
+  ↓
+App extracts data via vision LLM
+  ↓
+App shows extracted values: &quot;Found Heat# X, Grade Y. Confirm?&quot;
+  ↓
+Lance confirms (or corrects)
+  ↓
+App validates against auto-detected spec
+  ↓
+App reports: &quot;PASS - Heat# X validates against ES-M0001G&quot;
+  ↓
+Result saved to validation history
+</code></pre>
+<hr />
+<h3 id="2-data-quality-reliability">2. DATA QUALITY &amp; RELIABILITY</h3>
+<p><strong>Current Risks:</strong>
+- Vision extraction can misread values (OCR errors)
+- No confidence scoring
+- No way to flag suspicious values
+- Chemistry values could be swapped (Cr vs Ni column)</p>
+<p><strong>Needed Improvements:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Priority</th>
+<th>Feature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P0</td>
+<td><strong>Extraction Confidence</strong></td>
+<td>Flag low-confidence extractions for review</td>
+</tr>
+<tr>
+<td>P0</td>
+<td><strong>Range Sanity Checks</strong></td>
+<td>Alert if C% &gt; 1 or YS &gt; 300 (obviously wrong)</td>
+</tr>
+<tr>
+<td>P1</td>
+<td><strong>Dual Extraction</strong></td>
+<td>Extract twice, compare results</td>
+</tr>
+<tr>
+<td>P1</td>
+<td><strong>Human Review Queue</strong></td>
+<td>Flag certs that need manual verification</td>
+</tr>
+<tr>
+<td>P2</td>
+<td><strong>Learning from Corrections</strong></td>
+<td>Track which mill formats cause errors</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Sanity Check Rules:</strong></p>
+<pre><code class="language-yaml">sanity_checks:
+  chemistry:
+    C:  { max: 2.0, alert: &quot;Carbon &gt; 2% is unusual&quot; }
+    Cr: { max: 30.0, alert: &quot;Chromium &gt; 30% - verify&quot; }
+    Ni: { max: 80.0, alert: &quot;Nickel &gt; 80% - verify&quot; }
+  mechanical:
+    yield_strength: { max: 300, alert: &quot;YS &gt; 300 ksi - verify&quot; }
+    elongation: { max: 80, alert: &quot;Elongation &gt; 80% - verify&quot; }
+    hardness_hrc: { max: 70, alert: &quot;HRc &gt; 70 - verify&quot; }
+</code></pre>
+<hr />
+<h3 id="3-compliance-audit">3. COMPLIANCE &amp; AUDIT</h3>
+<p><strong>Requirements (from specs):</strong>
+- 10-year document retention (section 4.3 of ES-M0003A)
+- Traceability: who validated, when, against which spec revision
+- Sign-off capability for critical applications</p>
+<p><strong>Needed Improvements:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Priority</th>
+<th>Feature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P0</td>
+<td><strong>Validation Log</strong></td>
+<td>JSON log of all validations with timestamps</td>
+</tr>
+<tr>
+<td>P1</td>
+<td><strong>Spec Version Tracking</strong></td>
+<td>Record which spec revision was used</td>
+</tr>
+<tr>
+<td>P1</td>
+<td><strong>Original Document Archive</strong></td>
+<td>Store source PDF with validation</td>
+</tr>
+<tr>
+<td>P2</td>
+<td><strong>Digital Signature</strong></td>
+<td>Hash of MTR + spec + result for integrity</td>
+</tr>
+<tr>
+<td>P3</td>
+<td><strong>Expiration Alerts</strong></td>
+<td>Notify when material certs are aging out</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Validation Record Schema:</strong></p>
+<pre><code class="language-json">{
+  &quot;validation_id&quot;: &quot;uuid&quot;,
+  &quot;timestamp&quot;: &quot;2026-02-06T19:30:00Z&quot;,
+  &quot;validated_by&quot;: &quot;Cipher&quot;,
+  &quot;heat_number&quot;: &quot;D2213660&quot;,
+  &quot;material_grade&quot;: &quot;4140/42&quot;,
+  &quot;spec_id&quot;: &quot;ES-M0001G&quot;,
+  &quot;spec_revision&quot;: &quot;0&quot;,
+  &quot;result&quot;: &quot;PASS&quot;,
+  &quot;pass_count&quot;: 13,
+  &quot;fail_count&quot;: 0,
+  &quot;source_document&quot;: &quot;path/to/original.pdf&quot;,
+  &quot;extracted_data&quot;: { ... },
+  &quot;validation_details&quot;: { ... }
+}
+</code></pre>
+<hr />
+<h3 id="4-edge-cases-robustness">4. EDGE CASES &amp; ROBUSTNESS</h3>
+<p><strong>Known Edge Cases:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>Current Handling</th>
+<th>Needed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Multi-page MTR</td>
+<td>Manual stitch</td>
+<td>Auto-merge pages</td>
+</tr>
+<tr>
+<td>Multiple heats on one cert</td>
+<td>Not handled</td>
+<td>Parse each heat separately</td>
+</tr>
+<tr>
+<td>Supplemental heat treat cert</td>
+<td>Not handled</td>
+<td>Link to original mill cert</td>
+</tr>
+<tr>
+<td>Non-standard units</td>
+<td>Partial (ksi/MPa)</td>
+<td>Add N/mm², kg/mm², etc.</td>
+</tr>
+<tr>
+<td>Hardness in HRB</td>
+<td>Conversion exists</td>
+<td>Verify accuracy for soft materials</td>
+</tr>
+<tr>
+<td>Spec not found</td>
+<td>Error message</td>
+<td>Suggest closest match</td>
+</tr>
+<tr>
+<td>Borderline values</td>
+<td>Binary pass/fail</td>
+<td>Flag "within 5% of limit"</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Borderline Alert Example:</strong></p>
+<pre><code>Yield Strength: 111.2 ksi (min: 110)
+⚠️ Within 2% of minimum - verify measurement
+</code></pre>
+<hr />
+<h3 id="5-integration-points">5. INTEGRATION POINTS</h3>
+<p><strong>Current:</strong>
+- Standalone CLI
+- Desktop GUI (drag-and-drop)</p>
+<p><strong>Needed:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Integration</th>
+<th>Purpose</th>
+<th>Priority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>File Storage</strong></td>
+<td>Archive MTRs and results</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><strong>Desktop Notification</strong></td>
+<td>Alert on failures</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><strong>Calendar</strong></td>
+<td>Track cert expiration dates</td>
+<td>P3</td>
+</tr>
+<tr>
+<td><strong>Inventory</strong></td>
+<td>Link certs to material in stock</td>
+<td>P3</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="6-spec-management">6. SPEC MANAGEMENT</h3>
+<p><strong>Current Issues:</strong>
+- Specs are static YAML files
+- No revision history
+- No way to see what changed between revisions
+- No alerts when using outdated spec</p>
+<p><strong>Needed:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Description</th>
+<th>Priority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Revision History</strong></td>
+<td>Track changes between spec versions</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><strong>Deprecation Warnings</strong></td>
+<td>Alert when using old revision</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><strong>Spec Comparison</strong></td>
+<td>Diff two spec versions</td>
+<td>P2</td>
+</tr>
+<tr>
+<td><strong>Import from PDF</strong></td>
+<td>Extract spec from engineering document</td>
+<td>P3</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="implementation-phases">Implementation Phases</h2>
+<h3 id="phase-1-data-quality-next">Phase 1: Data Quality (Next)</h3>
+<ul>
+<li>[x] Add sanity checks for extracted values</li>
+<li>[ ] Confidence scoring on extraction</li>
+<li>[x] Borderline value warnings</li>
+<li>[ ] Human review queue for failures</li>
+</ul>
+<h3 id="phase-2-compliance">Phase 2: Compliance</h3>
+<ul>
+<li>[x] Structured validation log (JSON)</li>
+<li>[ ] Archive original documents</li>
+<li>[ ] Spec revision tracking</li>
+<li>[ ] Export validation reports</li>
+</ul>
+<h3 id="phase-3-polish">Phase 3: Polish</h3>
+<ul>
+<li>[ ] Batch processing</li>
+<li>[ ] Summary reports</li>
+<li>[ ] Spec comparison tools</li>
+<li>[ ] Performance optimization</li>
+</ul>
+<hr />
+<h2 id="quick-wins-can-do-now">Quick Wins (Can Do Now)</h2>
+<ol>
+<li><strong>Add validation history file</strong> - Simple JSON append log</li>
+<li><strong>Sanity checks</strong> - Basic range validation before spec check</li>
+<li><strong>Borderline warnings</strong> - Flag values within 5% of limits</li>
+<li><strong>Better error messages</strong> - Suggest corrections for common issues</li>
+<li><strong>Better CLI UX</strong> - <code>validate mtr.pdf</code> does everything in one command</li>
+</ol>
+<hr />
+<h2 id="questions-for-lance">Questions for Lance</h2>
+<ol>
+<li><strong>Volume</strong>: How many MTRs per week/month need validation?</li>
+<li><strong>Urgency</strong>: Real-time validation needed, or batch overnight OK?</li>
+<li><strong>Sign-off</strong>: Do validated certs need formal approval workflow?</li>
+<li><strong>Archive</strong>: Where should original PDFs be stored long-term?</li>
+<li><strong>Access</strong>: Who else besides you might validate certs?</li>
+<li><strong>Failures</strong>: What happens when a cert fails? Reject shipment? Request retest?</li>
+</ol>
+</body>
+</html>

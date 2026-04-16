@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>First-Time Setup</title>
+
+<style>
+  @media print {
+    body { margin: 0.5in; }
+    h1 { page-break-before: avoid; }
+    table, pre, blockquote { page-break-inside: avoid; }
+  }
+  body {
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #000;
+    background: #fff;
+    max-width: 8.5in;
+    margin: 0 auto;
+    padding: 0.5in;
+  }
+  h1 { font-size: 18pt; border-bottom: 2px solid #000; padding-bottom: 4pt; margin-top: 24pt; }
+  h2 { font-size: 14pt; border-bottom: 1px solid #000; padding-bottom: 3pt; margin-top: 20pt; }
+  h3 { font-size: 12pt; margin-top: 16pt; }
+  h4 { font-size: 11pt; margin-top: 12pt; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12pt 0;
+    font-size: 10pt;
+  }
+  th, td {
+    border: 1px solid #000;
+    padding: 4pt 6pt;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #e0e0e0;
+    font-weight: bold;
+  }
+  tr:nth-child(even) td {
+    background: #f5f5f5;
+  }
+  code {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 10pt;
+    background: #f0f0f0;
+    padding: 1pt 3pt;
+    border: 1px solid #ccc;
+  }
+  pre {
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 8pt;
+    overflow-x: auto;
+    font-size: 9pt;
+    line-height: 1.4;
+  }
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  blockquote {
+    border-left: 3px solid #000;
+    margin: 12pt 0;
+    padding: 4pt 12pt;
+    color: #333;
+    background: #f9f9f9;
+  }
+  hr {
+    border: none;
+    border-top: 1px solid #000;
+    margin: 20pt 0;
+  }
+  strong { font-weight: bold; }
+  ul, ol { margin: 6pt 0; padding-left: 24pt; }
+  li { margin: 3pt 0; }
+  a { color: #000; text-decoration: underline; }
+</style>
+
+</head>
+<body>
+<h1 id="first-time-setup">First-Time Setup</h1>
+<h2 id="1-install-python-dependencies">1. Install Python Dependencies</h2>
+<pre><code class="language-bash">pip install -r requirements.txt
+</code></pre>
+<blockquote>
+<p><strong>Note:</strong> <code>paddlepaddle-gpu</code> requires a CUDA-capable GPU. If you don't have one, replace it with <code>paddlepaddle</code> (CPU-only) in <code>requirements.txt</code>, or skip it entirely — OCR extraction will be unavailable but the rest of the app works fine.</p>
+</blockquote>
+<h2 id="2-launch-the-app">2. Launch the App</h2>
+<pre><code class="language-bash">python run_gui.py
+</code></pre>
+<h2 id="3-configure-settings">3. Configure Settings</h2>
+<p>Click <strong>Settings</strong> in the sidebar.</p>
+<h3 id="pipeline-tab">Pipeline tab</h3>
+<ul>
+<li><strong>Anthropic API Key</strong> — Required. Get one at <a href="https://console.anthropic.com">console.anthropic.com</a>. Click "Test Connection" to verify.</li>
+<li><strong>Watch Folder</strong> — Optional. Directory to monitor for incoming MTR files.</li>
+<li><strong>Auto-process watched files</strong> — When checked, files dropped in the watch folder are automatically run through the full pipeline.</li>
+</ul>
+<h3 id="archive-tab">Archive tab</h3>
+<ul>
+<li><strong>Archive Folder</strong> — Where TIFF archives are stored.</li>
+<li><strong>Output Folder</strong> — Overrides Archive Folder if set. Use this to separate working output from long-term archives.</li>
+<li><strong>Auto-archive TIFF after validation</strong> — Automatically converts and saves a TIFF after each successful extraction. No manual "Archive" click needed.</li>
+<li><strong>Create PO# subfolders</strong> — Organizes output as <code>[Output Folder]/[PO#]/[Heat-PO].tiff</code>.</li>
+<li><strong>TIFF DPI / Compression</strong> — Archive quality settings (300 DPI + LZW is a good default).</li>
+</ul>
+<h3 id="general-tab">General tab</h3>
+<ul>
+<li><strong>Specs Folder</strong> — Point to a custom specs directory if you have specs outside the project.</li>
+<li><strong>Auto-detect Spec</strong> — Let the matcher pick the right spec based on material grade and UNS.</li>
+</ul>
+<p>Click <strong>Save</strong>.</p>
+<h2 id="4-validate-your-first-mtr">4. Validate Your First MTR</h2>
+<ol>
+<li>Drag a PDF or image onto the drop zone (or click to browse).</li>
+<li>Set the <strong>Spec</strong> dropdown (or leave on Auto-detect).</li>
+<li>Enter a <strong>PO#</strong> if applicable (it stays filled between validations).</li>
+<li>Click <strong>Extract &amp; Validate</strong>.</li>
+<li>Results appear in the two cards: extracted data on the left, validation on the right.</li>
+</ol>
+<p>If auto-archive is on, the TIFF is saved automatically and the status bar shows the filename.</p>
+<h2 id="5-batch-processing">5. Batch Processing</h2>
+<ol>
+<li>Click the <strong>Batch</strong> button next to Archive.</li>
+<li>Select a folder containing MTR PDFs/images.</li>
+<li>A progress panel shows per-file results with pass/fail badges.</li>
+<li>Cancel anytime. Click <strong>Done</strong> when finished.</li>
+</ol>
+<h2 id="6-watch-folder-hands-free">6. Watch Folder (Hands-Free)</h2>
+<ol>
+<li>Set a watch folder in Settings and enable "Auto-process watched files".</li>
+<li>Click <strong>Watch: OFF</strong> at the bottom of the sidebar to turn it on.</li>
+<li>Drop PDFs into the watch folder — they process automatically.</li>
+<li>The watcher waits for file copies to finish before processing.</li>
+</ol>
+<h2 id="file-naming-convention">File Naming Convention</h2>
+<p>Output TIFFs are named: <code>[Heat#]-[PO#].tiff</code></p>
+<ul>
+<li>Elastomers use Batch# instead of Heat#.</li>
+<li>Duplicate filenames get a <code>_1</code>, <code>_2</code> suffix.</li>
+<li>If "Create PO# subfolders" is on: <code>[Output]/[PO#]/[Heat-PO].tiff</code>.</li>
+</ul>
+</body>
+</html>

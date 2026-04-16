@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTR Scan Investigation — February 13, 2026</title>
+
+<style>
+  @media print {
+    body { margin: 0.5in; }
+    h1 { page-break-before: avoid; }
+    table, pre, blockquote { page-break-inside: avoid; }
+  }
+  body {
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #000;
+    background: #fff;
+    max-width: 8.5in;
+    margin: 0 auto;
+    padding: 0.5in;
+  }
+  h1 { font-size: 18pt; border-bottom: 2px solid #000; padding-bottom: 4pt; margin-top: 24pt; }
+  h2 { font-size: 14pt; border-bottom: 1px solid #000; padding-bottom: 3pt; margin-top: 20pt; }
+  h3 { font-size: 12pt; margin-top: 16pt; }
+  h4 { font-size: 11pt; margin-top: 12pt; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12pt 0;
+    font-size: 10pt;
+  }
+  th, td {
+    border: 1px solid #000;
+    padding: 4pt 6pt;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #e0e0e0;
+    font-weight: bold;
+  }
+  tr:nth-child(even) td {
+    background: #f5f5f5;
+  }
+  code {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 10pt;
+    background: #f0f0f0;
+    padding: 1pt 3pt;
+    border: 1px solid #ccc;
+  }
+  pre {
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 8pt;
+    overflow-x: auto;
+    font-size: 9pt;
+    line-height: 1.4;
+  }
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  blockquote {
+    border-left: 3px solid #000;
+    margin: 12pt 0;
+    padding: 4pt 12pt;
+    color: #333;
+    background: #f9f9f9;
+  }
+  hr {
+    border: none;
+    border-top: 1px solid #000;
+    margin: 20pt 0;
+  }
+  strong { font-weight: bold; }
+  ul, ol { margin: 6pt 0; padding-left: 24pt; }
+  li { margin: 3pt 0; }
+  a { color: #000; text-decoration: underline; }
+</style>
+
+</head>
+<body>
+<h1 id="mtr-scan-investigation-february-13-2026">MTR Scan Investigation — February 13, 2026</h1>
+<blockquote>
+<p>Investigation of 12 MTR scan files from <code>.MTR Validator Watch Folder Test/</code>
+Each PDF was read page-by-page and compared against system extraction records in <code>history/validations.jsonl</code></p>
+</blockquote>
+<hr />
+<h2 id="summary-table">Summary Table</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>File</th>
+<th>Material</th>
+<th>Heat</th>
+<th>Pages</th>
+<th>Extraction Quality</th>
+<th>Critical Issues</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>PO1966Li3</td>
+<td>4140/42</td>
+<td>4000026033</td>
+<td>7</td>
+<td>Good</td>
+<td>Minor: mid-radius hardness variations not captured</td>
+</tr>
+<tr>
+<td>2</td>
+<td>PO1946</td>
+<td>PEEK 450G</td>
+<td>(polymer)</td>
+<td>4</td>
+<td>Failed</td>
+<td>25 polymer properties completely missed</td>
+</tr>
+<tr>
+<td>3</td>
+<td>PO1918</td>
+<td>4140/4142</td>
+<td>79017611</td>
+<td>10</td>
+<td>Mostly Good</td>
+<td>Mid-radius hardness (304 BHN) missed; only surface (299) captured</td>
+</tr>
+<tr>
+<td>4</td>
+<td>PO1830</td>
+<td>L-80</td>
+<td>312734</td>
+<td>6</td>
+<td>Critical Failure</td>
+<td>Chemistry garbled, mechanicals null despite existing on page 6</td>
+</tr>
+<tr>
+<td>5</td>
+<td>626119</td>
+<td>9Cr 1Mo</td>
+<td>626119</td>
+<td>4</td>
+<td>Good</td>
+<td>Temper 720°C stored as 720.0 — needs C-to-F conversion for spec comparison</td>
+</tr>
+<tr>
+<td>6</td>
+<td>PO1783Li1.2</td>
+<td>9Cr (A0959X)</td>
+<td>A0959X</td>
+<td>14</td>
+<td>Partial</td>
+<td>S/Sn swapped, Charpy mean off by 1, temper °C vs °F</td>
+</tr>
+<tr>
+<td>7</td>
+<td>SK908-1874</td>
+<td>Inconel X-750</td>
+<td>JT707</td>
+<td>2</td>
+<td>Critical Failure</td>
+<td>Cb→Ta misattribution, V fabricated, mechanicals averaged across columns</td>
+</tr>
+<tr>
+<td>8</td>
+<td>SK908-1875</td>
+<td>Inconel X-750</td>
+<td>JT707</td>
+<td>2</td>
+<td>Critical Failure</td>
+<td>Same errors as 1874, Nb marked MISSING</td>
+</tr>
+<tr>
+<td>9</td>
+<td>472110</td>
+<td>German 420</td>
+<td>472110</td>
+<td>4</td>
+<td>Critical Failure</td>
+<td>Nb→V confusion, Charpy temp -40°C read as +10°C, temper missed</td>
+</tr>
+<tr>
+<td>10</td>
+<td>B4535</td>
+<td>X-750</td>
+<td>B4535</td>
+<td>1</td>
+<td>Mostly Good</td>
+<td>Ta qualifier lost, heat treat context missing</td>
+</tr>
+<tr>
+<td>11</td>
+<td>ASSEMBLY PO1628</td>
+<td>Multi (6 heats)</td>
+<td>Multiple</td>
+<td>30</td>
+<td>Never Processed</td>
+<td>Assembly MTR — unsupported architecture</td>
+</tr>
+<tr>
+<td>12</td>
+<td>P406278</td>
+<td>C36000 Brass</td>
+<td>P406278</td>
+<td>2</td>
+<td>Never Processed</td>
+<td>No brass spec, possible watcher path mismatch</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="detailed-file-by-file-analysis">Detailed File-by-File Analysis</h2>
+<h3 id="file-1-202602packing-slippo1966li3pdf-414042-heat-4000026033">File 1: <code>2026.02.Packing Slip.PO1966Li3.pdf</code> (4140/42, Heat 4000026033)</h3>
+<p><strong>Document</strong>: 7-page multi-document package (Packing Slip + EMJ Certificate of Conformance + Nucor Mill Cert)</p>
+<p><strong>Extraction Accuracy</strong>:
+- Heat: 4000026033 — CORRECT
+- Grade: 4140/42 — CORRECT
+- Supplier: NUCOR MEMPHIS — CORRECT
+- All 18 chemistry elements match exactly (C=0.42, Mn=0.95, P=0.009, S=0.012, Si=0.259, Cu=0.23, Ni=0.21, Cr=1.06, Mo=0.22, V=0.023, Al=0.026, B=0.0004, Sn=0.007, Ti=0.002, Nb=0.004, Ca=0.0005, As=0.004, Sb=0.003)
+- Yield=130 ksi, Tensile=148 ksi, Elongation=19%, RA=53% — ALL CORRECT
+- Temper=1241°F — CORRECT
+- Grain Size=5 — CORRECT</p>
+<p><strong>Minor Issues</strong>:
+- Hardness: Extracted 311 HBW (one mid-radius reading). PDF has 7 readings: Surface 308/310/313, Mid-radius 311/313/316/320
+- Charpy averages: 14°F avg extracted as 35.3 (CoC value), mill cert says 35.0. -20°F avg extracted as 25.7 (CoC), mill cert says 26.0. Extracted values are arithmetically more accurate.
+- Missing: Pb=0.000, Bi=0.000, Te=0.000, N=57 PPM, H=1 PPM, DI=7.10, E45A cleanliness, E381 macroetch</p>
+<p><strong>Verdict</strong>: Clean extraction. No validation impact.</p>
+<hr />
+<h3 id="file-2-202602packing-listpo1946pdf-peek-450g-polymer">File 2: <code>2026.02.Packing List.PO1946.pdf</code> (PEEK 450G Polymer)</h3>
+<p><strong>Document</strong>: 4-page package (Packing List + Purchase Order + Victrex Certificate of Analysis)</p>
+<p><strong>Extraction Accuracy</strong>:
+- System reported null for all mechanical properties
+- Document has 25 test properties on pages 3-4 including: Melt Viscosity, Tensile Strength, Tensile Modulus, Flexural Strength, Flexural Modulus, Compressive Strength, Notched Izod Impact, Unnotched Charpy Impact, HDT, Mould Shrinkage, etc.</p>
+<p><strong>Root Cause</strong>: Pipeline doesn't understand polymer/plastic material properties. The extraction prompt and spec schema are designed for metals (chemistry as element %, mechanical as yield/tensile/elongation). PEEK uses completely different property names, units, and test methods.</p>
+<p><strong>Spec Issue</strong>: Validated against ES-M2201C (PEEK spec) but mechanical extraction failed completely.</p>
+<p><strong>Verdict</strong>: Fundamental architecture gap — polymer MTR support needed.</p>
+<hr />
+<h3 id="file-3-202602docspo1918pdf-41404142-heat-79017611">File 3: <code>2026.02.DOCS.PO1918.pdf</code> (4140/4142, Heat 79017611)</h3>
+<p><strong>Document</strong>: 10-page package (B&amp;T Certificate of Compliance + EMJ Certificate of Conformance + Gerdau Mill MTR + Magellan Packing List)</p>
+<p><strong>Extraction Accuracy</strong>:
+- Heat: 79017611 — CORRECT
+- Grade: 4140/4142 — CORRECT
+- All 11 chemistry elements match exactly
+- Yield=137 ksi (0.2% offset) — CORRECT (0.6% EUL value of 138 ksi also exists but not standard)
+- Tensile=151 ksi, Elongation=28%, RA=50% — ALL CORRECT
+- Temper=1410°F — CORRECT
+- Grain Size=5-8 — CORRECT</p>
+<p><strong>Issues</strong>:
+- <strong>Hardness</strong>: Extracted 299 HBW (surface). <strong>Missed mid-radius hardness of 304 BHN</strong>. Depending on spec, mid-radius may be the controlling value.
+- <strong>Hydrogen</strong>: 1.70 PPM present on document but not extracted
+- <strong>Charpy 14°F avg</strong>: Gerdau MTR page 7 has erroneous <code>F_AVG_LONG_@_14F = 70.0</code> when individual values are 59,59,59 (avg=59.0). System correctly used 59.0 from the Jorgensen cert.</p>
+<p><strong>Verdict</strong>: Good extraction. Mid-radius hardness gap is the only meaningful issue.</p>
+<hr />
+<h3 id="file-4-202602docspo1830pdf-l-80-heat-312734">File 4: <code>2026.02.DOCS.PO1830.pdf</code> (L-80, Heat 312734)</h3>
+<p><strong>Document</strong>: 6-page package (DDIC Receiving Report + Pup Joint Bill of Lading + Pup Joint CoC + Benteler Inspection Certificate + Tejas Tubular MTR)</p>
+<p><strong>Extraction Accuracy — CRITICAL FAILURES</strong>:</p>
+<p><strong>Chemistry completely garbled</strong>: System extracted C=0.29, Mn=1.21, Si=0.19, Cr=0.18, Ni=0.08, Mo=0.08 — these match NO source in the document.
+- Benteler cert (page 4): C=0.160, Si=0.240, Mn=0.70, Cr=1.00
+- Tejas cert (page 6): C=0.420, Mn=0.980, Ni=1.000, Cr=0.180
+- Extracted values appear to be garbled averages or misreads from multiple pages</p>
+<p><strong>Mechanicals null</strong>: System reported yield=null, tensile=null. <strong>But page 6 (Tejas Tubular) has full data</strong>:
+- Yield: 91,516 psi (91.5 ksi) and 91,748 psi (91.7 ksi)
+- Tensile: 111,741 psi (111.7 ksi) and 110,553 psi (110.6 ksi)
+- Elongation: 28.5% and 28.0%
+- Hardness: ~20 HRC (well under 23 max)
+- Charpy: 88.0 ft-lbs avg at -32°F
+- Temper: 1340°F</p>
+<p><strong>Root Cause</strong>: Multi-document PDF confusion. Benteler cert has chemistry but no tensile data. Tejas cert on page 6 has both chemistry and full mechanicals. The pipeline mixed data from different pages/certs and missed the Tejas page entirely for mechanicals. Page 6 may also be rotated/landscape.</p>
+<p><strong>Verdict</strong>: Critical extraction failure. Multi-page document handling needs major improvement.</p>
+<hr />
+<h3 id="file-5-626119-3409-01-1783pdf-9cr-1mo-heat-626119">File 5: <code>626119-3409-01-1783.pdf</code> (9Cr 1Mo, Heat 626119)</h3>
+<p><strong>Document</strong>: 4-page package (Gerdau Mill Test Certificate + Bill of Lading)</p>
+<p><strong>Extraction Accuracy</strong>:
+- Heat: 626119 — CORRECT
+- All 12 chemistry elements match exactly (C=0.103, Mn=0.425, Si=0.642, P=0.013, S=0.004, Cr=8.650, Ni=0.123, Mo=0.992, Cu=0.151, Ti=0.0010, B=0.0001, Nb=0.0010)
+- Yield=83 ksi, Tensile=110 ksi, Elongation=23%, RA=67%, Hardness=235 HBW — ALL CORRECT
+- Charpy: 103,104,106 avg 104.33 ft-lbs at 14°F — CORRECT
+- NACE: MR0175/ISO 15156 referenced — CORRECT
+- Grain Size=7 — CORRECT</p>
+<p><strong>Issue</strong>:
+- <strong>Temper temperature</strong>: 720°C stored as 720.0. Document explicitly says "Tempering 720 degrees C". The ES-M0004A spec defines temper min as 1200°F. The validator compared 720.0 against 1200°F — a unit mismatch. 720°C = 1328°F, which PASSES (&gt;1200°F), but the system flagged it as FAIL because it compared raw numbers without converting.</p>
+<p><strong>Verdict</strong>: All extraction correct. <strong>C-to-F conversion bug</strong> is the only issue.</p>
+<hr />
+<h3 id="file-6-202602docspo1783li12pdf-9cr-a0959x-heat-a0959x">File 6: <code>2026.02.DOCS.PO1783Li1.2.pdf</code> (9Cr A0959X, Heat A0959X)</h3>
+<p><strong>Document</strong>: 14-page package (DDIC Receiving Report + Ship List + Tata Steel Inspection Certificate + Howco Delivery Note + AAA Cooper BOL + EMPCO CoC + Engineering Drawings + Inspection Reports + Work Order)</p>
+<p><strong>Extraction Accuracy</strong>:
+- Heat: A0959X — CORRECT
+- Chemistry mostly correct BUT:</p>
+<p><strong>S and Sn swapped</strong>:
+- Document: S=0.0020, Sn=0.005
+- System extracted: S=0.005, Sn=0.002
+- The pipeline confused Sulfur with Tin</p>
+<p><strong>Charpy values</strong>:
+- Document: individuals 105, 103, 105 ft-lbs, mean=104
+- System: reported as "104, 105, 103 mean 105" — mean is wrong (104 not 105), individual order garbled</p>
+<p><strong>Temper temperature</strong>: 680°C explicitly on document ("Temper at 680 deg C"). Same C-to-F issue as 626119. 680°C = 1256°F.</p>
+<p><strong>NACE</strong>: Document does NOT explicitly state NACE compliance. Hardness 232 HBW suggests compliance but certificate doesn't claim it.</p>
+<p><strong>Additional</strong>: Surface hardness 223/229 HBW also reported but not captured. Grain size 6-8 (McQuaid-Ehn method).</p>
+<p><strong>Verdict</strong>: S/Sn swap is a data corruption bug. Temper C-to-F conversion needed.</p>
+<hr />
+<h3 id="file-7-sk908-13628-1874pdf-inconel-x-750-heat-jt707">File 7: <code>SK908-13628-1874.pdf</code> (Inconel X-750, Heat JT707)</h3>
+<p><strong>Document</strong>: 2-page Gibbs Wire &amp; Steel Certificate of Analysis</p>
+<p><strong>Extraction Accuracy — CRITICAL FAILURES</strong>:</p>
+<p><strong>Element mapping errors</strong>:
+- <strong>Cb(=Nb)=0.89 misattributed to Ta</strong>: Document lists "Cb" (Columbium) = 0.89. System put this under Tantalum (Ta). Cb is the old American name for Niobium (Nb).
+- <strong>V=0.01 fabricated</strong>: Document shows V as blank. The 0.01 value is actually Ta (Tantalum). System shifted elements in the grid.
+- <strong>Ta=&lt;0.01 lost</strong>: The less-than qualifier was dropped</p>
+<p><strong>Mechanical values completely wrong</strong>:
+- Document has TWO columns: "Before Heat Treat" and "After Heat Treat"
+  - Pre-heat: TS=212,000 psi, YS=184,000 psi, EL=14-18%, HRC=44-48
+  - Post-heat: TS=260,000 psi, YS=200,000 psi, EL=20%, HRC=51
+- System extracted averages: TS=236,000 (avg of 212+260), YS=192,000 (avg of 184+200), HRC=47.5 (avg of 44+51)
+- <strong>The system averaged pre-heat and post-heat columns instead of picking post-heat values</strong></p>
+<p><strong>RA error</strong>: System extracted RA=20%, but 20% comes from the wrap test row, not the tensile test. Actual RA from tensile = 34%.</p>
+<p><strong>Verdict</strong>: Critical multi-column confusion. Pipeline cannot distinguish before/after heat treatment columns.</p>
+<hr />
+<h3 id="file-8-sk908-13628-1875pdf-inconel-x-750-heat-jt707">File 8: <code>SK908-13628-1875.pdf</code> (Inconel X-750, Heat JT707)</h3>
+<p><strong>Document</strong>: Same 2-page Gibbs Wire cert as File 7 (identical document, different part number)</p>
+<p><strong>Same extraction errors as File 7</strong> plus:
+- When validated against ES-M0009B spec, <strong>Nb was marked MISSING</strong> because the system stored Cb under Ta instead of Nb
+- The spec requires Nb (0.70-1.00), and the actual value Cb=0.89 would PASS, but it was never mapped correctly</p>
+<p><strong>Verdict</strong>: Same critical issues as File 7. Cb→Nb mapping fix would resolve.</p>
+<hr />
+<h3 id="file-9-472110-1975pdf-german-420-modified-heat-472110">File 9: <code>472110-1975.pdf</code> (German 420 Modified, Heat 472110)</h3>
+<p><strong>Document</strong>: 4-page Deutsche Edelstahlwerke (DEW) Inspection Certificate — bilingual German/English</p>
+<p><strong>Extraction Accuracy — CRITICAL FAILURES</strong>:</p>
+<p><strong>Nb misidentified as V</strong>:
+- Document chemistry columns: C, Si, Mn, P, S, Cr, Mo, Ni, Cu, <strong>Ti</strong>, <strong>Nb</strong>
+- Ti=≤0.002, <strong>Nb=0.028</strong>
+- System extracted <strong>V=0.028</strong> — there is NO vanadium column on this cert
+- The pipeline confused Nb with V</p>
+<p><strong>Charpy temperature completely wrong</strong>:
+- Document: test temperature = <strong>-40°C</strong>
+- System extracted: <strong>+10°C</strong>
+- A 50-degree error in the wrong direction</p>
+<p><strong>Temper temperature marked "not stated" but clearly present</strong>:
+- Page 1 heat treatment block: "970°C 1HR Polymer + 225°C 2HR oil/Air + <strong>715°C 2HR oil/Air</strong>"
+- The tempering temperature is 715°C (= 1319°F)
+- System failed to parse the heat treatment description</p>
+<p><strong>Mechanical values</strong>: Document has dual columns (MPa and ksi) for two specimens:
+- Specimen 78492: YS=591 MPa / 86 ksi, TS=767 MPa / 111 ksi
+- Specimen 78493: YS=593 MPa / 86 ksi, TS=771 MPa / 112 ksi
+- System extracted single values (likely averaged or picked one specimen)</p>
+<p><strong>Additional</strong>: NACE MR0175/ISO 15156:2020 explicitly listed. Grain size 7-8. Extensive hardness data (HRC quadrant + HBW traverse).</p>
+<p><strong>Verdict</strong>: Multiple critical extraction errors. Element mapping, temperature parsing, and heat treatment block parsing all need fixes.</p>
+<hr />
+<h3 id="file-10-b4535-1831pdf-inconel-x-750-heat-b4535">File 10: <code>B4535-1831.pdf</code> (Inconel X-750, Heat B4535)</h3>
+<p><strong>Document</strong>: 1-page single MTR</p>
+<p><strong>Extraction Accuracy</strong>:
+- Heat, grade, chemistry mostly correct
+- Mechanicals mostly correct</p>
+<p><strong>Issues</strong>:
+- <strong>Ta less-than qualifier lost</strong>: Document says Ta &lt;0.01, system stored as Ta=0.01 (loses the "&lt;" meaning)
+- <strong>Heat treatment context not preserved</strong>: Document specifies "After Heat Treat" column — system extracted values without noting this context
+- Units confirmed as KSI on document</p>
+<p><strong>Verdict</strong>: Mostly good. Minor qualifier handling issue.</p>
+<hr />
+<h3 id="file-11-202602assembleymtrpo1628pdf-assembly-6-heats-9-components">File 11: <code>2026.02.ASSEMBLEYMTR.PO1628.pdf</code> (Assembly — 6 heats, 9 components)</h3>
+<p><strong>Document</strong>: 30-page assembly MTR compilation from B&amp;T Oilfield Products for a 1-3/16" SM Pulling Tool Assembly</p>
+<p><strong>Never Processed</strong> — no validation record exists.</p>
+<p><strong>Document contains</strong>:
+- Cover page (B&amp;T Certificate of Compliance listing 9 line items)
+- 6 distinct heats across 4+ material grades:
+  - Heat D1914127 — 4140/42 (Core Nut, Core, Dog Washer)
+  - Heat JT707 — Inconel X-750 (Core Spring, Dog Spring)
+  - Heat 5393602 — 4140 (Fishneck)
+  - Heat 79018550 — 4130 (Tool Dog)
+  - Heat 20785750 — 4130 (Tool Skirt)
+  - Heat K31C — 303 Stainless (Shear Pin Cover)
+- Individual mill certs from: Asil Celik (Turkey), Gibbs Wire, HA Industries/Republic Steel, Gerdau, Charter Steel, North American Stainless
+- Heat treatment cert from Bodycote
+- Engineering drawings and inspection reports from DDIC</p>
+<p><strong>Root Cause</strong>: Pipeline architecture assumes one PDF = one heat = one spec. Cannot handle:
+- Document splitting (identify page boundaries between different MTRs)
+- Multiple heats per document
+- Multiple material grades per document
+- Assembly-level traceability</p>
+<p><strong>Verdict</strong>: Fundamental architecture limitation. Requires document splitter + multi-heat processing.</p>
+<hr />
+<h3 id="file-12-p406278-1953pdf-c36000-brass-heat-p406278">File 12: <code>P406278-1953.pdf</code> (C36000 Brass, Heat P406278)</h3>
+<p><strong>Document</strong>: 2-page package (EMJ Certificate of Conformance + Mueller Brass Certificate of Conformance)</p>
+<p><strong>Never Processed</strong> — no validation record exists.</p>
+<p><strong>Document contains</strong>:
+- Material: C36000 Free-Cutting Brass, 1/2 Hard, ASTM B16
+- Chemistry: Cu=61.40%, Pb=3.10%, Fe=0.15%, Zn=remainder
+- Both pages are scanned images with zero embedded text (Canon copier scan)</p>
+<p><strong>Root Causes for non-processing</strong>:
+1. <strong>Watch folder path mismatch</strong>: config.json points to <code>Z:/.MTR Validator Watch Folder Test</code> but file is in local repo path
+2. <strong>No brass spec</strong>: No ES-M#### spec exists for C36000 brass
+3. <strong>Pure image scan</strong>: No text layer — relies entirely on PaddleOCR</p>
+<p><strong>Verdict</strong>: Would need brass spec YAML + correct watch folder path.</p>
+<hr />
+<h2 id="systemic-issues-identified">Systemic Issues Identified</h2>
+<h3 id="1-temperature-unit-conversion-c-to-f">1. Temperature Unit Conversion (C-to-F)</h3>
+<p><strong>Affects</strong>: Files 5, 6, 9
+<strong>Problem</strong>: European mills report temper temperature in °C. Specs define limits in °F. System compares raw numbers (e.g., 720 vs 1200) without converting.
+<strong>Fix</strong>: Detect °C in extracted data, convert to °F before spec comparison.</p>
+<h3 id="2-element-mapping-cbnbtav-confusion">2. Element Mapping (Cb/Nb/Ta/V Confusion)</h3>
+<p><strong>Affects</strong>: Files 7, 8, 9
+<strong>Problem</strong>:
+- Cb (Columbium) = Nb (Niobium) — old American vs modern name
+- Pipeline shifts elements in grids, confusing Nb↔V↔Ta
+- Cb from Gibbs Wire certs mapped to Ta instead of Nb
+<strong>Fix</strong>: Normalize "Cb" → "Nb" in extraction. Improve grid parsing to handle blank cells.</p>
+<h3 id="3-pre-heat-post-heat-column-detection">3. Pre-Heat / Post-Heat Column Detection</h3>
+<p><strong>Affects</strong>: Files 7, 8
+<strong>Problem</strong>: Gibbs Wire certs have "Before Heat Treat" and "After Heat Treat" columns. Pipeline averages both instead of selecting post-heat values (which are the final certified properties).
+<strong>Fix</strong>: Claude prompt needs instruction to prefer "After Heat Treat" / "Final" / "As Shipped" column values.</p>
+<h3 id="4-ssn-element-swap">4. S/Sn Element Swap</h3>
+<p><strong>Affects</strong>: File 6
+<strong>Problem</strong>: Sulfur (S) and Tin (Sn) values swapped during extraction.
+<strong>Fix</strong>: Improve element identification in Claude prompt or add validation that S is typically &lt;0.05% and Sn is typically &lt;0.05%.</p>
+<h3 id="5-multi-page-document-handling">5. Multi-Page Document Handling</h3>
+<p><strong>Affects</strong>: File 4
+<strong>Problem</strong>: Multi-document PDFs (different certs from different companies bundled together) confuse the pipeline. Chemistry from one cert mixed with mechanicals from another. Later pages with critical data (Tejas cert on page 6) missed entirely.
+<strong>Fix</strong>: Improve Claude prompt to handle multi-page documents. Consider page-by-page extraction with consolidation.</p>
+<h3 id="6-charpy-temperature-extraction">6. Charpy Temperature Extraction</h3>
+<p><strong>Affects</strong>: File 9
+<strong>Problem</strong>: Test temperature -40°C extracted as +10°C (50-degree error in wrong direction).
+<strong>Fix</strong>: Improve parsing of negative temperatures and bilingual (German/English) certificate formats.</p>
+<h3 id="7-heat-treatment-block-parsing">7. Heat Treatment Block Parsing</h3>
+<p><strong>Affects</strong>: File 9
+<strong>Problem</strong>: Temper temperature embedded in a multi-step heat treatment description ("970°C 1HR + 225°C 2HR + 715°C 2HR") not parsed. System reported "not stated."
+<strong>Fix</strong>: Improve Claude prompt to recognize heat treatment description formats and extract the tempering step.</p>
+<h3 id="8-polymer-mtr-support">8. Polymer MTR Support</h3>
+<p><strong>Affects</strong>: File 2
+<strong>Problem</strong>: PEEK and other polymers use completely different property names (melt viscosity, flexural modulus, HDT, etc.) and test methods. Current schema only supports metal MTR properties.
+<strong>Fix</strong>: Major feature — needs polymer-specific extraction prompt and spec schema.</p>
+<h3 id="9-assembly-mtr-support">9. Assembly MTR Support</h3>
+<p><strong>Affects</strong>: File 11
+<strong>Problem</strong>: Assembly MTRs bundle 5-30+ pages with multiple heats, grades, and specs. Pipeline assumes one-heat-per-PDF.
+<strong>Fix</strong>: Major feature — needs document splitter, multi-heat processing, and assembly-level traceability.</p>
+<h3 id="10-error-audit-trail">10. Error Audit Trail</h3>
+<p><strong>Affects</strong>: Files 11, 12 (and potentially others)
+<strong>Problem</strong>: Files that fail to process leave no trace in history. <code>_auto_process_watched_file</code> marks file as processed in watcher memory but writes nothing to history if validation is None.
+<strong>Fix</strong>: Log failed attempts to history with error details.</p>
+<h3 id="11-less-than-qualifier-handling">11. Less-Than Qualifier Handling</h3>
+<p><strong>Affects</strong>: Files 7, 8, 10
+<strong>Problem</strong>: Values like "Ta &lt;0.01" stored as numeric 0.01, losing the "&lt;" qualifier. This matters for spec compliance — "&lt;0.01" means the actual value could be anywhere from 0 to 0.0099.
+<strong>Fix</strong>: Store qualifier separately or treat as upper bound for validation.</p>
+<hr />
+<h2 id="priority-matrix">Priority Matrix</h2>
+<table>
+<thead>
+<tr>
+<th>Priority</th>
+<th>Issue</th>
+<th>Impact</th>
+<th>Effort</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P1</strong></td>
+<td>C-to-F temperature conversion</td>
+<td>3 files affected, causes FAIL on passing material</td>
+<td>Low</td>
+</tr>
+<tr>
+<td><strong>P1</strong></td>
+<td>Cb/Nb/Ta/V element mapping</td>
+<td>3 files affected, causes MISSING/wrong element</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td><strong>P1</strong></td>
+<td>Pre-heat/post-heat column detection</td>
+<td>2 files affected, all mechanicals wrong</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td><strong>P2</strong></td>
+<td>Multi-page document handling</td>
+<td>1 file critical failure</td>
+<td>High</td>
+</tr>
+<tr>
+<td><strong>P2</strong></td>
+<td>S/Sn element swap</td>
+<td>1 file affected</td>
+<td>Low</td>
+</tr>
+<tr>
+<td><strong>P2</strong></td>
+<td>Charpy temperature extraction</td>
+<td>1 file affected, -40°C vs +10°C</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td><strong>P2</strong></td>
+<td>Heat treatment block parsing</td>
+<td>1 file affected, temper missed</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td><strong>P2</strong></td>
+<td>Error audit trail</td>
+<td>Silent failures</td>
+<td>Low</td>
+</tr>
+<tr>
+<td><strong>P3</strong></td>
+<td>Less-than qualifier handling</td>
+<td>Minor data fidelity</td>
+<td>Low</td>
+</tr>
+<tr>
+<td><strong>P3</strong></td>
+<td>Polymer MTR support</td>
+<td>1 file, new feature</td>
+<td>High</td>
+</tr>
+<tr>
+<td><strong>P3</strong></td>
+<td>Assembly MTR support</td>
+<td>1 file, architectural change</td>
+<td>Very High</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="validation-history-summary">Validation History Summary</h2>
+<p>From <code>history/validations.jsonl</code> — 18 records across 9 unique heats:</p>
+<table>
+<thead>
+<tr>
+<th>Heat</th>
+<th>Spec Used</th>
+<th>Result</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4000026033</td>
+<td>ES-M2201C → ES-M0001G</td>
+<td>FAIL → PASS</td>
+<td>Wrong spec first, re-validated correctly</td>
+</tr>
+<tr>
+<td>79017611</td>
+<td>ES-M2201C → ES-M0001G</td>
+<td>FAIL → PASS</td>
+<td>Same pattern</td>
+</tr>
+<tr>
+<td>312734</td>
+<td>ES-M2201C → ES-M0001G</td>
+<td>FAIL → INCOMPLETE</td>
+<td>Chemistry garbled, mechanicals null</td>
+</tr>
+<tr>
+<td>626119</td>
+<td>ES-M2201C → ES-M0004A</td>
+<td>FAIL → FAIL</td>
+<td>Temper °C vs °F caused false FAIL</td>
+</tr>
+<tr>
+<td>A0959X</td>
+<td>ES-M2201C → ES-M0004A</td>
+<td>FAIL → FAIL</td>
+<td>S/Sn swap + temper °C/°F</td>
+</tr>
+<tr>
+<td>JT707 (1874)</td>
+<td>ES-M2201C → ES-M0009B</td>
+<td>FAIL → INCOMPLETE</td>
+<td>Cb→Nb mapping failure</td>
+</tr>
+<tr>
+<td>JT707 (1875)</td>
+<td>ES-M0009B</td>
+<td>INCOMPLETE</td>
+<td>Same heat, same errors</td>
+</tr>
+<tr>
+<td>472110</td>
+<td>ES-M2201C → ES-M0003E</td>
+<td>FAIL → FAIL</td>
+<td>Nb→V, Charpy temp wrong, temper missed</td>
+</tr>
+<tr>
+<td>B4535</td>
+<td>ES-M2201C → ES-M0009B</td>
+<td>FAIL → FAIL</td>
+<td>Initially wrong spec</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Pattern</strong>: 8 of 10 first-attempt validations used ES-M2201C (PEEK plastic spec) as the default, then were re-validated with correct metal specs. The spec auto-detection was not working or defaulting to the wrong spec.</p>
+</body>
+</html>

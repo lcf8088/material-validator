@@ -3,8 +3,8 @@
 # ============================================================
 
 id: "ES-M0004E"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "4340 Alloy Steel Annealed"
 grades:
   - "4340"
@@ -13,17 +13,16 @@ uns: "G43400"
 condition: "Annealed"
 
 chemistry:
-  C:  { min: 0.37, max: 0.43 }
+  C:  { min: 0.38, max: 0.43 }
   Mn: { min: 0.60, max: 0.80 }
+  Cr: { min: 0.70, max: 0.90 }
+  Mo: { min: 0.20, max: 0.30 }
+  Ni: { min: 1.65, max: 2.00 }
   P:  { max: 0.035 }
   S:  { max: 0.040 }
-  Si: { min: 0.15, max: 0.30 }
-  Cr: { min: 0.70, max: 0.90 }
-  Ni: { min: 1.65, max: 2.00 }
-  Mo: { min: 0.20, max: 0.30 }
+  Si: { min: 0.15, max: 0.35 }
 
 mechanical:
   hardness_hrc: { max: 27 }
-  hardness_hbw: { max: 262 }
 
 special_requirements: []

@@ -137,6 +137,22 @@ Parse the document into structured JSON.
 **MULTI-DOCUMENT PDFs**:
 - This PDF may contain multiple documents from different companies (packing slips, distributor certs, mill certs). Always prefer the ORIGINAL MILL TEST REPORT as the authoritative source for chemistry and mechanical properties. If different pages show conflicting chemistry, use the mill's values, not the distributor's.
 
+**NON-METAL MTRs** (elastomers, plastics, carbides — extract the fields below when present):
+- **Hardness scales vary by material class**:
+  - `hardness_shore_a` — elastomers (FKM/Viton, FEPM/Aflas, HNBR). Typical range 60-95, test method ASTM D2240. The label may be "Shore A", "Durometer A", or just "Hardness" when the test method cell says "ASTM D2240 Shore A".
+  - `hardness_shore_d` — rigid plastics (PTFE, PEEK, Nylatron). Typical range 50-90, test method ASTM D2240.
+  - `hardness_hra` — cemented carbides (tungsten carbide balls, grade C2). Typical range 85-95, test method ASTM B294.
+- **Stress units for polymers**: Elastomer tensile data is typically in psi (ASTM D412); rigid plastic tensile data is in psi or MPa (ASTM D638). Preserve whichever unit appears on the CoA.
+- **Tensile reporting conventions**:
+  - Ductile thermoplastics (PEEK, Nylatron): the CoA usually reports "Tensile Strength at Yield" — this is the yield strength; report it under `yield_strength` with its unit.
+  - Elastomers and PTFE: the CoA reports "Tensile Strength at Break" — report it under `tensile_strength`.
+- `specific_gravity` — unitless ratio (sometimes given as "g/cm³"); report the bare number.
+- `modulus_of_elasticity` — typically ksi or psi for plastics.
+- `transverse_rupture_strength` — cemented carbides only (ASTM B406), ksi.
+- `tensile_modulus_100` — elastomer 100% modulus (ASTM D412).
+- `compression_set` — elastomer compression set percentage (ASTM D395).
+- If the non-metal supplier only provides a CoC/CoA with a few fields, populate what is present and leave the rest null.
+
 **OCR TEXT** (use for precise character values):
 {ocr_text}
 
@@ -167,7 +183,18 @@ Parse the document into structured JSON.
     "reduction_of_area": 0.0,
     "hardness_hbw": null,
     "hardness_hrc": null,
-    "hardness_hrb": null
+    "hardness_hrb": null,
+    "hardness_hra": null,
+    "hardness_shore_a": null,
+    "hardness_shore_d": null,
+    "specific_gravity": null,
+    "modulus_of_elasticity": null,
+    "modulus_of_elasticity_unit": null,
+    "transverse_rupture_strength": null,
+    "transverse_rupture_strength_unit": null,
+    "tensile_modulus_100": null,
+    "tensile_modulus_100_unit": null,
+    "compression_set": null
   }},
   "charpy_impact": null,
   "charpy_temperature": null,

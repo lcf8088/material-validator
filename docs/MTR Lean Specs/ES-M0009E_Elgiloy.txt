@@ -1,0 +1,42 @@
+## Scope
+
+Elgiloy (UNS R30003) cobalt-chromium-nickel-molybdenum alloy, suitable for sour service per ANSI/NACE MR0175/ISO 15156.
+
+## Chemical Composition
+
+| Element | Minimum (%) | Maximum (%) |
+|---------|-------------|-------------|
+| Co      | 39.0        | 41.0        |
+| Cr      | 19.0        | 21.0        |
+| Ni      | 14.0        | 16.0        |
+| Mo      | 6.0         | 8.0         |
+| Mn      | 1.00        | 2.00        |
+| Fe      | Remainder   | Remainder   |
+| S       | -           | 0.015       |
+
+## Heat Treatment Condition
+
+Cold Drawn and Aged per ANSI/NACE MR0175/ISO 15156.
+
+## Mechanical Properties
+
+Mechanical properties shall be verified by tests conducted on a representative sample from the same heat, size, and heat treat lot. Material stress relieved after cold working in excess of 5% is exempt from re-testing provided the stress relief temperature does not exceed the original tempering temperature.
+
+| Property         | Minimum  | Maximum  | Test Method    |
+|------------------|----------|----------|----------------|
+| Yield Strength   | 180 ksi  | -        | ASTM E8        |
+| Tensile Strength | 220 ksi  | -        | ASTM E8        |
+| Elongation       | 3%       | -        | ASTM E8        |
+| Hardness         | -        | 60 HRC   | ASTM E18       |
+
+## Receiving
+
+A Certificate of Conformance (CoC) and Material Test Report (MTR) are required; the MTR shall include grade, heat number, chemical analysis, hardness, heat treat condition, and endorsement by authorized personnel.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 01/21/2008 | Original version, DDIMS63A |
+| - | 0 | 04/01/2024 | Copy to new word format. Change specification number to new style, remove the DDIMS number. Change revision number from letters to numbers. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Corrected Mn range from 1.50-2.50% to 1.00-2.00% per ASTM F1058. Replaced A370 with E8 (cobalt alloy, not steel). Updated mechanical properties to reflect CW+Aged spring temper per MTR verification: YS raised from 70 to 180 ksi, UTS raised from 140 to 220 ksi, added elongation 3% min and hardness 60 HRC max per NACE MR0175. Chemistry reduced to alloy-defining and sour-service-critical elements only. |

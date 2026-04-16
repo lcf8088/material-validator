@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTR Extraction Workflow</title>
+
+<style>
+  @media print {
+    body { margin: 0.5in; }
+    h1 { page-break-before: avoid; }
+    table, pre, blockquote { page-break-inside: avoid; }
+  }
+  body {
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #000;
+    background: #fff;
+    max-width: 8.5in;
+    margin: 0 auto;
+    padding: 0.5in;
+  }
+  h1 { font-size: 18pt; border-bottom: 2px solid #000; padding-bottom: 4pt; margin-top: 24pt; }
+  h2 { font-size: 14pt; border-bottom: 1px solid #000; padding-bottom: 3pt; margin-top: 20pt; }
+  h3 { font-size: 12pt; margin-top: 16pt; }
+  h4 { font-size: 11pt; margin-top: 12pt; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12pt 0;
+    font-size: 10pt;
+  }
+  th, td {
+    border: 1px solid #000;
+    padding: 4pt 6pt;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #e0e0e0;
+    font-weight: bold;
+  }
+  tr:nth-child(even) td {
+    background: #f5f5f5;
+  }
+  code {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 10pt;
+    background: #f0f0f0;
+    padding: 1pt 3pt;
+    border: 1px solid #ccc;
+  }
+  pre {
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 8pt;
+    overflow-x: auto;
+    font-size: 9pt;
+    line-height: 1.4;
+  }
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  blockquote {
+    border-left: 3px solid #000;
+    margin: 12pt 0;
+    padding: 4pt 12pt;
+    color: #333;
+    background: #f9f9f9;
+  }
+  hr {
+    border: none;
+    border-top: 1px solid #000;
+    margin: 20pt 0;
+  }
+  strong { font-weight: bold; }
+  ul, ol { margin: 6pt 0; padding-left: 24pt; }
+  li { margin: 3pt 0; }
+  a { color: #000; text-decoration: underline; }
+</style>
+
+</head>
+<body>
+<h1 id="mtr-extraction-workflow">MTR Extraction Workflow</h1>
+<p>This document describes how to extract and validate Material Test Reports.</p>
+<h2 id="quick-workflow">Quick Workflow</h2>
+<h3 id="step-1-convert-pdf-to-images-if-needed">Step 1: Convert PDF to Images (if needed)</h3>
+<pre><code class="language-bash">python validate.py --pdf path/to/mtr.pdf
+</code></pre>
+<p>Output: PNG images in your system temp directory under <code>mtr_extraction/</code></p>
+<h3 id="step-2-extract-data-via-vision">Step 2: Extract Data via Vision</h3>
+<p>Send the image to Cipher with this prompt:</p>
+<pre><code>Extract the MTR data from this image into JSON format:
+{
+  &quot;heat_number&quot;: &quot;...&quot;,
+  &quot;material_grade&quot;: &quot;...&quot;,
+  &quot;uns&quot;: &quot;...&quot;,
+  &quot;supplier&quot;: &quot;...&quot;,
+  &quot;chemistry&quot;: {&quot;C&quot;: 0.00, &quot;Mn&quot;: 0.00, ...},
+  &quot;mechanical&quot;: {&quot;yield_strength&quot;: 0.0, &quot;tensile_strength&quot;: 0.0, ...},
+  &quot;temper_temperature&quot;: 0
+}
+</code></pre>
+<h3 id="step-3-save-and-validate">Step 3: Save and Validate</h3>
+<p>Save the extracted JSON to a file (e.g., <code>extracted-mtr.json</code>), then:</p>
+<pre><code class="language-bash"># Validate with auto-detection
+python validate.py --json extracted-mtr.json --auto
+
+# Or specify spec
+python validate.py --json extracted-mtr.json --spec ES-M0001G
+</code></pre>
+<h2 id="extraction-prompt">Extraction Prompt</h2>
+<p>For consistent extraction, use this prompt with the image:</p>
+<pre><code>Analyze this Material Test Report (MTR) and extract all data into JSON.
+
+Required fields:
+- heat_number: The heat/lot number
+- material_grade: Material grade (e.g., &quot;4140&quot;, &quot;303 SS&quot;)
+- uns: UNS number if shown
+- supplier: Mill or supplier name
+
+Chemistry (% by weight):
+- Extract all elements: C, Mn, P, S, Si, Cr, Ni, Mo, etc.
+- Convert percentages to decimal (0.04% → 0.04)
+
+Mechanical properties:
+- yield_strength (ksi)
+- tensile_strength (ksi)  
+- elongation (%)
+- reduction_of_area (%)
+- hardness_hrc or hardness_hbw
+
+Special (if shown):
+- temper_temperature (°F)
+- nace_compliant (true/false)
+- charpy_impact
+
+Return ONLY valid JSON, no markdown or explanation.
+</code></pre>
+<h2 id="cli-reference">CLI Reference</h2>
+<pre><code class="language-bash"># List specs
+python validate.py --list-specs
+
+# Show spec details
+python validate.py --show-spec ES-M0003A
+
+# Validate with auto-detection
+python validate.py --json mtr.json --auto
+
+# Validate against specific spec
+python validate.py --json mtr.json --spec ES-M0001G
+
+# Convert PDF to images
+python validate.py --pdf cert.pdf
+
+# Show extraction prompt
+python validate.py --extract-prompt
+</code></pre>
+<h2 id="available-specifications">Available Specifications</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Material</th>
+<th>Min YS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ES-M0001C</td>
+<td>4140/4142 Standard</td>
+<td>80 ksi</td>
+</tr>
+<tr>
+<td>ES-M0001G</td>
+<td>4140/4142 110 MYS</td>
+<td>110 ksi</td>
+</tr>
+<tr>
+<td>ES-M0003A</td>
+<td>303 Stainless Steel</td>
+<td>30 ksi</td>
+</tr>
+<tr>
+<td>ES-M0003E</td>
+<td>13Cr / 420 SS</td>
+<td>80-95 ksi</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

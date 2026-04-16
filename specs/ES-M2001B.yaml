@@ -3,8 +3,8 @@
 # ============================================================
 
 id: "ES-M2001B"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "Re-Processed Polytetrafluoroethylene (PTFE)"
 grades:
   - "PTFE"
@@ -16,7 +16,8 @@ condition: "Re-Processed"
 chemistry: {}
 
 mechanical:
-  tensile_strength: { min: 1450, unit: psi }
+  tensile_strength: { min: 10, unit: MPa }
   elongation:       { min: 75, unit: '%' }
+  specific_gravity: { min: 2.16 }
 
 special_requirements: []

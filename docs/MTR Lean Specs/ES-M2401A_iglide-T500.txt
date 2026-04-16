@@ -1,0 +1,27 @@
+## Scope
+
+iglide T500 thermoplastic bearing material.
+
+## Chemical Composition
+
+Compound composition is proprietary. Material shall conform to the industry standard for iglide T500 per supplier's material data sheet.
+
+## Heat Treatment Condition
+
+Not applicable (thermoplastic material).
+
+## Mechanical Properties
+
+Mechanical properties shall conform to the iglide T500 supplier's published material data sheet. The supplier data sheet is adopted as the controlled acceptance standard for this material.
+
+## Receiving
+
+A Certificate of Conformance (CoC) is required, stating batch number and compound identification as applicable.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 06/30/2021 | Original version |
+| - | 0 | 04/01/2024 | Copy to new word format. Change specification number to new style, remove the DDIMS number. Change revision number from letters to numbers. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Handling, storage, labeling, and shelf life requirements covered by PP.017. No change to acceptance criteria. |

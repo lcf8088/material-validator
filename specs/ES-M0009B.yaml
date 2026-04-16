@@ -3,8 +3,8 @@
 # ============================================================
 
 id: "ES-M0009B"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-04-02"
 material: "Inconel X-750 Spring Alloy"
 grades:
   - "X-750"
@@ -12,24 +12,22 @@ grades:
   - "Alloy X-750"
   - "N07750"
 uns: "N07750"
-condition: "Precipitation Hardened"
+condition: "Cold Drawn and Aged"
 
+# Lean spec defines combined Nb+Ta limit 0.70-1.20%; tracked under Nb
+# (Ta contribution is typically small in X-750 heats).
 chemistry:
-  C:  { max: 0.08 }
-  Mn: { max: 1.70 }
-  S:  { max: 0.01 }
-  Si: { max: 0.50 }
-  Cr: { min: 14.00, max: 17.00 }
-  Al: { min: 0.40, max: 1.00 }
-  Ti: { min: 2.25, max: 2.75 }
-  Cu: { max: 0.50 }
-  Fe: { min: 5.00, max: 9.00 }
-  Nb: { min: 0.70, max: 1.20 }
   Ni: { min: 70.00 }
+  Cr: { min: 14.0, max: 17.0 }
+  Ti: { min: 2.25, max: 2.75 }
+  Al: { min: 0.40, max: 1.00 }
+  Nb: { min: 0.70, max: 1.20 }
+  Fe: { min: 5.0, max: 9.0 }
+  S:  { max: 0.01 }
 
 mechanical:
-  yield_strength:    { min: 160, max: 250, unit: ksi }
-  tensile_strength:  { min: 180, max: 260, unit: ksi }
+  yield_strength:    { min: 160, unit: ksi }
+  tensile_strength:  { min: 180, unit: ksi }
   elongation:        { min: 4, unit: '%' }
   hardness_hrc:      { max: 50 }
 

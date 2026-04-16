@@ -1,0 +1,34 @@
+## Scope
+
+Reconstituted Polyetheretherketone (PEEK).
+
+## Chemical Composition
+
+Compound composition is proprietary. Material shall conform to the industry standard for reconstituted PEEK per supplier's compound data sheet.
+
+## Heat Treatment Condition
+
+Not applicable (thermoplastic material).
+
+## Mechanical Properties
+
+| Property                  | Minimum    | Maximum | Test Method        |
+|---------------------------|------------|---------|--------------------|
+| Tensile Strength at Yield | 12,000 psi | -       | ASTM D638          |
+| Elongation at Break       | 10%        | -       | ASTM D638          |
+| Modulus of Elasticity     | -          | -       | ASTM D638          |
+| Hardness                  | -          | -       | ASTM D2240 Shore D |
+| Specific Gravity          | -          | -       | ASTM D792          |
+
+Note: Tensile strength at break and elongation at yield are excluded per risk assessment. For ductile PEEK, tensile strength at yield is the maximum engineering stress and the controlling acceptance criterion; tensile strength at break (post-necking) is lower per ASTM D638 for ductile thermoplastics, and API 14L permits "at yield or at break." Elongation at yield is a dependent property governed by tensile strength and modulus — anomalous yield elongation cannot occur when both are in specification. Modulus, hardness, and specific gravity values to be set from supplier COA.
+
+## Receiving
+
+A Certificate of Conformance (CoC) is required, stating batch number, cure date, and compound identification.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | 0 | 04/01/2024 | Original version |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Handling, storage, labeling, and shelf life requirements covered by PP.017. Restructured properties per risk assessment: removed tensile at break (14L permits yield or break; yield is controlling for ductile PEEK) and elongation at yield (dependent property governed by tensile and modulus). Modulus, hardness, and SG values pending supplier COA. |

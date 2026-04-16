@@ -1,0 +1,51 @@
+## Scope
+
+AISI 1026 (UNS G10260) carbon steel.
+
+## Chemical Composition
+
+| Element | Minimum (%) | Maximum (%) |
+|---------|-------------|-------------|
+| C       | 0.22        | 0.28        |
+| Mn      | 0.60        | 0.90        |
+| P       | -           | 0.040       |
+| S       | -           | 0.050       |
+
+## Heat Treatment Condition
+
+Cold Drawn (Drawn Over Mandrel).
+
+## Mechanical Properties
+
+Mechanical properties shall be verified by tests conducted on a representative sample from the same heat, size, and heat treat lot. Material stress relieved after cold working in excess of 5% is exempt from re-testing provided the stress relief temperature does not exceed the original tempering temperature.
+
+**OD up to 2.75 in, wall thickness 0.125 in max:**
+
+| Property         | Minimum | Maximum | Test Method    |
+|------------------|---------|---------|----------------|
+| Yield Strength   | 70 ksi  | -       | ASTM A370 / E8 |
+| Tensile Strength | 80 ksi  | -       | ASTM A370 / E8 |
+| Elongation       | 10%     | -       | ASTM A370 / E8 |
+| Hardness         | 78 Rb   | -       | ASTM E18       |
+
+**OD over 2.75 in, wall thickness over 0.125 in:**
+
+| Property         | Minimum | Maximum | Test Method    |
+|------------------|---------|---------|----------------|
+| Yield Strength   | 60 ksi  | -       | ASTM A370 / E8 |
+| Tensile Strength | 70 ksi  | -       | ASTM A370 / E8 |
+| Elongation       | 15%     | -       | ASTM A370 / E8 |
+| Hardness         | 78 Rb   | -       | ASTM E18       |
+
+## Receiving
+
+A Certificate of Conformance (CoC) and Material Test Report (MTR) are required; the MTR shall include grade, heat number, chemical analysis, mechanical properties, hardness, and endorsement by authorized personnel.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 01/21/2008 | Original Version DDIMS02 |
+| - | 0 | 04/01/2024 | Copy to new word format. Change specification number to new style, remove the DDIMS number. Change revision number from letters to numbers. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Set HT condition to "Cold Drawn (Drawn Over Mandrel)". Added hardness min 78 Rb to both size tables per original spec. |
+

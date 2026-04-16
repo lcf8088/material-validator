@@ -1,0 +1,35 @@
+## Scope
+
+Virgin Polyetheretherketone (PEEK).
+
+## Chemical Composition
+
+Compound composition is proprietary. Material shall conform to the industry standard for virgin PEEK per supplier's compound data sheet.
+
+## Heat Treatment Condition
+
+Not applicable (thermoplastic material).
+
+## Mechanical Properties
+
+| Property                  | Minimum     | Maximum | Test Method        |
+|---------------------------|-------------|---------|--------------------|
+| Tensile Strength at Yield | 13,000 psi  | -       | ASTM D638          |
+| Elongation at Break       | 30%         | -       | ASTM D638          |
+| Modulus of Elasticity     | 430,000 psi | -       | ASTM D638          |
+| Hardness                  | 82          | 88      | ASTM D2240 Shore D |
+| Specific Gravity          | 1.28        | 1.32    | ASTM D792          |
+
+Note: Tensile strength at break and elongation at yield are excluded per risk assessment. For ductile PEEK, tensile strength at yield is the maximum engineering stress and the controlling acceptance criterion; tensile strength at break (post-necking) is lower per ASTM D638 for ductile thermoplastics, and API 14L permits "at yield or at break." Elongation at yield is a dependent property governed by tensile strength and modulus — anomalous yield elongation cannot occur when both are in specification.
+
+## Receiving
+
+A Certificate of Conformance (CoC) is required, stating batch number, cure date, and compound identification.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 01/21/2008 | Original version DDIMS104 |
+| - | 0 | 04/01/2024 | Copy to new word format. Change specification number to new style, remove the DDIMS number. Change revision number from letters to numbers. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Handling, storage, labeling, and shelf life requirements covered by PP.017. Restructured properties per risk assessment: removed tensile at break (14L permits yield or break; yield is controlling for ductile PEEK) and elongation at yield (dependent property governed by tensile and modulus). Set acceptance values from supplier COA. YS adjusted from 13,200 to 13,000 psi per compounder specification. |

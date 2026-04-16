@@ -3,14 +3,14 @@
 # ============================================================
 
 id: "ES-M0002A"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "1018 Carbon Steel"
 grades:
   - "1018"
   - "AISI 1018"
 uns: "G10180"
-condition: "Hot Worked / Cold Worked"
+condition: "Hot Worked, Cold Worked, or Cold Worked and Stress Relieved"
 
 chemistry:
   C:  { min: 0.15, max: 0.20 }
@@ -22,7 +22,5 @@ mechanical:
   yield_strength:    { min: 60, unit: ksi }
   tensile_strength:  { min: 70, unit: ksi }
   elongation:        { min: 10, unit: '%' }
-  reduction_of_area: { min: 40, unit: '%' }
-  hardness_hbw:      { min: 126 }
 
 special_requirements: []

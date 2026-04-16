@@ -1,10 +1,12 @@
 # ============================================================
 # DDIC Material Specification: ES-M0004F
+# Chemistry-only spec. Mechanical properties established by manufacturer's
+# subsequent case hardening process.
 # ============================================================
 
 id: "ES-M0004F"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "8620 Low Alloy Steel"
 grades:
   - "8620"
@@ -15,11 +17,12 @@ condition: "As Supplied"
 chemistry:
   C:  { min: 0.18, max: 0.23 }
   Mn: { min: 0.70, max: 0.90 }
+  Ni: { min: 0.40, max: 0.70 }
+  Cr: { min: 0.40, max: 0.60 }
+  Mo: { min: 0.15, max: 0.25 }
   P:  { max: 0.035 }
   S:  { max: 0.040 }
   Si: { min: 0.15, max: 0.35 }
-  Cr: { min: 0.40, max: 0.60 }
-  Mo: { min: 0.15, max: 0.25 }
 
 mechanical: {}
 

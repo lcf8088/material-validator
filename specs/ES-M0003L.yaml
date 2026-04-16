@@ -1,10 +1,11 @@
 # ============================================================
 # DDIC Material Specification: ES-M0003L
+# 316/316L. 316L grade: C max is 0.030% (per lean spec note).
 # ============================================================
 
 id: "ES-M0003L"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "316/316L Stainless Steel"
 grades:
   - "316"
@@ -17,27 +18,20 @@ grades:
   - "Type 316L"
   - "UNS S31600"
 uns: "S31600"
-condition: "Solution Annealed and Cold Drawn"
+condition: "Solution Annealed"
 
 chemistry:
   C:  { max: 0.08 }
-  Mn: { max: 2.00 }
-  P:  { max: 0.045 }
-  S:  { max: 0.030 }
-  Si: { max: 1.00 }
   Cr: { min: 16.00, max: 18.00 }
   Ni: { min: 10.00, max: 14.00 }
   Mo: { min: 2.00, max: 3.00 }
+  P:  { max: 0.045 }
+  S:  { max: 0.030 }
 
 mechanical:
   yield_strength:    { min: 30, unit: ksi }
   tensile_strength:  { min: 75, unit: ksi }
   elongation:        { min: 30, unit: '%' }
-  reduction_of_area: { min: 40, unit: '%' }
   hardness_hrc:      { max: 22 }
-  hardness_hbw:      { max: 241 }
 
-special_requirements:
-  - type: nace_compliance
-    required: true
-    note: "ANSI/NACE MR0175-2021/ISO 15156-3:2020 compliant"
+special_requirements: []

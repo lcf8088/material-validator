@@ -3,8 +3,8 @@
 # ============================================================
 
 id: "ES-M0001A"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "4130 Chromium Molybdenum Low Alloy Steel 80MYS 22HRc Max"
 grades:
   - "4130"
@@ -15,18 +15,16 @@ condition: "Quench and Tempered"
 chemistry:
   C:  { min: 0.28, max: 0.33 }
   Mn: { min: 0.40, max: 0.60 }
+  Cr: { min: 0.80, max: 1.10 }
+  Mo: { min: 0.15, max: 0.25 }
   P:  { max: 0.035 }
   S:  { max: 0.040 }
   Si: { min: 0.15, max: 0.35 }
-  Cr: { min: 0.80, max: 1.10 }
-  Mo: { min: 0.15, max: 0.25 }
 
 mechanical:
   yield_strength:    { min: 80, unit: ksi }
   tensile_strength:  { min: 95, unit: ksi }
   elongation:        { min: 15, unit: '%' }
-  reduction_of_area: { min: 35, unit: '%' }
-  hardness_hbw:      { min: 203, max: 239 }
-  hardness_hrc:      { min: 16, max: 22 }
+  hardness_hrc:      { max: 22 }
 
 special_requirements: []

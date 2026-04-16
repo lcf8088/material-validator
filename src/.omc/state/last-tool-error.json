@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd /c/Users/qascanner/Documents/GitHub/material-validator/src && python -c \\\"\\nimport json, logging\\nlogging.basicConfig(level=logging.INFO, format='%(name)s - %(message)s')\\n\\nwith open('...",
+  "error": "Exit code 1\nlib.pipeline - Pipeline [5%] Extracting text (staged)...\r\nlib.pipeline - [TIMING] 2026.02.DOCS.PO2022.pdf | extract_native_text: 0.1s (7858 chars)\r\nlib.pipeline - Page coverage too low: 6/19 pages have text\r\nlib.pipeline - [TIMING] 2026.02.DOCS.PO2022.pdf | Stage 1 quality check (Haiku): 0.0s -> FAIL\r\nlib.pipeline - Stage 1 FAILED: direct text (7858 chars), escalating to OCR@150\r\nlib.pipeline - [TIMING] 2026.02.DOCS.PO2022.pdf | pdf_to_images@150: 1.8s (19 pages)\r\nlib.pipeline - [TIM...",
+  "timestamp": "2026-03-13T14:17:35.971Z",
+  "retry_count": 1
+}

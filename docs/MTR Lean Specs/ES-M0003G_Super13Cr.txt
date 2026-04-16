@@ -1,0 +1,116 @@
+## Scope
+
+Super 13Cr martensitic stainless steel, restricted to UNS S41425, S41426, S41427, JFE KO-HP2-13CR-95, and NKK NK-CR13S-95, suitable for sour service per ANSI/NACE MR0175/ISO 15156.
+
+## Chemical Composition
+
+### UNS S41425 (Foroni)
+
+| Element | Minimum (%) | Maximum (%) |
+|---------|-------------|-------------|
+| C       | -           | 0.05        |
+| Mn      | 0.50        | 1.00        |
+| P       | -           | 0.020       |
+| S       | -           | 0.005       |
+| Cr      | 12.00       | 15.00       |
+| Ni      | 4.00        | 7.00        |
+| Mo      | 1.50        | 2.00        |
+| N       | 0.06        | 0.12        |
+| Cu      | -           | 0.30        |
+
+### UNS S41426 (Sumitomo/BGH)
+
+| Element | Minimum (%) | Maximum (%) |
+|---------|-------------|-------------|
+| C       | -           | 0.03        |
+| Mn      | -           | 0.50        |
+| P       | -           | 0.020       |
+| S       | -           | 0.005       |
+| Cr      | 11.80       | 13.50       |
+| Ni      | 4.50        | 6.50        |
+| Mo      | 1.50        | 3.00        |
+| Ti      | 0.01        | 0.50        |
+| V       | -           | 0.50        |
+
+### UNS S41427 (Liberty/TATA/Corus)
+
+| Element | Minimum (%) | Maximum (%) |
+|---------|-------------|-------------|
+| C       | -           | 0.03        |
+| Mn      | -           | 1.00        |
+| P       | -           | 0.020       |
+| S       | -           | 0.005       |
+| Cr      | 12.00       | 13.50       |
+| Ni      | 4.50        | 6.00        |
+| Mo      | 1.50        | 2.50        |
+| Ti      | -           | 0.01        |
+| V       | 0.10        | 0.50        |
+
+### JFE (KO-HP2-13CR-95)
+
+| Element | Minimum (%) | Maximum (%) |
+|---------|-------------|-------------|
+| C       | -           | 0.03        |
+| Mn      | -           | 0.50        |
+| P       | -           | 0.020       |
+| S       | -           | 0.005       |
+| Cr      | 11.80       | 13.50       |
+| Ni      | 4.50        | 6.50        |
+| Mo      | 1.80        | 2.50        |
+| Ti      | 0.01        | 0.50        |
+| V       | -           | 0.50        |
+| N       | -           | 0.12        |
+| Cu      | -           | 0.30        |
+
+### NKK (NK-CR13S-95)
+
+| Element | Minimum (%) | Maximum (%) |
+|---------|-------------|-------------|
+| C       | -           | 0.05        |
+| Mn      | -           | 0.50        |
+| P       | -           | 0.020       |
+| S       | -           | 0.005       |
+| Cr      | 12.00       | 14.00       |
+| Ni      | 4.50        | 6.00        |
+| Mo      | 1.80        | 2.50        |
+| Cu      | -           | 0.30        |
+
+## Heat Treatment Condition
+
+Quenched and Tempered per ANSI/NACE MR0175/ISO 15156.
+
+## Mechanical Properties
+
+Mechanical properties shall be verified by tests conducted on a representative sample from the same heat, size, and heat treat lot. Material stress relieved after cold working in excess of 5% is exempt from re-testing provided the stress relief temperature does not exceed the original tempering temperature.
+
+| Property (All UNS) | Minimum | Maximum | Test Method    |
+|---------------------|---------|---------|----------------|
+| Yield Strength      | 95 ksi  | -       | ASTM A370 / E8 |
+| Tensile Strength    | 105 ksi | -       | ASTM A370 / E8 |
+| Elongation          | 15%     | -       | ASTM A370 / E8 |
+| Charpy V-Notch at +14°F (-10°C) | 44 ft-lb avg | - | ASTM E23 |
+
+No individual Charpy impact value shall fall below 29.5 ft-lb, and no more than one of three results may be below the 44 ft-lb minimum average.
+
+**Hardness by UNS:**
+
+| UNS / Designation    | Maximum Hardness | Test Method |
+|----------------------|------------------|-------------|
+| S41425 (Foroni)      | 29 HRC           | ASTM E18    |
+| S41426 (Sumitomo)    | 27 HRC           | ASTM E18    |
+| S41427 (Liberty)     | 29 HRC           | ASTM E18    |
+| JFE (KO-HP2-13CR-95) | 27 HRC           | ASTM E18    |
+| NKK (NK-CR13S-95)    | 29 HRC           | ASTM E18    |
+
+## Receiving
+
+A Certificate of Conformance (CoC) and Material Test Report (MTR) are required; the MTR shall include grade, heat number, chemical analysis, condition, mechanical properties, and endorsement by authorized personnel.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 01/21/2008 | Original version, DDIMS50D |
+| - | 0 | 04/01/2024 | Copy to new word format. Change specification number to new style, remove the DDIMS number. Change revision number from letters to numbers. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Corrected NKK Cu max from 0.030% to 0.30% (decimal place error). Chemistry reduced to alloy-defining and critical elements only. |
+

@@ -3,8 +3,8 @@
 # ============================================================
 
 id: "ES-M0007A"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "Yellow Brass C36000 Half Hard"
 grades:
   - "C36000"
@@ -12,7 +12,7 @@ grades:
   - "Yellow Brass"
   - "Free Cutting Brass"
 uns: "C36000"
-condition: "Half Hard"
+condition: "Half Hard (Temper H02)"
 
 chemistry:
   Cu: { min: 60.0, max: 63.0 }
@@ -20,8 +20,9 @@ chemistry:
   Fe: { max: 0.35 }
 
 mechanical:
-  yield_strength:    { min: 15, max: 50, unit: ksi }
-  tensile_strength:  { min: 40, max: 65, unit: ksi }
+  yield_strength:    { min: 15, unit: ksi }
+  tensile_strength:  { min: 40, unit: ksi }
   elongation:        { min: 7, unit: '%' }
+  hardness_hrb:      { max: 80 }
 
 special_requirements: []

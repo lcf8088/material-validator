@@ -1,16 +1,18 @@
 # ============================================================
 # DDIC Material Specification: ES-M2401A
+# Lean spec: supplier data sheet is adopted as the acceptance standard.
+# No internal mechanical acceptance criteria.
 # ============================================================
 
 id: "ES-M2401A"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "iglide T500 Plastic Bushing"
 grades:
   - "iglide T500"
   - "T500"
 uns: null
-condition: "As Supplied"
+condition: "As Supplied (per supplier data sheet)"
 
 chemistry: {}
 

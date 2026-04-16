@@ -3,8 +3,8 @@
 # ============================================================
 
 id: "ES-M0003G-S41427"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "Super 13Cr Martensitic Stainless Steel 95MYS — UNS S41427 (Liberty/TATA/Corus)"
 grades:
   - "Super 13Cr"
@@ -15,36 +15,29 @@ grades:
   - "TATA"
   - "Corus"
 uns: "S41427"
-condition: "Quench and Double Tempered"
+condition: "Quench and Tempered"
 
 chemistry:
   C:  { max: 0.03 }
   Mn: { max: 1.00 }
-  P:  { max: 0.020 }
-  S:  { max: 0.005 }
-  Si: { max: 0.50 }
   Cr: { min: 12.00, max: 13.50 }
   Ni: { min: 4.50, max: 6.00 }
   Mo: { min: 1.50, max: 2.50 }
   Ti: { max: 0.01 }
   V:  { min: 0.10, max: 0.50 }
+  P:  { max: 0.020 }
+  S:  { max: 0.005 }
 
 mechanical:
-  yield_strength:    { min: 95, max: 120, unit: ksi }
+  yield_strength:    { min: 95, unit: ksi }
   tensile_strength:  { min: 105, unit: ksi }
-  elongation:        { min: 20, unit: '%' }
-  reduction_of_area: { min: 40, unit: '%' }
+  elongation:        { min: 15, unit: '%' }
   hardness_hrc:      { max: 29 }
 
 special_requirements:
-  - type: nace_compliance
-    required: true
-    note: "NACE MR0175 approved for sour service; max H2S partial pressure 1.5 psi, pH >= 3.5"
   - type: charpy_impact
     min_avg: 44
     unit: "ft-lbs"
     temperature: 14
     temp_unit: "°F"
     note: "3 specimens at +14°F (-10°C); no individual below 29.5 ft-lbs"
-  - type: heat_treatment
-    note: "Quenched and double tempered. Austenitize 1652-1796°F (900-980°C), air cool or oil quench. First temper 1112-1292°F (600-700°C). Second temper 1004-1148°F (540-620°C)."

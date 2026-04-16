@@ -3,8 +3,8 @@
 # ============================================================
 
 id: "ES-M0003E"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "420 Modified Martensitic Stainless Steel 80MYS 22HRc Max"
 grades:
   - "420"
@@ -20,29 +20,21 @@ condition: "Quench and Tempered"
 chemistry:
   C:  { min: 0.18, max: 0.22 }
   Mn: { min: 0.25, max: 1.00 }
-  P:  { max: 0.025 }
-  S:  { max: 0.006 }
-  Si: { max: 1.20 }
   Cr: { min: 12.50, max: 14.00 }
   Ni: { max: 0.25 }
-  Cu: { max: 0.25 }
+  P:  { max: 0.025 }
+  S:  { max: 0.006 }
 
 mechanical:
-  yield_strength:    { min: 80, max: 95, unit: ksi }
+  yield_strength:    { min: 80, unit: ksi }
   tensile_strength:  { min: 95, unit: ksi }
   elongation:        { min: 18, unit: '%' }
-  reduction_of_area: { min: 35, unit: '%' }
-  hardness_hbw:      { max: 239 }
   hardness_hrc:      { max: 22 }
 
 special_requirements:
-  - type: temper_temperature
-    min: 1100
-    unit: "°F"
-    note: "Minimum tempering temperature 593°C (1100°F)"
   - type: charpy_impact
     min_avg: 15
     unit: "ft-lbs"
     temperature: 32
     temp_unit: "°F"
-    note: "Average of 3 specimens at 32°F (0°C); no individual below 11 ft-lbs"
+    note: "3 specimens at 32°F (0°C); no individual below 11 ft-lbs"

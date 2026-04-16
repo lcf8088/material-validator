@@ -1,0 +1,39 @@
+# ============================================================
+# DDIC Material Specification: ES-M0009K
+# API 14A supplement to ES-M0009E (Elgiloy).
+# ============================================================
+
+id: "ES-M0009K"
+revision: 0
+date: "2026-03-25"
+material: "Elgiloy - API 14A Supplement"
+grades:
+  - "Elgiloy"
+  - "R30003"
+  - "UNS R30003"
+uns: "R30003"
+condition: "Cold Drawn and Aged"
+base_spec: "ES-M0009E"
+api_designation: "14A"
+
+chemistry:
+  Co: { min: 39.0, max: 41.0 }
+  Cr: { min: 19.0, max: 21.0 }
+  Ni: { min: 14.0, max: 16.0 }
+  Mo: { min: 6.0, max: 8.0 }
+  Mn: { min: 1.00, max: 2.00 }
+  S:  { max: 0.015 }
+
+mechanical:
+  yield_strength:    { min: 180, unit: ksi }
+  tensile_strength:  { min: 220, unit: ksi }
+  elongation:        { min: 3, unit: '%' }
+  hardness_hrc:      { max: 60 }
+
+special_requirements:
+  - type: melt_practice
+    required: true
+    accepted:
+      - "VIM+VAR"
+      - "VIM (wire < 0.250 in OD only)"
+    note: "Per API 14A; MTR must state melt practice"

@@ -1,0 +1,96 @@
+2026-04-16 14:57:19,854 [root] INFO: Logging to C:\Users\qascanner\Documents\GitHub\material-validator\pipeline.log
+2026-04-16 14:57:20,881 [lib.watcher] INFO: Started watching folder: Z:\.MTR Validator Watch Folder Test
+2026-04-16 14:57:39,861 [gui.app] INFO: Cleaned up staging TIFF: C:\Users\QASCAN~1\AppData\Local\Temp\material-validator-staging\staging_F215051_1776366269.tif
+2026-04-16 14:57:39,916 [lib.pipeline] INFO: Pipeline [5%] Extracting text (staged)...
+2026-04-16 14:57:40,246 [lib.pipeline] INFO: [TIMING] Scan2026-04-16_135858.pdf | extract_native_text: 0.3s (107 chars)
+2026-04-16 14:57:40,247 [lib.pipeline] INFO: [TIMING] Scan2026-04-16_135858.pdf | Stage 1 quality check (Haiku): 0.0s -> FAIL
+2026-04-16 14:57:40,247 [lib.pipeline] INFO: Stage 1 FAILED: direct text (107 chars), escalating to OCR@150
+2026-04-16 14:57:41,572 [lib.pipeline] INFO: [TIMING] Scan2026-04-16_135858.pdf | pdf_to_images@150: 1.3s (6 pages)
+2026-04-16 14:57:41,797 [lib.pipeline] INFO: [TIMING] Scan2026-04-16_135858.pdf | fix_rotated_pages: 0.2s
+2026-04-16 14:57:43,985 [httpx] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-16 14:57:43,989 [lib.preprocessor] INFO: Page 1 upside-down check: YES
+2026-04-16 14:57:44,029 [lib.preprocessor] INFO: Page 1 rotated 180 degrees
+2026-04-16 14:57:44,898 [httpx] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-16 14:57:44,899 [lib.preprocessor] INFO: Page 2 upside-down check: YES
+2026-04-16 14:57:44,943 [lib.preprocessor] INFO: Page 2 rotated 180 degrees
+2026-04-16 14:57:45,848 [httpx] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-16 14:57:45,849 [lib.preprocessor] INFO: Page 3 upside-down check: YES
+2026-04-16 14:57:45,899 [lib.preprocessor] INFO: Page 3 rotated 180 degrees
+2026-04-16 14:57:46,686 [httpx] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-16 14:57:46,687 [lib.preprocessor] INFO: Page 4 upside-down check: YES
+2026-04-16 14:57:46,726 [lib.preprocessor] INFO: Page 4 rotated 180 degrees
+2026-04-16 14:57:47,762 [httpx] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-16 14:57:47,763 [lib.preprocessor] INFO: Page 5 upside-down check: YES
+2026-04-16 14:57:47,797 [lib.preprocessor] INFO: Page 5 rotated 180 degrees
+2026-04-16 14:57:48,971 [httpx] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-16 14:57:48,972 [lib.preprocessor] INFO: Page 6 upside-down check: YES
+2026-04-16 14:57:49,007 [lib.preprocessor] INFO: Page 6 rotated 180 degrees
+2026-04-16 14:57:49,008 [lib.pipeline] INFO: [TIMING] Scan2026-04-16_135858.pdf | fix_upside_down_pages: 7.2s (6 flipped)
+2026-04-16 14:57:49,038 [lib.gpu_ocr] INFO: Loading RapidOCR with CUDA GPU...
+2026-04-16 14:57:50,991 [lib.gpu_ocr] INFO: RapidOCR GPU engine loaded and warmed up.
+2026-04-16 14:57:55,156 [lib.pipeline] INFO: [TIMING] Scan2026-04-16_135858.pdf | OCR(gpu)@150: 6.1s (8927 chars)
+2026-04-16 14:57:57,027 [httpx] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-16 14:57:57,028 [lib.pipeline] INFO: [TIMING] Haiku MTR check: 1.9s -> YES
+2026-04-16 14:57:57,029 [lib.pipeline] INFO: [TIMING] Scan2026-04-16_135858.pdf | Stage 2 quality check (Haiku): 1.9s -> PASS
+2026-04-16 14:57:57,029 [lib.pipeline] INFO: [TIMING] Scan2026-04-16_135858.pdf | pre_extract TOTAL: 17.1s (stage=ocr_150_gpu)
+2026-04-16 14:57:57,029 [lib.pipeline] INFO: Staged extraction complete (ocr_150, 8927 chars)
+2026-04-16 14:57:57,029 [lib.pipeline] INFO: Pipeline [30%] Text extraction complete.
+2026-04-16 14:57:57,030 [lib.pipeline] INFO: Pipeline [33%] Rendering enhanced images...
+2026-04-16 14:58:00,467 [lib.pipeline] INFO: [TIMING] Scan2026-04-16_135858.pdf | render_enhanced_pages@300: 3.4s (6 pages)
+2026-04-16 14:58:00,920 [lib.pipeline] INFO: Applied 180° rotation to 6 enhanced image(s)
+2026-04-16 14:58:01,666 [lib.pipeline] INFO: Applied 180° rotation to 6 Claude HQ image(s)
+2026-04-16 14:58:01,666 [lib.pipeline] INFO: Pipeline [32%] Checking for assembly packet...
+2026-04-16 14:58:03,808 [httpx] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-16 14:58:03,809 [lib.assembly] INFO: [TIMING] detect_assembly (Haiku): 2.1s -> False
+2026-04-16 14:58:03,810 [lib.pipeline] INFO: Pipeline [45%] Parsing with Claude...
+2026-04-16 14:58:03,811 [lib.claude_parser] INFO: Stripped 13 garbled chemistry lines from OCR text
+2026-04-16 14:58:03,812 [lib.claude_parser] INFO: [TIMING] _strip_chemistry_table: 0.00s
+2026-04-16 14:58:03,812 [lib.claude_parser] INFO: [TIMING] Prompt size: 20213 chars (OCR: 8516, spec_context: 1041)
+2026-04-16 14:58:03,815 [lib.claude_parser] INFO: [TIMING] select_relevant_pages: 0.00s -> pages [1, 2, 3, 4, 5] of 6
+2026-04-16 14:58:03,946 [lib.claude_parser] INFO: Resized Scan2026-04-16_135858_raw_p2_flip180.png: 2048x2667 → 2048x2667
+2026-04-16 14:58:03,954 [lib.claude_parser] INFO: Compressed Scan2026-04-16_135858_raw_p2_flip180.png: 3.7MB → 403KB (JPEG q=85)
+2026-04-16 14:58:04,080 [lib.claude_parser] INFO: Resized Scan2026-04-16_135858_raw_p3_flip180.png: 2048x2667 → 2048x2667
+2026-04-16 14:58:04,088 [lib.claude_parser] INFO: Compressed Scan2026-04-16_135858_raw_p3_flip180.png: 4.4MB → 534KB (JPEG q=85)
+2026-04-16 14:58:04,116 [lib.claude_parser] INFO: [TIMING] _encode_images (5 pages): 0.30s (~13.1 MB base64)
+2026-04-16 14:58:05,157 [lib.claude_parser] INFO: [TIMING] Sending to Claude (claude-sonnet-4-6) — 6 content blocks, 5 images...
+2026-04-16 14:58:34,409 [httpx] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-16 14:58:34,409 [lib.claude_parser] INFO: [TIMING] Claude API call (claude-sonnet-4-6): 29.3s | 15129 in + 1768 out = 16897 tokens | response: 3940 chars
+2026-04-16 14:58:34,410 [lib.claude_parser] INFO: [TIMING] _parse_response: 0.00s
+2026-04-16 14:58:34,410 [lib.claude_parser] INFO: [TIMING] _call_claude TOTAL: 30.6s
+2026-04-16 14:58:34,410 [lib.pipeline] INFO: [TIMING] Scan2026-04-16_135858.pdf | Claude parse (sonnet, 6 images): 30.6s
+2026-04-16 14:58:34,410 [lib.pipeline] INFO: Pipeline [50%] Reading tables with Opus...
+2026-04-16 14:58:34,412 [lib.claude_parser] INFO: Table regions span 85% of p3 — sending full page
+2026-04-16 14:58:34,412 [lib.claude_parser] INFO: Table regions span 70% of p5 — sending full page
+2026-04-16 14:58:34,412 [lib.pipeline] INFO: Cropped 2 table region(s) for Opus
+2026-04-16 14:58:34,525 [lib.claude_parser] INFO: Resized Scan2026-04-16_135858_raw_p3_flip180.png: 2048x2667 → 2048x2667
+2026-04-16 14:58:34,534 [lib.claude_parser] INFO: Compressed Scan2026-04-16_135858_raw_p3_flip180.png: 4.4MB → 534KB (JPEG q=85)
+2026-04-16 14:58:35,578 [lib.claude_parser] INFO: [TIMING] Opus table extraction — 2 images...
+2026-04-16 14:58:41,120 [httpx] INFO: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-16 14:58:41,121 [lib.claude_parser] INFO: [TIMING] Opus table call: 6.7s | 4240 in + 262 out tokens
+2026-04-16 14:58:41,121 [lib.pipeline] INFO: [TIMING] Scan2026-04-16_135858.pdf | Opus table extraction: 6.7s
+2026-04-16 14:58:41,122 [lib.pipeline] INFO: Merge chemistry.C: Sonnet=0.01 -> Opus=0.01
+2026-04-16 14:58:41,122 [lib.pipeline] INFO: Merge chemistry.Si: Sonnet=0.24 -> Opus=0.24
+2026-04-16 14:58:41,122 [lib.pipeline] INFO: Merge chemistry.Mn: Sonnet=0.4 -> Opus=0.4
+2026-04-16 14:58:41,122 [lib.pipeline] INFO: Merge chemistry.P: Sonnet=0.016 -> Opus=0.016
+2026-04-16 14:58:41,122 [lib.pipeline] INFO: Merge chemistry.S: Sonnet=0.0 -> Opus=0.0
+2026-04-16 14:58:41,123 [lib.pipeline] INFO: Merge chemistry.Cr: Sonnet=12.0 -> Opus=12.0
+2026-04-16 14:58:41,123 [lib.pipeline] INFO: Merge chemistry.Ni: Sonnet=5.4 -> Opus=5.4
+2026-04-16 14:58:41,123 [lib.pipeline] INFO: Merge chemistry.Mo: Sonnet=1.9 -> Opus=1.9
+2026-04-16 14:58:41,123 [lib.pipeline] INFO: Merge chemistry.Ti: Sonnet=0.1 -> Opus=0.09
+2026-04-16 14:58:41,123 [lib.pipeline] INFO: Merge chemistry.V: Sonnet=0.06 -> Opus=0.05
+2026-04-16 14:58:41,123 [lib.pipeline] INFO: Merged Opus chemistry: 10 elements
+2026-04-16 14:58:41,123 [lib.pipeline] INFO: Merge mechanical.yield_strength: Sonnet=108.5 -> Opus=108.5
+2026-04-16 14:58:41,123 [lib.pipeline] INFO: Merge mechanical.tensile_strength: Sonnet=121.5 -> Opus=121.5
+2026-04-16 14:58:41,124 [lib.pipeline] INFO: Merge mechanical.elongation: Sonnet=37.0 -> Opus=37.0
+2026-04-16 14:58:41,124 [lib.pipeline] INFO: Merge mechanical.hardness_hrc: Sonnet=25.5 -> Opus=26.1
+2026-04-16 14:58:41,124 [lib.pipeline] INFO: Merged Opus mechanical: 20 properties
+2026-04-16 14:58:41,124 [lib.pipeline] INFO: Pipeline [55%] Normalizing data...
+2026-04-16 14:58:41,125 [lib.pipeline] INFO: Pipeline [70%] Validating against spec...
+2026-04-16 14:58:41,127 [lib.pipeline] INFO: Validation result: INCOMPLETE
+2026-04-16 14:58:41,127 [lib.pipeline] INFO: Pipeline [75%] Running sanity checks...
+2026-04-16 14:58:41,128 [lib.pipeline] INFO: Pipeline [85%] Assembling TIFF (staging)...
+2026-04-16 14:58:41,534 [lib.pipeline] INFO: [TIMING] Scan2026-04-16_135858.pdf | TIFF assembly: 0.4s
+2026-04-16 14:58:41,534 [lib.pipeline] INFO: Staging TIFF saved: C:\Users\QASCAN~1\AppData\Local\Temp\material-validator-staging\staging_F215051_1776369521.tif
+2026-04-16 14:58:41,535 [lib.pipeline] INFO: Pipeline [100%] Complete.
+2026-04-16 14:58:41,535 [lib.pipeline] INFO: [TIMING] Scan2026-04-16_135858.pdf | process_document TOTAL: 61.7s
+2026-04-16 15:01:35,502 [lib.watcher] INFO: Stopped watching folder.

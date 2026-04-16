@@ -3,8 +3,8 @@
 # ============================================================
 
 id: "ES-M0003N"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "440C Stainless Steel"
 grades:
   - "440C"
@@ -12,16 +12,12 @@ grades:
   - "440C SS"
   - "Type 440C"
 uns: "S44004"
-condition: "Hardened"
+condition: "Hardened and Tempered"
 
 chemistry:
   C:  { min: 0.95, max: 1.20 }
-  Mn: { max: 1.00 }
-  P:  { max: 0.04 }
-  S:  { max: 0.03 }
-  Si: { max: 1.00 }
   Cr: { min: 16.00, max: 18.00 }
-  Mo: { max: 1.00 }
+  Mo: { max: 0.75 }
 
 mechanical:
   hardness_hrc: { min: 56, max: 60 }

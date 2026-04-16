@@ -3,35 +3,27 @@
 # ============================================================
 
 id: "ES-M0009C"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "MP35N Nickel-Cobalt-Chromium-Molybdenum Alloy"
 grades:
   - "MP35N"
   - "UNS R30035"
   - "R30035"
 uns: "R30035"
-condition: "Cold Worked and Aged"
+condition: "Cold Worked and Age Hardened"
 
 chemistry:
-  C:  { max: 0.025 }
-  Mn: { max: 0.150 }
-  P:  { max: 0.015 }
-  S:  { max: 0.010 }
-  Si: { max: 0.150 }
   Ni: { min: 33.00, max: 37.00 }
   Cr: { min: 19.00, max: 21.00 }
   Mo: { min: 9.00, max: 10.50 }
   Ti: { max: 1.00 }
+  S:  { max: 0.010 }
 
 mechanical:
   yield_strength:    { min: 180, unit: ksi }
   tensile_strength:  { min: 190, unit: ksi }
   elongation:        { min: 5, unit: '%' }
-  reduction_of_area: { min: 20, unit: '%' }
-  hardness_hrc:      { max: 51 }
+  hardness_hrc:      { max: 50 }
 
-special_requirements:
-  - type: nace_compliance
-    required: true
-    note: "NACE MR0175 / ISO 15156 compliant"
+special_requirements: []

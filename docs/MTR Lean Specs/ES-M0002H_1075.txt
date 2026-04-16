@@ -1,0 +1,31 @@
+## Scope
+
+AISI 1075 carbon steel for disc springs (Belleville washers). Chemistry-only specification; no incoming mechanical property acceptance criteria.
+
+## Chemical Composition
+
+| Element | Minimum (%) | Maximum (%) |
+|---------|-------------|-------------|
+| C       | 0.70        | 0.80        |
+| Mn      | 0.40        | 0.70        |
+| P       | -           | 0.040       |
+| S       | -           | 0.050       |
+
+## Heat Treatment Condition
+
+Not applicable. Material is purchased as finished disc springs from catalog suppliers.
+
+## Mechanical Properties
+
+No incoming mechanical property acceptance criteria. Mechanical properties are inherent to the finished spring product as supplied.
+
+## Receiving
+
+A Certificate of Conformance (CoC) is required, stating material grade and lot or batch identification.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | 0 | 04/01/2024 | Original Version |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Clarified as chemistry-only spec for disc springs (Belleville washers). Removed QMS, purchasing, and process content. Receiving simplified to CoC only (no MTR required — catalog supplier). |

@@ -1,10 +1,13 @@
 # ============================================================
 # DDIC Material Specification: ES-M0002B
+# Lean spec has two size tables. Using most permissive union for
+# YS/TS/elongation (larger-OD values) and requiring Rb 78 min hardness
+# (applies to both size tables).
 # ============================================================
 
 id: "ES-M0002B"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "1026 Drawn Over Mandrel (DOM) Tubing"
 grades:
   - "1026"
@@ -13,8 +16,8 @@ grades:
   - "1026 DOM"
   - "1026 CDS"
   - "1026 HFS"
-uns: null
-condition: "DOM / Cold Drawn Seamless / Hot Finished Seamless"
+uns: "G10260"
+condition: "Cold Drawn (Drawn Over Mandrel)"
 
 chemistry:
   C:  { min: 0.22, max: 0.28 }
@@ -26,5 +29,6 @@ mechanical:
   yield_strength:    { min: 60, unit: ksi }
   tensile_strength:  { min: 70, unit: ksi }
   elongation:        { min: 10, unit: '%' }
+  hardness_hrb:      { min: 78 }
 
 special_requirements: []

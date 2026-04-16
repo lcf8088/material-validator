@@ -3,9 +3,9 @@
 # ============================================================
 
 id: "ES-M0003J"
-revision: 0
-date: "2024-04-01"
-material: "17-4 PH Stainless Steel Double Aged 105ksi 28-33 HRc"
+revision: 1
+date: "2026-03-25"
+material: "17-4 PH Stainless Steel H1150-D 105ksi 33 HRc Max"
 grades:
   - "17-4"
   - "17-4PH"
@@ -14,28 +14,21 @@ grades:
   - "Type 630"
   - "UNS S17400"
 uns: "S17400"
-condition: "Solution Annealed and Double Precipitation Hardened"
+condition: "Solution Annealed and Double Precipitation Hardened (H1150-D)"
 
 chemistry:
   C:  { max: 0.07 }
-  Mn: { max: 1.00 }
-  P:  { max: 0.04 }
-  S:  { max: 0.030 }
-  Si: { max: 1.00 }
   Cr: { min: 15.00, max: 17.50 }
   Ni: { min: 3.00, max: 5.00 }
   Cu: { min: 3.00, max: 5.00 }
   Nb: { min: 0.15, max: 0.45 }
+  P:  { max: 0.04 }
+  S:  { max: 0.030 }
 
 mechanical:
   yield_strength:    { min: 105, unit: ksi }
   tensile_strength:  { min: 125, unit: ksi }
   elongation:        { min: 16, unit: '%' }
-  reduction_of_area: { min: 50, unit: '%' }
-  hardness_hbw:      { min: 271, max: 311 }
-  hardness_hrc:      { min: 28, max: 33 }
+  hardness_hrc:      { max: 33 }
 
-special_requirements:
-  - type: nace_compliance
-    required: true
-    note: "ANSI/NACE MR0175-2021/ISO 15156-1:2020 compliant"
+special_requirements: []

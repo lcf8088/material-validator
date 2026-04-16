@@ -1,0 +1,45 @@
+## Scope
+
+Alloy 718 (UNS N07718) nickel-chromium precipitation-hardenable alloy, suitable for sour service per ANSI/NACE MR0175/ISO 15156.
+
+## Chemical Composition
+
+| Element | Minimum | Maximum |
+|---------|---------|---------|
+| Ni      | 50.0%   | 55.0%   |
+| Cr      | 17.0%   | 21.0%   |
+| Mo      | 2.80%   | 3.30%   |
+| Nb      | 4.75%   | 5.50%   |
+| Ti      | 0.65%   | 1.15%   |
+| Al      | 0.20%   | 0.80%   |
+| Fe      | Balance | -       |
+| S       | -       | 0.015%  |
+
+## Heat Treatment Condition
+
+Solution Annealed and Aged per ANSI/NACE MR0175/ISO 15156.
+
+## Mechanical Properties
+
+Mechanical properties shall be verified by tests conducted on a representative sample from the same heat, size, and heat treat lot. Material stress relieved after cold working in excess of 5% is exempt from re-testing provided the stress relief temperature does not exceed the original tempering temperature.
+
+| Property         | Minimum  | Maximum | Test Method    |
+|------------------|----------|---------|----------------|
+| Yield Strength   | 120 ksi  | -       | ASTM E8        |
+| Tensile Strength | 185 ksi  | -       | ASTM E8        |
+| Elongation       | 12%      | -       | ASTM E8        |
+| Hardness         | -        | 40 HRC  | ASTM E18       |
+| Charpy V-Notch at -75°F (-59°C) | 35 ft-lb avg | - | ASTM E23 |
+
+No individual Charpy impact value shall fall below 30 ft-lb. Minimum lateral expansion shall be 15 mils.
+
+## Receiving
+
+A Certificate of Conformance (CoC) and Material Test Report (MTR) are required; the MTR shall include grade, heat number, chemical analysis, mechanical properties, hardness, and endorsement by authorized personnel.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | 0 | 10/17/2013 | Original version DDIMS60B-718 |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. UTS raised from 150 to 185 ksi and elongation adjusted from 20% to 12% per ASTM B637 SA+Aged bar. Added Fe balance to chemistry. Chemistry reduced to alloy-defining and sour-service-critical elements only. |

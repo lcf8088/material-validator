@@ -1,10 +1,11 @@
 # ============================================================
 # DDIC Material Specification: ES-M1101D
+# Lean spec uses TS max 2550 psi (not min) + compression set max 45%.
 # ============================================================
 
 id: "ES-M1101D"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "FEPM - AFLAS 80 Durometer Molded"
 grades:
   - "FEPM"
@@ -17,7 +18,9 @@ condition: "80 Durometer Molded"
 chemistry: {}
 
 mechanical:
-  tensile_strength: { min: 2550, unit: psi }
+  tensile_strength: { max: 2550, unit: psi }
   elongation:       { min: 150, unit: '%' }
+  hardness_shore_a: { min: 80, max: 90 }
+  compression_set:  { max: 45, unit: '%' }
 
 special_requirements: []

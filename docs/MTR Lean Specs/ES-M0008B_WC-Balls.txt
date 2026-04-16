@@ -1,0 +1,34 @@
+## Scope
+
+Tungsten Carbide (Grade C2), Grades 10, 15, and 25.
+
+## Chemical Composition
+
+| Component        | Minimum (%) | Maximum (%) |
+|------------------|-------------|-------------|
+| Tungsten Carbide | 93          | 95          |
+| Cobalt binder    | 5           | 7           |
+
+## Condition
+
+Sintered.
+
+## Mechanical Properties
+
+Mechanical properties shall be verified by tests conducted on a representative sample from the same production lot.
+
+| Property                    | Minimum   | Maximum   | Test Method |
+|-----------------------------|-----------|-----------|-------------|
+| Transverse Rupture Strength | 220 ksi   | -         | ASTM B406   |
+| Hardness                    | 90.0 HRA  | 92.5 HRA  | ASTM B294   |
+
+## Receiving
+
+A Certificate of Conformance (CoC) and Material Test Report (MTR) are required; the MTR shall include grade, heat number, chemical analysis, hardness, and mechanical properties when available.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | 0 | 04/01/2024 | Original version |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Corrected hardness from HRC to HRA scale per ASTM B294 (cemented carbide). Replaced A370/E8 with B406 (TRS) and B294 (hardness). Changed "Heat Treatment Condition" to "Condition". Removed cold work stress relief clause (inapplicable to sintered carbide). |

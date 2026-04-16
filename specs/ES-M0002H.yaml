@@ -1,16 +1,17 @@
 # ============================================================
 # DDIC Material Specification: ES-M0002H
+# Chemistry-only spec for disc springs (Belleville washers).
 # ============================================================
 
 id: "ES-M0002H"
-revision: 0
-date: "2024-04-01"
-material: "1075 High Carbon Steel"
+revision: 1
+date: "2026-03-25"
+material: "1075 High Carbon Steel (Disc Springs)"
 grades:
   - "1075"
   - "AISI 1075"
 uns: null
-condition: "As Required"
+condition: "N/A - Finished Disc Springs"
 
 chemistry:
   C:  { min: 0.70, max: 0.80 }

@@ -175,7 +175,8 @@ def normalize_extracted_data(data: Dict[str, Any]) -> Dict[str, Any]:
         mech = data['mechanical']
         normalized['mechanical'] = {}
         
-        # Yield strength
+        # Yield strength — 3-decimal precision preserves psi-level accuracy
+        # for low-stress polymer specs (e.g., 1015 psi → 1.015 ksi, not 1.0).
         if 'yield_strength' in mech:
             val = mech['yield_strength']
             unit = mech.get('yield_strength_unit', 'ksi')
@@ -184,8 +185,8 @@ def normalize_extracted_data(data: Dict[str, Any]) -> Dict[str, Any]:
             if val is not None and unit and unit.lower() != 'ksi':
                 try:
                     num = float(val)
-                    val = round(convert_stress(num, unit, 'ksi'), 1)
-                    logger.info("Converted yield_strength from %s to ksi: %.1f", unit, val)
+                    val = round(convert_stress(num, unit, 'ksi'), 3)
+                    logger.info("Converted yield_strength from %s to ksi: %.3f", unit, val)
                 except (ValueError, TypeError):
                     pass
             normalized['mechanical']['yield_strength'] = val
@@ -200,18 +201,30 @@ def normalize_extracted_data(data: Dict[str, Any]) -> Dict[str, Any]:
             if val is not None and unit and unit.lower() != 'ksi':
                 try:
                     num = float(val)
-                    val = round(convert_stress(num, unit, 'ksi'), 1)
-                    logger.info("Converted tensile_strength from %s to ksi: %.1f", unit, val)
+                    val = round(convert_stress(num, unit, 'ksi'), 3)
+                    logger.info("Converted tensile_strength from %s to ksi: %.3f", unit, val)
                 except (ValueError, TypeError):
                     pass
             normalized['mechanical']['tensile_strength'] = val
             normalized['mechanical']['tensile_strength_unit'] = 'ksi'
-        
-        # Other mechanical properties (simple copy)
-        for field in ['elongation', 'reduction_of_area', 'hardness_hbw', 
-                      'hardness_hrc', 'hardness_hrb']:
+
+        # Simple pass-through fields (no unit conversion).
+        for field in ['elongation', 'reduction_of_area',
+                      'hardness_hbw', 'hardness_hrc', 'hardness_hrb',
+                      'hardness_hra', 'hardness_shore_a', 'hardness_shore_d',
+                      'specific_gravity', 'compression_set']:
             if field in mech and mech[field] is not None:
                 normalized['mechanical'][field] = mech[field]
+
+        # Stress-bearing polymer/carbide fields: preserve value and reported
+        # unit (psi or MPa); the validator handles unit conversion at compare time.
+        for field in ['modulus_of_elasticity', 'transverse_rupture_strength',
+                      'tensile_modulus_100']:
+            if field in mech and mech[field] is not None:
+                normalized['mechanical'][field] = mech[field]
+                unit_key = f'{field}_unit'
+                if unit_key in mech and mech[unit_key]:
+                    normalized['mechanical'][unit_key] = mech[unit_key]
     
     # Special tests
     if 'charpy_impact' in data and data['charpy_impact']:

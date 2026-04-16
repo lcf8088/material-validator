@@ -1,0 +1,73 @@
+## Scope
+
+Copper Nickel-Tin Bronze (UNS C72900, Toughmet 3 AT110), suitable for sour service per ANSI/NACE MR0175/ISO 15156.
+
+## Chemical Composition
+
+| Element    | Minimum (%) | Maximum (%) |
+|------------|-------------|-------------|
+| Sn (Tin)   | 7.50        | 8.50        |
+| Ni (Ni+Co) | 14.50       | 15.50       |
+| Pb         | -           | 0.02        |
+| Zn         | -           | 0.50        |
+| Fe         | -           | 0.50        |
+| Mn         | -           | 0.30        |
+| Mg         | -           | 0.15        |
+| Nb         | -           | 0.10        |
+| Cu         | Remainder   | Remainder   |
+
+## Heat Treatment Condition
+
+Wrought and Spinodal Hardened (AT temper) per ANSI/NACE MR0175/ISO 15156.
+
+## Mechanical Properties
+
+Mechanical properties shall be verified by tests conducted on a representative sample from the same heat, size, and heat treat lot. Material stress relieved after cold working in excess of 5% is exempt from re-testing provided the stress relief temperature does not exceed the original tempering temperature.
+
+**Rod, 0.595 in to 4.0 in:**
+
+| Property         | Minimum  | Maximum | Test Method    |
+|------------------|----------|---------|----------------|
+| Yield Strength   | 110 ksi  | -       | ASTM B557      |
+| Tensile Strength | 132 ksi  | -       | ASTM B557      |
+| Elongation       | 10%      | -       | ASTM B557      |
+| Hardness         | 30 HRc (277 HBW) | - | ASTM E18 / E10 |
+
+**Rod, 4.0 in to 9.0 in:**
+
+| Property         | Minimum  | Maximum | Test Method    |
+|------------------|----------|---------|----------------|
+| Yield Strength   | 110 ksi  | -       | ASTM B557      |
+| Tensile Strength | 127 ksi  | -       | ASTM B557      |
+| Elongation       | 6%       | -       | ASTM B557      |
+| Hardness         | 30 HRc (277 HBW) | - | ASTM E18 / E10 |
+
+**Tube, 1.1 in to 7.25 in:**
+
+| Property         | Minimum  | Maximum | Test Method    |
+|------------------|----------|---------|----------------|
+| Yield Strength   | 104 ksi  | -       | ASTM B557      |
+| Tensile Strength | 131 ksi  | -       | ASTM B557      |
+| Elongation       | 8%       | -       | ASTM B557      |
+| Hardness         | 30 HRc (277 HBW) | - | ASTM E18 / E10 |
+
+**Tube, 7.25 in to 13.6 in:**
+
+| Property         | Minimum  | Maximum | Test Method    |
+|------------------|----------|---------|----------------|
+| Yield Strength   | 108 ksi  | -       | ASTM B557      |
+| Tensile Strength | 130 ksi  | -       | ASTM B557      |
+| Elongation       | 5%       | -       | ASTM B557      |
+| Hardness         | 30 HRc (277 HBW) | - | ASTM E18 / E10 |
+
+## Receiving
+
+A Certificate of Conformance (CoC) and Material Test Report (MTR) are required; the MTR shall include grade, heat number, chemical analysis, mechanical properties, and endorsement by authorized personnel.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 11/05/2019 | Original version, DDIMS82A |
+| - | 0 | 04/01/2025 | Change specification number, removed the DDIMS number. Changed revision number sequence from letter to number. Added to new format. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. No change to acceptance criteria. |

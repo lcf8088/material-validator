@@ -1,0 +1,45 @@
+## OBSOLETE
+
+**This specification is obsolete as of 03/25/2026.** Material is no longer purchased. All Acumatica items referencing ES-M0003C (M0003C) part numbers shall be migrated to ES-M0003L (316 SS) part numbers.
+
+## Scope
+
+AISI 316 (UNS S31600) austenitic stainless steel spring wire, suitable for sour service per ANSI/NACE MR0175/ISO 15156.
+
+## Chemical Composition
+
+| Element | Minimum (%) | Maximum (%) |
+|---------|-------------|-------------|
+| C       | -           | 0.08        |
+| Mn      | -           | 2.00        |
+| P       | -           | 0.045       |
+| S       | -           | 0.030       |
+| Si      | -           | 1.00        |
+| Cr      | 16.00       | 18.00       |
+| Ni      | 10.00       | 14.00       |
+| Mo      | 2.00        | 3.00        |
+
+## Heat Treatment Condition
+
+[HEAT TREATMENT CONDITION REQUIRED — source does not specify wire temper condition]
+
+## Mechanical Properties
+
+Mechanical properties shall be verified by tests conducted on a representative sample from the same heat, size, and heat treat lot. Material stress relieved after cold working in excess of 5% is exempt from re-testing provided the stress relief temperature does not exceed the original tempering temperature.
+
+| Property         | Minimum | Maximum  | Test Method    |
+|------------------|---------|----------|----------------|
+| Tensile Strength | -       | 228 ksi  | ASTM A370 / E8 |
+
+## Receiving
+
+A Certificate of Conformance (CoC) and Material Test Report (MTR) are required; the MTR shall include grade, heat number, chemical analysis, mechanical properties, and endorsement by authorized personnel.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 07/24/2019 | Original version, DDIMS32A |
+| - | 0 | 04/01/2024 | Copy to new word format. Change specification number to new style, remove the DDIMS number. Change revision number from letters to numbers. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. OBSOLETED. Material no longer purchased. Acumatica items to be migrated to ES-M0003L (316 SS). |
+

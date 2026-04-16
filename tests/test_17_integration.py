@@ -150,6 +150,7 @@ class TestEdgeCases:
             },
         }
         normalized = normalize_extracted_data(data)
-        # MPa values should be converted to ksi (1 decimal place)
-        assert normalized["mechanical"]["yield_strength"] == 119.9
-        assert normalized["mechanical"]["tensile_strength"] == 150.0
+        # MPa values converted to ksi (3-decimal precision preserves
+        # psi-level accuracy for low-stress polymer specs).
+        assert normalized["mechanical"]["yield_strength"] == pytest.approx(119.946, abs=0.01)
+        assert normalized["mechanical"]["tensile_strength"] == pytest.approx(149.969, abs=0.01)

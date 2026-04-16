@@ -1,11 +1,15 @@
 # ============================================================
 # DDIC Material Specification: ES-M0003C
+# *** OBSOLETE as of 2026-03-25 ***
+# Material no longer purchased. Acumatica items to migrate to ES-M0003L.
 # ============================================================
 
 id: "ES-M0003C"
-revision: 0
-date: "2024-04-01"
-material: "316 Stainless Steel Spring Wire"
+revision: 1
+date: "2026-03-25"
+obsolete: true
+obsolete_note: "Material no longer purchased. Migrate Acumatica items to ES-M0003L (316 SS)."
+material: "316 Stainless Steel Spring Wire (OBSOLETE)"
 grades:
   - "316"
   - "AISI 316"
@@ -25,9 +29,6 @@ chemistry:
   Mo: { min: 2.00, max: 3.00 }
 
 mechanical:
-  tensile_strength:  { max: 228, unit: ksi }
+  tensile_strength: { max: 228, unit: ksi }
 
-special_requirements:
-  - type: nace_compliance
-    required: true
-    note: "NACE MR0175-2021 / ISO 15156-1:2020 compliant"
+special_requirements: []

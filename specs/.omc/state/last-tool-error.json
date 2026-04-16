@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"C:/Users/qascanner/Documents/GitHub/material-validator\\\" && python -c \\\"\\nfrom src.lib.spec_loader import SpecLoader\\nSpecLoader.reset_instance()\\nloader = SpecLoader.get_instance()\\n...",
+  "error": "Exit code 1\nTraceback (most recent call last):\r\n  File \"<string>\", line 2, in <module>\r\n  File \"C:\\Users\\qascanner\\Documents\\GitHub\\material-validator\\src\\lib\\__init__.py\", line 7, in <module>\r\n    from .extractor import (\r\n  File \"C:\\Users\\qascanner\\Documents\\GitHub\\material-validator\\src\\lib\\extractor.py\", line 21, in <module>\r\n    from lib.converters import convert_stress\r\nModuleNotFoundError: No module named 'lib'",
+  "timestamp": "2026-04-16T19:33:57.527Z",
+  "retry_count": 1
+}

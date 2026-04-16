@@ -1,0 +1,45 @@
+# ============================================================
+# DDIC Material Specification: ES-M0009G
+# API 14A supplement to ES-M0009B (Inconel X-750).
+# ============================================================
+
+id: "ES-M0009G"
+revision: 0
+date: "2026-03-25"
+material: "Inconel X-750 - API 14A Supplement"
+grades:
+  - "X-750"
+  - "Inconel X-750"
+  - "Alloy X-750"
+  - "N07750"
+  - "UNS N07750"
+uns: "N07750"
+condition: "Cold Drawn and Aged"
+base_spec: "ES-M0009B"
+api_designation: "14A"
+
+# Lean spec defines combined Nb+Ta limit 0.70-1.20%; tracked under Nb
+# (Ta contribution is typically small in X-750 heats).
+chemistry:
+  Ni: { min: 70.00 }
+  Cr: { min: 14.0, max: 17.0 }
+  Ti: { min: 2.25, max: 2.75 }
+  Al: { min: 0.40, max: 1.00 }
+  Nb: { min: 0.70, max: 1.20 }
+  Fe: { min: 5.0, max: 9.0 }
+  S:  { max: 0.01 }
+
+mechanical:
+  yield_strength:    { min: 160, unit: ksi }
+  tensile_strength:  { min: 180, unit: ksi }
+  elongation:        { min: 4, unit: '%' }
+  hardness_hrc:      { max: 50 }
+
+special_requirements:
+  - type: melt_practice
+    required: true
+    accepted:
+      - "VIM+VAR"
+      - "VIM+ESR"
+      - "VIM (wire < 0.250 in OD only)"
+    note: "Per API 14A; MTR must state melt practice"

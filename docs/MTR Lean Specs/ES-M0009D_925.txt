@@ -1,0 +1,47 @@
+## Scope
+
+Alloy 925 (UNS N09925) nickel-chromium alloy, suitable for sour service per ANSI/NACE MR0175/ISO 15156.
+
+## Chemical Composition
+
+| Element | Minimum (%) | Maximum (%) |
+|---------|-------------|-------------|
+| Ni      | 42.0        | 46.0        |
+| Cr      | 19.5        | 22.5        |
+| Mo      | 2.50        | 3.50        |
+| Ti      | 1.90        | 2.40        |
+| Al      | 0.10        | 0.50        |
+| Cu      | 1.50        | 3.00        |
+| Nb      | -           | 0.50        |
+| Fe      | 22.0        | -           |
+| S       | -           | 0.030       |
+
+## Heat Treatment Condition
+
+Solution Annealed and Aged per ANSI/NACE MR0175/ISO 15156.
+
+## Mechanical Properties
+
+Mechanical properties shall be verified by tests conducted on a representative sample from the same heat, size, and heat treat lot. Material stress relieved after cold working in excess of 5% is exempt from re-testing provided the stress relief temperature does not exceed the original tempering temperature.
+
+| Property         | Minimum   | Maximum | Test Method    |
+|------------------|-----------|---------|----------------|
+| Yield Strength   | 110 ksi   | -       | ASTM E8        |
+| Tensile Strength | 140 ksi   | -       | ASTM E8        |
+| Elongation       | 18%       | -       | ASTM E8        |
+| Hardness         | -         | 38 HRC  | ASTM E18       |
+| Charpy V-Notch at -75°F (-60°C) | 35 ft-lb avg | - | ASTM E23 |
+
+No individual Charpy impact value shall fall below 32 ft-lb. Minimum lateral expansion shall be 0.015 in.
+
+## Receiving
+
+A Certificate of Conformance (CoC) and Material Test Report (MTR) are required; the MTR shall include grade, heat number, chemical analysis, mechanical properties, hardness, and endorsement by authorized personnel.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 01/21/2008 | Original version DDIMS64 |
+| - | 0 | 04/01/2024 | Copy to new word format. Change specification number to new style, remove the DDIMS number. Change revision number from letters to numbers. Update for 6A requirements. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Chemistry reduced to alloy-defining and sour-service-critical elements only. |

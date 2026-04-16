@@ -3,8 +3,8 @@
 # ============================================================
 
 id: "ES-M0010A"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "S7 Tool Steel"
 grades:
   - "S7"
@@ -15,14 +15,13 @@ condition: "Annealed"
 chemistry:
   C:  { min: 0.45, max: 0.55 }
   Mn: { min: 0.20, max: 0.90 }
-  P:  { max: 0.030 }
-  S:  { max: 0.030 }
   Si: { min: 0.20, max: 1.00 }
   Cr: { min: 3.00, max: 3.50 }
   Mo: { min: 1.30, max: 1.80 }
-  V:  { max: 0.35 }
+  P:  { max: 0.03 }
+  S:  { max: 0.03 }
 
 mechanical:
-  hardness_hbw: { max: 229 }
+  hardness_hrb: { max: 98 }
 
 special_requirements: []

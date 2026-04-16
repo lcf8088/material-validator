@@ -3,8 +3,8 @@
 # ============================================================
 
 id: "ES-M0001K"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "Nitriding #3 (135 Modified) Chromium Molybdenum Aluminum Alloy Steel"
 grades:
   - "Nitriding #3"
@@ -27,8 +27,6 @@ mechanical:
   yield_strength:    { min: 90, unit: ksi }
   tensile_strength:  { min: 112, unit: ksi }
   elongation:        { min: 16, unit: '%' }
-  reduction_of_area: { min: 50, unit: '%' }
-  hardness_hrc:      { min: 20, max: 30 }
-  hardness_hbw:      { min: 229, max: 285 }
+  hardness_hrc:      { max: 30 }
 
 special_requirements: []

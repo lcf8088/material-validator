@@ -1,11 +1,16 @@
 # ============================================================
 # DDIC Material Specification: ES-M0003P
+# Fastener reference spec. Acceptance per the applicable ASTM
+# standard (F879, F880, F912, F593, F594, A574). No internal
+# chemistry or mechanical property tables.
+# Sour service (when PO-specified): A193 B7M / A320 L7M / A194 2HM
+# or 7M, 22 HRC max, Ni < 1% for alloy bolts/studs.
 # ============================================================
 
 id: "ES-M0003P"
-revision: 0
-date: "2024-04-01"
-material: "18-8 / 316 / 420 Stainless Steel Set Screws"
+revision: 1
+date: "2026-03-25"
+material: "Stainless Steel and Alloy Steel Fasteners"
 grades:
   - "18-8"
   - "304"
@@ -14,23 +19,30 @@ grades:
   - "AISI 304"
   - "SUS 302HQ"
   - "SUS 304J3"
-uns: "S30400"
-condition: "Per Supplier"
+  - "ASTM F879"
+  - "ASTM F880"
+  - "ASTM F912"
+  - "ASTM F593"
+  - "ASTM F594"
+  - "ASTM A574"
+  - "ASTM A193 B7M"
+  - "ASTM A320 L7M"
+  - "ASTM A194 2HM"
+  - "ASTM A194 7M"
+uns: null
+condition: "Per applicable ASTM fastener standard"
+acceptance_standards:
+  - "ASTM F879 (SS Socket Button / Flat Countersunk Head Cap Screws)"
+  - "ASTM F880 (SS Socket / Square Head / Slotted Headless Set Screws)"
+  - "ASTM F912 (Alloy Steel Socket Set Screws)"
+  - "ASTM F593 (SS Bolts / Hex Cap Screws / Studs)"
+  - "ASTM F594 (SS Nuts)"
+  - "ASTM A574 (Alloy Steel Socket Head Cap Screws)"
 
-chemistry:
-  C:  { max: 0.08 }
-  Mn: { max: 2.00 }
-  P:  { max: 0.045 }
-  S:  { max: 0.030 }
-  Si: { max: 1.00 }
-  Cr: { min: 17.50, max: 20.00 }
-  Ni: { min: 8.00, max: 11.00 }
+chemistry: {}
 
-mechanical:
-  yield_strength:    { min: 25, unit: ksi }
-  tensile_strength:  { min: 70, unit: ksi }
-  elongation:        { min: 30, unit: '%' }
-  reduction_of_area: { min: 40, unit: '%' }
-  hardness_hbw:      { min: 100 }
+mechanical: {}
 
-special_requirements: []
+special_requirements:
+  - type: sour_service_fasteners
+    note: "If sour service specified: alloy bolts/studs per A193 B7M or A320 L7M, Q&T, 22 HRC max, Ni < 1%; alloy nuts per A194 2HM or 7M, 22 HRC max; austenitic SS fasteners solution annealed."

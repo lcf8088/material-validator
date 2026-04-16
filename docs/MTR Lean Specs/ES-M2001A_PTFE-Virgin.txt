@@ -1,0 +1,34 @@
+## Scope
+
+Virgin Polytetrafluoroethylene (PTFE).
+
+## Chemical Composition
+
+Compound composition is proprietary. Material shall conform to the industry standard for virgin (unfilled) PTFE per supplier's compound data sheet. Reprocessed material is not allowed.
+
+## Heat Treatment Condition
+
+Not applicable (thermoplastic material).
+
+## Mechanical Properties
+
+| Property                  | Minimum    | Maximum    | Test Method        |
+|---------------------------|------------|------------|--------------------|
+| Tensile Strength at Break | 20 MPa     | 35 MPa     | ASTM D638          |
+| Elongation at Break       | 210%       | 400%       | ASTM D638          |
+| Hardness                  | -          | -          | ASTM D2240 Shore D |
+| Specific Gravity          | 2.14 g/cm³ | 2.20 g/cm³ | ASTM D792          |
+
+Note: PTFE does not exhibit a distinct yield point per ASTM D638; tensile strength and elongation are reported at break only. Modulus of elasticity is excluded per risk assessment — modulus is a compound-level property governed by composition, verified by specific gravity and hardness. Anomalous modulus cannot occur when these properties are in specification. Hardness value to be set from supplier COA.
+
+## Receiving
+
+A Certificate of Conformance (CoC) is required, stating batch number, cure date, and compound identification.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 09/01/2016 | Original version DDIMS105B |
+| - | 0 | 04/01/2024 | Copy to new word format. Change specification number to new style, remove the DDIMS number. Change revision number from letters to numbers. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Handling, storage, labeling, and shelf life requirements covered by PP.017. Removed yield properties (PTFE has no yield point) and modulus of elasticity per risk assessment (governed by composition, verified by SG and hardness). Hardness value pending supplier COA. |

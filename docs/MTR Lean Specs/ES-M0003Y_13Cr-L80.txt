@@ -1,0 +1,44 @@
+## Scope
+
+API 5CT 13Cr L80 (UNS S42000) martensitic stainless steel, suitable for sour service per ANSI/NACE MR0175/ISO 15156.
+
+## Chemical Composition
+
+| Element | Minimum (%) | Maximum (%) |
+|---------|-------------|-------------|
+| C       | 0.15        | 0.22        |
+| Mn      | 0.25        | 1.00        |
+| Cr      | 12.00       | 14.00       |
+| Mo      | -           | 0.50        |
+| Ni      | -           | 0.50        |
+| P       | -           | 0.020       |
+| S       | -           | 0.010       |
+
+## Heat Treatment Condition
+
+Quenched and Tempered per ANSI/NACE MR0175/ISO 15156.
+
+## Mechanical Properties
+
+Mechanical properties shall be verified by tests conducted on a representative sample from the same heat, size, and heat treat lot. Material stress relieved after cold working in excess of 5% is exempt from re-testing provided the stress relief temperature does not exceed the original tempering temperature.
+
+| Property         | Minimum | Maximum | Test Method    |
+|------------------|---------|---------|----------------|
+| Yield Strength   | 80 ksi  | 95 ksi  | ASTM A370 / E8 |
+| Tensile Strength | 95 ksi  | -       | ASTM A370 / E8 |
+| Elongation       | 13%     | -       | ASTM A370 / E8 |
+| Hardness         | -       | 22 HRC  | ASTM E18       |
+
+Charpy impact testing shall be performed per ASTM E23. Test temperature shall be 0°C (32°F) or lower. Transverse orientation is required; longitudinal acceptable when transverse is not possible. No individual specimen shall exhibit absorbed energy below two-thirds of the required minimum average.
+
+## Receiving
+
+A Certificate of Conformance (CoC) and Material Test Report (MTR) are required; the MTR shall include grade, heat number, chemical analysis, mechanical properties, material condition, and endorsement by authorized personnel.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 03/05/2010 | Original version, DDIMS50E |
+| - | 0 | 04/01/2024 | Copy to new word format. Change specification number to new style, remove the DDIMS number. Change revision number from letters to numbers. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Corrected hardness from 23 HRC to 22 HRC per NACE MR0175 (UNS S42000 limit). Added YS max 95 ksi per API 5CT L80 grade. Chemistry reduced to alloy-defining and critical elements only. |

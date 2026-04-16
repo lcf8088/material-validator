@@ -3,8 +3,8 @@
 # ============================================================
 
 id: "ES-M0001C"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "4140/4142 Chromium Molybdenum Low Alloy Steel 80MYS 22HRc Max"
 grades:
   - "4140"
@@ -17,27 +17,18 @@ uns: "G41400"
 condition: "Quench and Tempered"
 
 chemistry:
-  C:  { min: 0.38, max: 0.43 }
+  C:  { min: 0.38, max: 0.45 }
   Mn: { min: 0.75, max: 1.00 }
+  Cr: { min: 0.80, max: 1.10 }
+  Mo: { min: 0.15, max: 0.25 }
   P:  { max: 0.035 }
   S:  { max: 0.040 }
   Si: { min: 0.15, max: 0.35 }
-  Cr: { min: 0.80, max: 1.10 }
-  Mo: { min: 0.15, max: 0.25 }
 
 mechanical:
   yield_strength:    { min: 80, unit: ksi }
   tensile_strength:  { min: 95, unit: ksi }
   elongation:        { min: 15, unit: '%' }
-  reduction_of_area: { min: 35, unit: '%' }
-  hardness_hbw:      { min: 203, max: 239 }
-  hardness_hrc:      { min: 16, max: 22 }
+  hardness_hrc:      { max: 22 }
 
-special_requirements:
-  - type: nace_compliance
-    required: true
-    note: "NACE MR0175 / ISO 15156 compliant"
-  - type: temper_temperature
-    min: 1150
-    unit: "°F"
-    note: "Minimum tempering temperature"
+special_requirements: []

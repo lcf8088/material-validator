@@ -3,8 +3,8 @@
 # ============================================================
 
 id: "ES-M0005A"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "6061-T6 Aluminum"
 grades:
   - "6061"
@@ -12,16 +12,18 @@ grades:
   - "6061-T651"
   - "6061-T6511"
 uns: "A96061"
-condition: "T6 Temper"
+condition: "Solution Heat Treated and Artificially Aged (T6 temper)"
 
 chemistry:
   Si: { min: 0.40, max: 0.80 }
+  Fe: { max: 0.70 }
   Cu: { min: 0.15, max: 0.40 }
   Mn: { max: 0.15 }
   Mg: { min: 0.80, max: 1.20 }
   Cr: { min: 0.04, max: 0.35 }
   Zn: { max: 0.25 }
   Ti: { max: 0.15 }
+  Al: { min: 95.8, max: 98.6 }
 
 mechanical:
   yield_strength:    { min: 35, unit: ksi }

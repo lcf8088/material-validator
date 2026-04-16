@@ -3,8 +3,8 @@
 # ============================================================
 
 id: "ES-M1001D"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "FKM - Viton 80 Durometer Molded"
 grades:
   - "FKM"
@@ -19,5 +19,6 @@ chemistry: {}
 mechanical:
   tensile_strength: { min: 850, unit: psi }
   elongation:       { min: 150, unit: '%' }
+  hardness_shore_a: { min: 75, max: 85 }
 
 special_requirements: []

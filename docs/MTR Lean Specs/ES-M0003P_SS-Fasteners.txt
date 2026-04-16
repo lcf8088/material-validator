@@ -1,0 +1,49 @@
+## Scope
+
+Stainless steel and alloy steel fasteners. Material grade, class, and condition shall be as specified on the purchase order.
+
+## Acceptance Standards
+
+| Fastener Type | Acceptance Standard |
+|---------------|---------------------|
+| SS Socket Button and Flat Countersunk Head Cap Screws | ASTM F879 |
+| SS Socket, Square Head, and Slotted Headless Set Screws | ASTM F880 |
+| Alloy Steel Socket Set Screws | ASTM F912 |
+| SS Bolts, Hex Cap Screws, Studs | ASTM F593 |
+| SS Nuts | ASTM F594 |
+| Alloy Steel Socket Head Cap Screws | ASTM A574 |
+
+Chemical composition, mechanical properties, and hardness requirements are defined by the applicable ASTM standard. No additional acceptance criteria beyond the referenced standard.
+
+## Receiving
+
+A Certificate of Conformance (CoC) is required, referencing the applicable ASTM standard, grade/class, and lot identification. The CoC shall be endorsed by authorized personnel.
+
+## Sour Service Requirements
+
+When sour service is specified on the purchase order or work order, fasteners shall additionally conform to the following:
+
+**Alloy Steel Bolts/Studs:**
+- ASTM A193 grade B7M or ASTM A320 grade L7M only
+- Quenched and Tempered
+- 22 HRC maximum
+- Less than 1% nickel
+
+**Alloy Steel Nuts:**
+- ASTM A194 grade 2HM or 7M only
+- 22 HRC maximum
+
+**Austenitic Stainless Steel Fasteners:**
+- Solution Annealed condition
+- Standard austenitic grades (e.g., 304, 316) are acceptable for downhole hardware without additional environmental limits
+
+**Receiving — Sour Service:**
+A Material Test Report (MTR) is required in addition to the CoC. The MTR shall include grade, heat number, chemical analysis, mechanical properties, hardness, and heat treatment condition.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 01/21/2008 | Original version, DDIMS31A |
+| - | 0 | 04/01/2024 | Copy to new word format. Change specification number to new style, remove the DDIMS number. Change revision number from letters to numbers. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Converted to fastener reference spec. Removed internal chemistry and mechanical property tables — acceptance per published ASTM fastener standards (F879, F880, F912, F593, F594, A574). |

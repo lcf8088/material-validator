@@ -1,10 +1,13 @@
 # ============================================================
 # DDIC Material Specification: ES-M0007B
+# Lean spec has 4 size tables. Most permissive union:
+# YS min = 104 ksi (tube 1.1-7.25"), TS min = 127 ksi (rod 4-9"),
+# El min = 5% (tube 7.25-13.6"), hardness 30 HRc min.
 # ============================================================
 
 id: "ES-M0007B"
-revision: 0
-date: "2025-04-01"
+revision: 1
+date: "2026-03-25"
 material: "Copper Nickel-Tin Bronze Alloy C72900 (Toughmet 3 AT110)"
 grades:
   - "C72900"
@@ -12,21 +15,22 @@ grades:
   - "Toughmet 3"
   - "Toughmet 3 AT110"
 uns: "C72900"
-condition: "Spinodal Hardened AT110"
+condition: "Wrought and Spinodal Hardened (AT temper)"
 
 chemistry:
-  Pb: { max: 0.02 }
   Sn: { min: 7.50, max: 8.50 }
+  Ni: { min: 14.50, max: 15.50 }
+  Pb: { max: 0.02 }
   Zn: { max: 0.50 }
   Fe: { max: 0.50 }
-  Ni: { min: 14.50, max: 15.50 }
   Mn: { max: 0.30 }
+  Mg: { max: 0.15 }
+  Nb: { max: 0.10 }
 
 mechanical:
-  yield_strength:    { min: 110, unit: ksi }
-  tensile_strength:  { min: 132, unit: ksi }
-  elongation:        { min: 10, unit: '%' }
-  hardness_hbw:      { min: 277 }
+  yield_strength:    { min: 104, unit: ksi }
+  tensile_strength:  { min: 127, unit: ksi }
+  elongation:        { min: 5, unit: '%' }
   hardness_hrc:      { min: 30 }
 
 special_requirements: []

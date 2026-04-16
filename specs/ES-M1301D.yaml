@@ -3,8 +3,8 @@
 # ============================================================
 
 id: "ES-M1301D"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "HNBR - HSN 80 Durometer Molded"
 grades:
   - "HNBR"
@@ -17,7 +17,8 @@ condition: "80 Durometer Molded"
 chemistry: {}
 
 mechanical:
-  tensile_strength: { min: 2700, unit: psi }
-  elongation:       { min: 175, unit: '%' }
+  tensile_strength: { min: 2700, max: 3000, unit: psi }
+  elongation:       { min: 175, max: 350, unit: '%' }
+  hardness_shore_a: { min: 77, max: 85 }
 
 special_requirements: []

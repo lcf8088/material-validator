@@ -1,0 +1,35 @@
+## Scope
+
+Nylatron GS PA 66 + MoS2 (extruded, MoS2-filled Nylon 6/66) thermoplastic.
+
+## Chemical Composition
+
+Compound composition is proprietary. Material shall conform to the industry standard for Nylatron GS PA 66 + MoS2 per supplier's compound data sheet.
+
+## Heat Treatment Condition
+
+Not applicable (thermoplastic material).
+
+## Mechanical Properties
+
+| Property                  | Minimum    | Maximum | Test Method |
+|---------------------------|------------|---------|-------------|
+| Tensile Strength at Yield | 12,500 psi | -       | ASTM D638   |
+| Tensile Strength at Break | -          | -       | ASTM D638   |
+| Elongation at Yield       | -          | -       | ASTM D638   |
+| Elongation at Break       | 20%        | -       | ASTM D638   |
+| Modulus of Elasticity     | Report     | -       | ASTM D638   |
+| Hardness (Shore D)        | 80 Shore D | -       | ASTM D2240  |
+| Specific Gravity          | -          | -       | ASTM D792   |
+
+## Receiving
+
+A Certificate of Conformance (CoC) is required, stating batch number, cure date, and compound identification.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 09/01/2016 | Original version |
+| - | 0 | 04/01/2024 | Copy to new word format. Change specification number to new style, remove the DDIMS number. Change revision number from letters to numbers. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Handling, storage, labeling, and shelf life requirements covered by PP.017. No change to acceptance criteria. |

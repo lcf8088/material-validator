@@ -1,0 +1,42 @@
+## Scope
+
+Inconel Alloy X-750 (UNS N07750) nickel-chromium precipitation-hardenable alloy, spring temper condition, suitable for sour service per ANSI/NACE MR0175/ISO 15156.
+
+## Chemical Composition
+
+| Element | Minimum (%) | Maximum (%) |
+|---------|-------------|-------------|
+| Ni      | 70.00       | -           |
+| Cr      | 14.0        | 17.0        |
+| Ti      | 2.25        | 2.75        |
+| Al      | 0.40        | 1.00        |
+| Nb+Ta   | 0.70        | 1.20        |
+| Fe      | 5.0         | 9.0         |
+| S       | -           | 0.01        |
+
+## Heat Treatment Condition
+
+Cold Drawn and Aged.
+
+## Mechanical Properties
+
+Mechanical properties shall be verified by tests conducted on a representative sample from the same heat, size, and heat treat lot. Material stress relieved after cold working in excess of 5% is exempt from re-testing provided the stress relief temperature does not exceed the original tempering temperature.
+
+| Property         | Minimum  | Maximum | Test Method    |
+|------------------|----------|---------|----------------|
+| Yield Strength   | 160 ksi  | -       | ASTM E8 |
+| Tensile Strength | 180 ksi  | -       | ASTM E8 |
+| Elongation       | 4%       | -       | ASTM E8 |
+| Hardness         | -        | 50 HRC  | ASTM E18       |
+
+## Receiving
+
+A Certificate of Conformance (CoC) and Material Test Report (MTR) are required; the MTR shall include grade, heat number, chemical analysis, and endorsement by authorized personnel.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 01/21/2008 | Original version, DDIMS60A |
+| - | 0 | 04/01/2024 | Copy to new word format. Change specification number to new style, remove the DDIMS number. Change revision number from letters to numbers. |
+| - | 1 | 04/02/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Changed HT condition to "Cold Drawn and Aged". Corrected Mn max from 1.70% to 1.00% per ASTM B637. Replaced A370 with E8 (nickel alloy). Sour service per NACE MR0175. Chemistry reduced to alloy-defining and sour-service-critical elements only. |

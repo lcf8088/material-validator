@@ -1,0 +1,29 @@
+## Scope
+
+API 14A supplement to ES-M0009C (MP35N, UNS R30035). This specification adds requirements for materials used in API 14A (SSSV) products. All requirements of ES-M0009C apply; this supplement defines additional acceptance criteria per API Specification 14A.
+
+## Base Specification
+
+ES-M0009C — MP35N. All chemical composition, heat treatment condition, mechanical property, and receiving requirements per the base specification.
+
+## Melt Practice
+
+Material shall be produced by one of the following melting methods:
+
+- Vacuum Induction Melting + Vacuum Arc Remelting (VIM+VAR)
+- Vacuum Induction Melting + Electroslag Remelting (VIM+ESR)
+- Argon Oxygen Decarburization + Double Vacuum Arc Remelting (AOD+VAR+VAR)
+
+## Heat Treatment Process
+
+Heat treatment shall be performed per SP.003 and shall conform with the supplier's/manufacturer's documented specification.
+
+## Receiving
+
+In addition to ES-M0009C receiving requirements, the MTR shall include a statement of melt practice.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | 0 | 03/25/2026 | Original version. 14A supplement to ES-M0009C per lean spec transition. Melt practices recovered from ES-M0009C Rev 0 original. |

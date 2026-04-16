@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fix Recommendations — February 13, 2026</title>
+
+<style>
+  @media print {
+    body { margin: 0.5in; }
+    h1 { page-break-before: avoid; }
+    table, pre, blockquote { page-break-inside: avoid; }
+  }
+  body {
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #000;
+    background: #fff;
+    max-width: 8.5in;
+    margin: 0 auto;
+    padding: 0.5in;
+  }
+  h1 { font-size: 18pt; border-bottom: 2px solid #000; padding-bottom: 4pt; margin-top: 24pt; }
+  h2 { font-size: 14pt; border-bottom: 1px solid #000; padding-bottom: 3pt; margin-top: 20pt; }
+  h3 { font-size: 12pt; margin-top: 16pt; }
+  h4 { font-size: 11pt; margin-top: 12pt; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12pt 0;
+    font-size: 10pt;
+  }
+  th, td {
+    border: 1px solid #000;
+    padding: 4pt 6pt;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #e0e0e0;
+    font-weight: bold;
+  }
+  tr:nth-child(even) td {
+    background: #f5f5f5;
+  }
+  code {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 10pt;
+    background: #f0f0f0;
+    padding: 1pt 3pt;
+    border: 1px solid #ccc;
+  }
+  pre {
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 8pt;
+    overflow-x: auto;
+    font-size: 9pt;
+    line-height: 1.4;
+  }
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  blockquote {
+    border-left: 3px solid #000;
+    margin: 12pt 0;
+    padding: 4pt 12pt;
+    color: #333;
+    background: #f9f9f9;
+  }
+  hr {
+    border: none;
+    border-top: 1px solid #000;
+    margin: 20pt 0;
+  }
+  strong { font-weight: bold; }
+  ul, ol { margin: 6pt 0; padding-left: 24pt; }
+  li { margin: 3pt 0; }
+  a { color: #000; text-decoration: underline; }
+</style>
+
+</head>
+<body>
+<h1 id="fix-recommendations-february-13-2026">Fix Recommendations — February 13, 2026</h1>
+<blockquote>
+<p>Based on the MTR scan investigation of 12 files. See <a href="./mtr-scan-investigation-2026-02-13.md">mtr-scan-investigation-2026-02-13.md</a> for the full findings.</p>
+</blockquote>
+<hr />
+<h2 id="1-claude-extraction-prompt-improvements-claude_parserpy">1. Claude Extraction Prompt Improvements (<code>claude_parser.py</code>)</h2>
+<p>Highest ROI — most extraction errors trace back to the prompt not being specific enough.</p>
+<h3 id="a-element-normalization-instructions">A. Element Normalization Instructions</h3>
+<ul>
+<li>Tell Claude: "Cb" = "Nb" (Columbium is the old American name for Niobium). Always map to <code>Nb</code> in output.</li>
+<li>Tell Claude: never fabricate element values. If a cell is blank/empty, output <code>null</code> — do not use an adjacent cell's value.</li>
+<li>List canonical element names expected in the output schema.</li>
+<li><strong>Fixes</strong>: Files 7, 8, 9 (Cb→Ta misattribution, Nb→V confusion, V fabricated from blank)</li>
+</ul>
+<h3 id="b-pre-heat-vs-post-heat-column-selection">B. Pre-Heat vs Post-Heat Column Selection</h3>
+<ul>
+<li>Add instruction: "If the document has multiple mechanical test columns (e.g., Before Heat Treat / After Heat Treat), always use the <strong>final condition</strong> (After Heat Treat, As Shipped, Final) values. Never average columns."</li>
+<li><strong>Fixes</strong>: Files 7, 8 (mechanicals averaged across pre/post heat treat columns)</li>
+</ul>
+<h3 id="c-temperature-unit-reporting">C. Temperature Unit Reporting</h3>
+<ul>
+<li>Have Claude return <code>temper_temperature_unit: "C"</code> or <code>"F"</code> alongside the value. Currently returns a bare number with no unit context.</li>
+<li>Same for Charpy test temperature — return the value AND the unit.</li>
+<li><strong>Fixes</strong>: Files 5, 6, 9 (temper °C stored as raw number, compared against °F spec limits)</li>
+</ul>
+<h3 id="d-heat-treatment-block-parsing">D. Heat Treatment Block Parsing</h3>
+<ul>
+<li>Add instruction: "Heat treatment may be described as a multi-step sequence (e.g., '970°C 1HR + 225°C 2HR + 715°C 2HR'). Extract the <strong>tempering</strong> step specifically. Look for keywords: temper, tempering, anlassen, revenu."</li>
+<li><strong>Fixes</strong>: File 9 (temper 715°C marked "not stated" despite being clearly present)</li>
+</ul>
+<h3 id="e-multi-document-awareness">E. Multi-Document Awareness</h3>
+<ul>
+<li>Add instruction: "This PDF may contain multiple documents from different companies (packing slips, distributor certs, mill certs). Always prefer the <strong>original mill test report</strong> as the authoritative source for chemistry and mechanical properties. If different pages show different chemistry, use the mill's values."</li>
+<li><strong>Fixes</strong>: File 4 (chemistry garbled from mixing two different certs)</li>
+</ul>
+<h3 id="f-negative-temperature-handling">F. Negative Temperature Handling</h3>
+<ul>
+<li>Add instruction: "Charpy impact test temperatures may be negative (e.g., -40°C, -20°F). Preserve the negative sign. Report the exact value and unit as printed."</li>
+<li><strong>Fixes</strong>: File 9 (Charpy temp -40°C extracted as +10°C)</li>
+</ul>
+<h3 id="g-less-than-qualifiers">G. Less-Than Qualifiers</h3>
+<ul>
+<li>Return a <code>qualifiers</code> dict alongside chemistry, e.g., <code>{"Ta": "&lt;"}</code> when the document says <code>&lt;0.01</code>.</li>
+<li>Store the numeric value but flag the qualifier separately.</li>
+<li><strong>Fixes</strong>: Files 7, 8, 10 (Ta &lt;0.01 stored as 0.01, losing the "&lt;" meaning)</li>
+</ul>
+<hr />
+<h2 id="2-validator-converter-code-fixes">2. Validator / Converter Code Fixes</h2>
+<h3 id="a-temper-temperature-c-to-f-conversion-validatorpy-converterspy">A. Temper Temperature C-to-F Conversion (<code>validator.py</code> + <code>converters.py</code>)</h3>
+<ul>
+<li>When Claude reports <code>temper_temperature_unit == "C"</code>, auto-convert to °F before comparing against spec limits.</li>
+<li>Formula: <code>°F = °C × 9/5 + 32</code></li>
+<li>Example: 720°C → 1328°F (passes ≥1200°F spec). Without conversion, 720 vs 1200 = false FAIL.</li>
+<li><strong>Effort</strong>: Low — one conversion call in the temper validation path.</li>
+<li><strong>Fixes</strong>: Files 5, 6, 9</li>
+</ul>
+<h3 id="b-element-name-normalization-extractorpy-normalize-step">B. Element Name Normalization (<code>extractor.py</code> normalize step)</h3>
+<ul>
+<li>Add a canonical mapping dict:
+  <code>python
+  ELEMENT_ALIASES = {
+      "Cb": "Nb", "Columbium": "Nb", "Niobium": "Nb",
+      "cb": "Nb", "nb": "Nb",
+  }</code></li>
+<li>Run on all extracted chemistry keys before validation.</li>
+<li><strong>Effort</strong>: Low — small mapping + loop in normalization.</li>
+<li><strong>Fixes</strong>: Files 7, 8 (Cb not recognized as Nb)</li>
+</ul>
+<h3 id="c-ssn-sanity-check-sanitypy">C. S/Sn Sanity Check (<code>sanity.py</code>)</h3>
+<ul>
+<li>If S &gt; 0.05% for a steel, flag as suspicious (normal steels have S &lt; 0.05%).</li>
+<li>If Sn &gt; S for a steel, flag as possible swap.</li>
+<li>Cross-reference: if extracted S equals a known Sn-range value (or vice versa), emit a warning.</li>
+<li><strong>Effort</strong>: Low — add to existing sanity check framework.</li>
+<li><strong>Fixes</strong>: File 6 (S and Sn values swapped)</li>
+</ul>
+<hr />
+<h2 id="3-pipeline-architecture-improvements">3. Pipeline Architecture Improvements</h2>
+<h3 id="a-error-audit-trail-historypy-pipelinepy">A. Error Audit Trail (<code>history.py</code> + <code>pipeline.py</code>)</h3>
+<ul>
+<li>When a file fails to produce a validation (exception, null result, unparseable JSON), write a <code>status: "ERROR"</code> record to history with the error message and file path.</li>
+<li>Currently: failed files are marked as processed in the watcher's in-memory set but leave no trace in history.</li>
+<li>Every file that enters the pipeline should get a history entry regardless of outcome.</li>
+<li><strong>Effort</strong>: Low — add error-case write in pipeline's exception handler.</li>
+<li><strong>Fixes</strong>: Files 11, 12 (and any future silent failures)</li>
+</ul>
+<h3 id="b-multi-page-document-handling-pipelinepy-or-claude_parserpy">B. Multi-Page Document Handling (<code>pipeline.py</code> or <code>claude_parser.py</code>)</h3>
+<p>Three options in order of complexity:</p>
+<ol>
+<li><strong>Simple (prompt-only)</strong>: Send all pages to Claude with stronger guidance about preferring mill certs over distributor certs. Rely on Claude's judgment.</li>
+<li><strong>Medium (page classification)</strong>: Pre-classify pages (detect which are mill certs vs packing slips vs BOLs by keyword heuristics) and only send relevant pages to the extraction prompt.</li>
+<li>
+<p><strong>Robust (page-by-page)</strong>: Extract data page-by-page, then consolidate — merge chemistry from the mill cert page with mechanicals from the correct testing page.</p>
+</li>
+<li>
+<p><strong>Effort</strong>: Low / Medium / High respectively.</p>
+</li>
+<li><strong>Fixes</strong>: File 4 (chemistry from Benteler mixed with missing mechanicals from Tejas on page 6)</li>
+</ol>
+<h3 id="c-spec-auto-detection-guard-matcherpy">C. Spec Auto-Detection Guard (<code>matcher.py</code>)</h3>
+<ul>
+<li>8 of 10 first-attempt validations defaulted to ES-M2201C (PEEK plastic spec) for metal MTRs. The matcher is falling through to a bad default.</li>
+<li>Add a "no confident match" threshold — if no spec scores above 0.5 confidence, return <code>None</code> and prompt the user instead of guessing.</li>
+<li>Add material-type gating: if extracted chemistry has Cr &gt; 5% or Fe &gt; 50%, exclude polymer specs from candidates. If chemistry has Cu &gt; 50%, exclude steel specs.</li>
+<li><strong>Effort</strong>: Medium — requires refining the matching logic and adding confidence thresholds.</li>
+<li><strong>Fixes</strong>: The 8/10 wrong-spec-first-attempt pattern</li>
+</ul>
+<hr />
+<h2 id="4-longer-term-features-p3">4. Longer-Term Features (P3)</h2>
+<h3 id="a-assembly-mtr-splitting">A. Assembly MTR Splitting</h3>
+<ul>
+<li><strong>Detection</strong>: Page count &gt; 15, multiple heat numbers in OCR text, cover page listing multiple line items.</li>
+<li><strong>Splitting</strong>: Identify page boundaries between different MTRs by heat number / material grade changes.</li>
+<li><strong>Processing</strong>: Process each sub-document independently through the full pipeline.</li>
+<li><strong>Linking</strong>: Store results under a parent assembly record (new field in history: <code>assembly_id</code> or <code>parent_po</code>).</li>
+<li><strong>Effort</strong>: Very High — fundamental architecture change.</li>
+<li><strong>Fixes</strong>: File 11 (30-page assembly MTR with 6 heats, 9 components)</li>
+</ul>
+<h3 id="b-polymer-mtr-support">B. Polymer MTR Support</h3>
+<ul>
+<li><strong>New extraction prompt</strong>: Polymer-specific property names (melt viscosity, flexural modulus, HDT, Izod impact, mould shrinkage, etc.)</li>
+<li><strong>New spec schema</strong>: Fields for polymer tests alongside existing metal tests.</li>
+<li><strong>Material-type routing</strong>: Detect polymer vs metal early (by grade name, spec reference, or property types) and route to the correct extraction path.</li>
+<li><strong>Effort</strong>: High — new prompt, schema additions, routing logic.</li>
+<li><strong>Fixes</strong>: File 2 (PEEK 450G with 25 properties missed)</li>
+</ul>
+<h3 id="c-brass-non-ferrous-spec-support">C. Brass / Non-Ferrous Spec Support</h3>
+<ul>
+<li>Create spec YAML files for common non-ferrous materials (C36000 brass, aluminum alloys, etc.).</li>
+<li>Extend matcher to handle non-ferrous UNS prefixes (C-series for copper alloys, A-series for aluminum).</li>
+<li><strong>Effort</strong>: Medium — primarily spec authoring + matcher extension.</li>
+<li><strong>Fixes</strong>: File 12 (C36000 brass with no matching spec)</li>
+</ul>
+<hr />
+<h2 id="suggested-implementation-order">Suggested Implementation Order</h2>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Items</th>
+<th>Effort</th>
+<th>Files Fixed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Phase 1</strong></td>
+<td>Prompt improvements (1A-1F)</td>
+<td>1-2 hours</td>
+<td>5, 6, 7, 8, 9, 4</td>
+</tr>
+<tr>
+<td><strong>Phase 2</strong></td>
+<td>C-to-F conversion (2A) + Element normalization (2B)</td>
+<td>1 hour</td>
+<td>5, 6, 7, 8, 9</td>
+</tr>
+<tr>
+<td><strong>Phase 3</strong></td>
+<td>Error audit trail (3A) + S/Sn sanity (2C)</td>
+<td>1 hour</td>
+<td>6, 11, 12</td>
+</tr>
+<tr>
+<td><strong>Phase 4</strong></td>
+<td>Spec auto-detection guard (3C)</td>
+<td>2 hours</td>
+<td>All first-attempt failures</td>
+</tr>
+<tr>
+<td><strong>Phase 5</strong></td>
+<td>Multi-page doc handling (3B)</td>
+<td>4-8 hours</td>
+<td>4</td>
+</tr>
+<tr>
+<td><strong>Phase 6</strong></td>
+<td>Assembly MTR (4A) + Polymer (4B)</td>
+<td>Days</td>
+<td>2, 11</td>
+</tr>
+</tbody>
+</table>
+<p>Phases 1-3 would resolve the majority of extraction errors with minimal code changes. Phase 4 prevents the wrong-spec-default problem. Phases 5-6 are larger architectural efforts.</p>
+</body>
+</html>

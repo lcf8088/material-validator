@@ -1,22 +1,27 @@
 # ============================================================
 # DDIC Material Specification: ES-M2001A
+# Lean spec: tensile/elongation reported at break only (PTFE has no
+# yield point); modulus excluded per risk assessment (governed by
+# composition, verified by SG and hardness). Hardness value from
+# supplier COA.
 # ============================================================
 
 id: "ES-M2001A"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "Virgin Polytetrafluoroethylene (PTFE)"
 grades:
   - "PTFE"
   - "Virgin PTFE"
   - "Teflon"
 uns: null
-condition: "Virgin"
+condition: "Virgin (reprocessed not allowed)"
 
 chemistry: {}
 
 mechanical:
-  tensile_strength: { min: 2900, max: 5076, unit: psi }
+  tensile_strength: { min: 20, max: 35, unit: MPa }
   elongation:       { min: 210, max: 400, unit: '%' }
+  specific_gravity: { min: 2.14, max: 2.20 }
 
 special_requirements: []

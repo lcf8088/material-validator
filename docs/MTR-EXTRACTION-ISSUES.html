@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTR Extraction Issues — Consolidated Findings & Fix Plan</title>
+
+<style>
+  @media print {
+    body { margin: 0.5in; }
+    h1 { page-break-before: avoid; }
+    table, pre, blockquote { page-break-inside: avoid; }
+  }
+  body {
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #000;
+    background: #fff;
+    max-width: 8.5in;
+    margin: 0 auto;
+    padding: 0.5in;
+  }
+  h1 { font-size: 18pt; border-bottom: 2px solid #000; padding-bottom: 4pt; margin-top: 24pt; }
+  h2 { font-size: 14pt; border-bottom: 1px solid #000; padding-bottom: 3pt; margin-top: 20pt; }
+  h3 { font-size: 12pt; margin-top: 16pt; }
+  h4 { font-size: 11pt; margin-top: 12pt; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12pt 0;
+    font-size: 10pt;
+  }
+  th, td {
+    border: 1px solid #000;
+    padding: 4pt 6pt;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #e0e0e0;
+    font-weight: bold;
+  }
+  tr:nth-child(even) td {
+    background: #f5f5f5;
+  }
+  code {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 10pt;
+    background: #f0f0f0;
+    padding: 1pt 3pt;
+    border: 1px solid #ccc;
+  }
+  pre {
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 8pt;
+    overflow-x: auto;
+    font-size: 9pt;
+    line-height: 1.4;
+  }
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  blockquote {
+    border-left: 3px solid #000;
+    margin: 12pt 0;
+    padding: 4pt 12pt;
+    color: #333;
+    background: #f9f9f9;
+  }
+  hr {
+    border: none;
+    border-top: 1px solid #000;
+    margin: 20pt 0;
+  }
+  strong { font-weight: bold; }
+  ul, ol { margin: 6pt 0; padding-left: 24pt; }
+  li { margin: 3pt 0; }
+  a { color: #000; text-decoration: underline; }
+</style>
+
+</head>
+<body>
+<h1 id="mtr-extraction-issues-consolidated-findings-fix-plan">MTR Extraction Issues — Consolidated Findings &amp; Fix Plan</h1>
+<blockquote>
+<p>Single source of truth. Consolidates the February 13, 2026 investigation of 12 MTR scans,
+the critical self-review that corrected initial errors, and the recommended fixes — all
+cross-referenced against the actual source code.</p>
+</blockquote>
+<hr />
+<h2 id="how-this-document-is-organized">How This Document Is Organized</h2>
+<p>Each issue is numbered and contains:</p>
+<ul>
+<li><strong>What happened</strong> — concrete examples from real MTR files</li>
+<li><strong>Root cause</strong> — the specific code or prompt line responsible</li>
+<li><strong>Files affected</strong> — which of the 12 scanned MTRs hit this bug</li>
+<li><strong>Fix</strong> — the recommended code change(s)</li>
+</ul>
+<p>Issues are grouped into three tiers by implementation effort and ordered by priority within each tier.</p>
+<hr />
+<h2 id="tier-1-prompt-schema-fixes-highest-roi-lowest-effort">Tier 1 — Prompt &amp; Schema Fixes (Highest ROI, Lowest Effort)</h2>
+<p>These trace directly to the Claude extraction prompt in <code>claude_parser.py</code>. Fixing the prompt changes how Claude reads every future MTR with zero downstream code changes.</p>
+<hr />
+<h3 id="issue-1-pre-heat-vs-post-heat-mechanical-averaging">Issue 1: Pre-Heat vs Post-Heat Mechanical Averaging</h3>
+<p><strong>Priority</strong>: P1-CRITICAL</p>
+<p><strong>What happened</strong>:
+The Gibbs Wire certs for Inconel X-750 (heat SK908) have two mechanical columns: "Before Heat Treat" and "After Heat Treat."</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Before HT</th>
+<th>After HT</th>
+<th>System Extracted</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tensile (ksi)</td>
+<td>212</td>
+<td>260</td>
+<td>236 (average)</td>
+</tr>
+<tr>
+<td>Yield (ksi)</td>
+<td>184</td>
+<td>200</td>
+<td>192 (average)</td>
+</tr>
+<tr>
+<td>Hardness (HRC)</td>
+<td>44–48</td>
+<td>51</td>
+<td>47.5 (average)</td>
+</tr>
+</tbody>
+</table>
+<p>The system averaged both columns instead of using the post-heat-treat (final condition) values. Post-heat-treat is what matters — it represents the material as shipped.</p>
+<p><strong>Root cause</strong>:
+<code>claude_parser.py</code> line 27 instructs Claude:</p>
+<pre><code>For multiple specimens/tests, use averages for mechanical properties.
+</code></pre>
+<p>This is too broad. It correctly handles multiple specimens from the same test, but Claude also applies it across fundamentally different test conditions (pre-HT vs post-HT).</p>
+<p><strong>Files affected</strong>: SK908-1874 (File 7), SK908-1875 (File 8)</p>
+<p><strong>Fix</strong>:
+Replace the averaging instruction with:</p>
+<pre><code>- For multiple specimens tested under the SAME condition, report
+  the average for mechanical properties.
+- If the document has separate columns for different conditions
+  (e.g., &quot;Before Heat Treat&quot; / &quot;After Heat Treat&quot;, &quot;As Shipped&quot; /
+  &quot;Capabilities&quot;), always use the FINAL condition values
+  (After Heat Treat, As Shipped, Final). Never average across
+  different conditions.
+</code></pre>
+<hr />
+<h3 id="issue-2-no-temper-temperature-unit-in-extraction-schema">Issue 2: No Temper Temperature Unit in Extraction Schema</h3>
+<p><strong>Priority</strong>: P1-HIGH</p>
+<p><strong>What happened</strong>:
+European mills report tempering temperature in Celsius. The specs define limits in Fahrenheit. The system compared raw numbers without converting:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Document Says</th>
+<th>System Stored</th>
+<th>Spec Limit</th>
+<th>Result</th>
+<th>Correct Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>626119 (File 5)</td>
+<td>720°C</td>
+<td>720.0</td>
+<td>min 1200°F</td>
+<td>FAIL</td>
+<td>PASS (720°C = 1328°F)</td>
+</tr>
+<tr>
+<td>A0959X (File 6)</td>
+<td>680°C</td>
+<td>680.0</td>
+<td>min 1200°F</td>
+<td>FAIL</td>
+<td>PASS (680°C = 1256°F)</td>
+</tr>
+<tr>
+<td>472110 (File 9)</td>
+<td>715°C</td>
+<td>null</td>
+<td>min 1200°F</td>
+<td>MISSING</td>
+<td>PASS (715°C = 1319°F)</td>
+</tr>
+</tbody>
+</table>
+<p>All three materials actually pass the spec but were falsely flagged.</p>
+<p><strong>Root cause</strong> (three-part chain):
+1. <strong>Schema gap</strong> — <code>claude_parser.py</code> line 60–61 defines <code>"temper_temperature": null</code> with no companion <code>temper_temperature_unit</code> field. Compare with mechanical properties which have explicit <code>_unit</code> fields.
+2. <strong>Normalizer strips units</strong> — <code>extractor.py</code> lines 192–199 uses <code>re.match(r'^([0-9.]+)', ...)</code> to extract only the number, discarding any °C/°F suffix.
+3. <strong>Validator assumes °F</strong> — <code>validator.py</code> lines 401–422 compares the bare number against the spec's °F limit with no conversion logic.</p>
+<p><strong>Files affected</strong>: 626119 (File 5), A0959X (File 6), 472110 (File 9)</p>
+<p><strong>Fix</strong> (all three parts needed):
+1. Add <code>"temper_temperature_unit": "F"</code> to the extraction prompt schema in <code>claude_parser.py</code>. Add instruction: <em>"Report the temper temperature unit exactly as printed: 'C' for Celsius, 'F' for Fahrenheit."</em>
+2. Update <code>extractor.py</code> normalizer to preserve the unit field instead of stripping it.
+3. Add conversion in <code>validator.py</code> <code>_validate_temper()</code>:
+   <code>python
+   if unit == "C":
+       temper = temper * 9/5 + 32  # Convert to °F</code></p>
+<hr />
+<h3 id="issue-3-cbnb-element-name-not-recognized">Issue 3: Cb/Nb Element Name Not Recognized</h3>
+<p><strong>Priority</strong>: P1-HIGH</p>
+<p><strong>What happened</strong>:
+Gibbs Wire certs use "Cb" (Columbium), the old American name for Niobium (Nb). The pipeline didn't recognize "Cb" and shifted adjacent element values:</p>
+<table>
+<thead>
+<tr>
+<th>Element</th>
+<th>Document Value</th>
+<th>System Extracted As</th>
+<th>Correct Mapping</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cb</td>
+<td>0.89</td>
+<td>Ta = 0.89</td>
+<td>Nb = 0.89</td>
+</tr>
+<tr>
+<td>Ta</td>
+<td>0.0100</td>
+<td>V = 0.01</td>
+<td>Ta = 0.0100</td>
+</tr>
+<tr>
+<td>V</td>
+<td>(blank)</td>
+<td>(not extracted)</td>
+<td>V = null</td>
+</tr>
+</tbody>
+</table>
+<p>When validated against ES-M0009B, which requires Nb 0.70–1.00, the system reported Nb as <strong>MISSING</strong> even though the actual Cb(=Nb) value of 0.89 passes.</p>
+<p><strong>Root cause</strong>:
+<code>extractor.py</code> lines 138–145 only applies <code>.capitalize()</code> to element names. There is no alias mapping for legacy symbols:</p>
+<pre><code class="language-python">elem_norm = elem.strip().capitalize()
+</code></pre>
+<p><strong>Files affected</strong>: SK908-1874 (File 7), SK908-1875 (File 8)</p>
+<p><strong>Fix</strong> (two layers):
+1. <strong>Prompt</strong>: Add to <code>claude_parser.py</code>: <em>"Cb (Columbium) is the old name for Niobium. Always output as Nb, never Cb."</em>
+2. <strong>Code</strong>: Add alias mapping in <code>extractor.py</code> normalization:
+   <code>python
+   ELEMENT_ALIASES = {"Cb": "Nb", "Columbium": "Nb"}
+   elem_norm = ELEMENT_ALIASES.get(elem_norm, elem_norm)</code></p>
+<hr />
+<h3 id="issue-4-element-grid-shift-blank-cells-cause-misattribution">Issue 4: Element Grid Shift (Blank Cells Cause Misattribution)</h3>
+<p><strong>Priority</strong>: P1-HIGH</p>
+<p><strong>What happened</strong>:
+When a chemistry table has blank cells, Claude shifts values from neighboring columns to fill the gap:</p>
+<p><strong>SK908 (Files 7, 8)</strong>: V column is blank on the cert. Claude read Ta's value (0.01) into the V slot, and Cb's value (0.89) into the Ta slot — a full column shift.</p>
+<p><strong>472110 (File 9)</strong>: The DEW cert has Ti and Nb columns but no V column. Claude extracted Nb=0.028 as V=0.028. There is no vanadium on this cert at all.</p>
+<p><strong>Root cause</strong>:
+The extraction prompt does not explicitly instruct Claude to output <code>null</code> for blank/empty cells. Claude fills gaps by grabbing adjacent values.</p>
+<p><strong>Files affected</strong>: SK908-1874 (File 7), SK908-1875 (File 8), 472110 (File 9)</p>
+<p><strong>Fix</strong>:
+Add to <code>claude_parser.py</code>:</p>
+<pre><code>- If an element cell is blank, empty, or not listed on the cert,
+  output null for that element. Do NOT use an adjacent cell's value.
+  Only include elements that are explicitly labeled and have a value
+  printed on the document.
+- List canonical element names in output. The element symbols on the
+  cert must match the output key. Do not guess or infer elements
+  that are not explicitly labeled.
+</code></pre>
+<hr />
+<h3 id="issue-5-heat-treatment-block-not-parsed">Issue 5: Heat Treatment Block Not Parsed</h3>
+<p><strong>Priority</strong>: P2-MEDIUM</p>
+<p><strong>What happened</strong>:
+The DEW cert (472110, File 9) describes heat treatment as a multi-step sequence on page 1:</p>
+<pre><code>970°C 1HR Polymer + 225°C 2HR oil/Air + 715°C 2HR oil/Air
+</code></pre>
+<p>The tempering step is clearly 715°C, but the system reported temper temperature as "not stated."</p>
+<p><strong>Root cause</strong>:
+The extraction prompt has no guidance on parsing multi-step heat treatment descriptions. Claude didn't know to identify which step is the tempering step.</p>
+<p><strong>Files affected</strong>: 472110 (File 9)</p>
+<p><strong>Fix</strong>:
+Add to <code>claude_parser.py</code>:</p>
+<pre><code>- Heat treatment may be described as a multi-step sequence
+  (e.g., &quot;970°C 1HR + 225°C 2HR + 715°C 2HR&quot;). Extract the
+  TEMPERING step specifically. Look for keywords: temper, tempering,
+  anlassen (German), revenu (French). The tempering step is typically
+  the last or second-to-last step, performed at a lower temperature
+  than the austenitizing/hardening step.
+</code></pre>
+<hr />
+<h3 id="issue-6-charpy-temperature-sign-error">Issue 6: Charpy Temperature Sign Error</h3>
+<p><strong>Priority</strong>: P2-MEDIUM</p>
+<p><strong>What happened</strong>:
+The DEW cert (472110, File 9) clearly shows a Charpy impact test temperature of <strong>-40°C</strong>. The system extracted <strong>+10°C</strong> — a 50-degree error in the wrong direction.</p>
+<p><strong>Root cause</strong>:
+The bilingual German/English certificate format and the negative sign confused the extraction. The prompt has no instruction to preserve negative temperature signs.</p>
+<p><strong>Files affected</strong>: 472110 (File 9)</p>
+<p><strong>Fix</strong>:
+Add to <code>claude_parser.py</code>:</p>
+<pre><code>- Charpy impact test temperatures may be negative (e.g., -40°C,
+  -20°F). Always preserve the negative sign. Report the exact
+  value and unit as printed on the document.
+</code></pre>
+<p>Also add <code>"charpy_temperature_unit"</code> to the schema (same pattern as the temper fix).</p>
+<hr />
+<h3 id="issue-7-multi-document-pdf-confusion">Issue 7: Multi-Document PDF Confusion</h3>
+<p><strong>Priority</strong>: P2-MEDIUM</p>
+<p><strong>What happened</strong>:
+PO1830 (File 4) is a 6-page bundle with certs from two different companies:
+- Pages 1–4: Benteler Inspection Certificate (chemistry only, no tensile)
+- Page 6: Tejas Tubular MTR (full chemistry AND full mechanicals)</p>
+<p>The system garbled chemistry by mixing values from both sources and reported mechanicals as null — completely missing the Tejas page with all the data:</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Benteler (p4)</th>
+<th>Tejas (p6)</th>
+<th>System Extracted</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C</td>
+<td>0.160</td>
+<td>0.420</td>
+<td>0.29 (garbled)</td>
+</tr>
+<tr>
+<td>Mn</td>
+<td>0.70</td>
+<td>0.980</td>
+<td>1.21 (garbled)</td>
+</tr>
+<tr>
+<td>Yield</td>
+<td>(none)</td>
+<td>91.5 ksi</td>
+<td>null</td>
+</tr>
+<tr>
+<td>Tensile</td>
+<td>(none)</td>
+<td>111.7 ksi</td>
+<td>null</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Root cause</strong>:
+The prompt has no guidance on handling multi-document PDFs. Claude attempted to merge data from both certs, garbling chemistry and missing the Tejas page mechanicals entirely (page 6 may also be rotated/landscape).</p>
+<p><strong>Files affected</strong>: PO1830 (File 4)</p>
+<p><strong>Fix</strong>:
+Add to <code>claude_parser.py</code>:</p>
+<pre><code>- This PDF may contain multiple documents from different companies
+  (packing slips, distributor certs, mill certs). Always prefer the
+  ORIGINAL MILL TEST REPORT as the authoritative source for chemistry
+  and mechanical properties. If different pages show conflicting
+  chemistry, use the mill's values, not the distributor's.
+</code></pre>
+<p>Longer term: consider page classification (detect mill cert pages by keyword heuristics) and page-by-page extraction with consolidation.</p>
+<hr />
+<h3 id="issue-8-ssn-element-swap">Issue 8: S/Sn Element Swap</h3>
+<p><strong>Priority</strong>: P3-LOW (validation-neutral for this spec, but data integrity issue)</p>
+<p><strong>What happened</strong>:
+The Tata Steel cert for heat A0959X (File 6):</p>
+<table>
+<thead>
+<tr>
+<th>Element</th>
+<th>Document Value</th>
+<th>System Extracted</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S (Sulfur)</td>
+<td>0.0020</td>
+<td>0.005</td>
+</tr>
+<tr>
+<td>Sn (Tin)</td>
+<td>0.005</td>
+<td>0.002</td>
+</tr>
+</tbody>
+</table>
+<p>The values are swapped. For the ES-M0004A spec, both values pass regardless of order (S spec max is 0.01), so this didn't affect the validation outcome. But for specs with tighter S limits, this could cause a false PASS or FAIL.</p>
+<p><strong>Root cause</strong>:
+OCR or Claude confused the single-letter "S" with the two-letter "Sn" during extraction. The <code>sanity.py</code> checker has Cr/Ni swap detection but nothing for S/Sn.</p>
+<p><strong>Files affected</strong>: A0959X (File 6)</p>
+<p><strong>Fix</strong>:
+1. <strong>Prompt</strong>: Add a note that S=Sulfur and Sn=Tin are different elements.
+2. <strong>Sanity check</strong>: Add S/Sn plausibility check in <code>sanity.py</code>:
+   <code>python
+   # For steels, S (Sulfur) is typically &lt; 0.05%
+   # If extracted S &gt; Sn, and S &gt; 0.01, flag possible swap
+   if s &gt; sn and s &gt; 0.01:
+       warnings.append(("S/Sn", f"S={s}, Sn={sn}", "Possible S/Sn swap"))</code></p>
+<hr />
+<h3 id="issue-9-less-than-qualifier-lost">Issue 9: Less-Than Qualifier Lost</h3>
+<p><strong>Priority</strong>: P3-LOW</p>
+<p><strong>What happened</strong>:
+The Central Wire cert for heat B4535 (File 10) reports <code>Ta: &lt;0.002</code>. The system stored <code>Ta = 0.002</code>, losing the "&lt;" qualifier.</p>
+<p>Similarly, SK908 certs (Files 7, 8) have <code>Ta: &lt;0.01</code> which was also stored as a bare number.</p>
+<p>The distinction matters: <code>&lt;0.002</code> means the actual value is somewhere between 0 and 0.00199, but the system treats it as exactly 0.002.</p>
+<p><strong>Root cause</strong>:
+The extraction schema has no mechanism for qualifiers. Claude returns a bare number and the normalizer strips any non-numeric prefix.</p>
+<p><strong>Files affected</strong>: B4535 (File 10), SK908-1874 (File 7), SK908-1875 (File 8)</p>
+<p><strong>Fix</strong>:
+1. Add a <code>"chemistry_qualifiers"</code> dict to the extraction schema:
+   <code>json
+   "chemistry_qualifiers": {"Ta": "&lt;"}</code>
+2. In the validator, treat <code>&lt;X</code> as the upper bound (the value passes any <code>max &gt;= X</code> check, and for <code>min</code> checks, flag as INCOMPLETE since the true value is unknown).</p>
+<hr />
+<h2 id="tier-2-pipeline-code-fixes">Tier 2 — Pipeline Code Fixes</h2>
+<p>These require changes to Python source files but are straightforward.</p>
+<hr />
+<h3 id="issue-10-spec-auto-detection-defaults-to-wrong-spec">Issue 10: Spec Auto-Detection Defaults to Wrong Spec</h3>
+<p><strong>Priority</strong>: P2-MEDIUM</p>
+<p><strong>What happened</strong>:
+7 of 10 first-attempt validations (6 of 8 non-PEEK heats) defaulted to ES-M2201C, a PEEK plastic spec, for metal MTRs. Two 4140/42 heats were correctly auto-detected (the matcher works for 4140/42 grade names) but 9Cr, Inconel X-750, L-80, and 420 Modified all fell through to the wrong default.</p>
+<table>
+<thead>
+<tr>
+<th>Heat</th>
+<th>Actual Material</th>
+<th>Spec Auto-Detected</th>
+<th>Correct Spec</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>312734</td>
+<td>L-80</td>
+<td>ES-M2201C (PEEK)</td>
+<td>ES-M0001G</td>
+</tr>
+<tr>
+<td>626119</td>
+<td>9Cr 1Mo</td>
+<td>ES-M2201C (PEEK)</td>
+<td>ES-M0004A</td>
+</tr>
+<tr>
+<td>A0959X</td>
+<td>9Cr</td>
+<td>ES-M2201C (PEEK)</td>
+<td>ES-M0004A</td>
+</tr>
+<tr>
+<td>SK908 (x2)</td>
+<td>Inconel X-750</td>
+<td>ES-M2201C (PEEK)</td>
+<td>ES-M0009B</td>
+</tr>
+<tr>
+<td>472110</td>
+<td>420 Modified</td>
+<td>ES-M2201C (PEEK)</td>
+<td>ES-M0003E</td>
+</tr>
+<tr>
+<td>B4535</td>
+<td>Inconel X-750</td>
+<td>ES-M2201C (PEEK)</td>
+<td>ES-M0009B</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Root cause</strong>:
+The matcher has no confidence threshold. When no spec scores high enough, it falls through to whatever spec happens to be first (or a bad default) instead of returning "no match."</p>
+<p><strong>Files affected</strong>: All non-4140 heats (6 of 8 metal MTRs)</p>
+<p><strong>Fix</strong>:
+1. Add a minimum confidence threshold — if no spec scores above 0.5, return <code>None</code> and prompt the user.
+2. Add material-type gating: if chemistry has Fe &gt; 50% or Cr &gt; 5%, exclude polymer specs. If chemistry has no metallic elements, exclude metal specs.
+3. Expand the <code>grades</code> lists in spec YAML files to include more supplier name variants (e.g., "X-750", "Alloy X-750", "Inconel X-750", "UNS N07750").</p>
+<hr />
+<h3 id="issue-11-wrong-spec-approval-without-guardrails">Issue 11: Wrong-Spec Approval Without Guardrails</h3>
+<p><strong>Priority</strong>: P2-MEDIUM</p>
+<p><strong>What happened</strong>:
+The override/approval workflow allowed a user to approve a nickel superalloy (SK908 Inconel X-750) against ES-M2201C (PEEK plastic spec). The system has no check preventing metal-vs-polymer cross-approval.</p>
+<p>Another case: heat 79017611 (4140/42 steel) was re-validated against ES-M2201C and approved with an override note — again, metal signed off against a polymer spec.</p>
+<p><strong>Root cause</strong>:
+The approval workflow has no material-type guardrail. Any material can be approved against any spec.</p>
+<p><strong>Files affected</strong>: SK908-1874 (record 15), 79017611 (record 11)</p>
+<p><strong>Fix</strong>:
+Add a pre-approval check: if the extracted material grade/chemistry is clearly metallic (Fe, Cr, Ni present) and the spec is for polymers (or vice versa), block the approval and warn the user.</p>
+<hr />
+<h3 id="issue-12-error-audit-trail-silent-failures">Issue 12: Error Audit Trail — Silent Failures</h3>
+<p><strong>Priority</strong>: P2-MEDIUM</p>
+<p><strong>What happened</strong>:
+Two files were never processed and left zero trace in the validation history:
+- <strong>PO1628 (File 11)</strong>: 30-page assembly MTR with 6 heats — pipeline can't handle multi-heat documents
+- <strong>P406278 (File 12)</strong>: C36000 brass — no matching spec exists</p>
+<p>The watcher marked both files as "processed" in its in-memory set, but nothing was written to <code>history/validations.jsonl</code>. There is no record that these files even entered the pipeline.</p>
+<p><strong>Root cause</strong>:
+<code>history.py</code> <code>record()</code> is only called on successful validation. When the pipeline throws an exception or returns <code>None</code>, the file is silently skipped.</p>
+<p><strong>Files affected</strong>: PO1628 (File 11), P406278 (File 12), and any future failures</p>
+<p><strong>Fix</strong>:
+Add an error-case write in the pipeline's exception handler:</p>
+<pre><code class="language-python">history.record_error(
+    source_file=file_path,
+    error_type=&quot;EXTRACTION_FAILED&quot;,  # or SPEC_NOT_FOUND, PARSE_ERROR, etc.
+    error_message=str(e),
+    timestamp=datetime.now(timezone.utc).isoformat()
+)
+</code></pre>
+<p>Every file that enters the pipeline should get a history entry regardless of outcome.</p>
+<hr />
+<h3 id="issue-13-non-deterministic-extraction-ra-source">Issue 13: Non-Deterministic Extraction (RA Source)</h3>
+<p><strong>Priority</strong>: P2-MEDIUM</p>
+<p><strong>What happened</strong>:
+The same SK908 Gibbs Wire cert was processed twice (as files 1874 and 1875). The Reduction of Area value came from different locations on each run:
+- Run 1 (1874): RA = 34.0% (from the tensile test section — correct)
+- Run 2 (1875): RA = 20.0% (from the wrap test line: "REDUCTION OF AREA c/k: 20" — wrong source)</p>
+<p>Claude picked different values on different runs of the identical document.</p>
+<p><strong>Root cause</strong>:
+LLM non-determinism. The cert has "Reduction of Area" in two different contexts (tensile test and wrap test), and Claude selected different ones each time.</p>
+<p><strong>Files affected</strong>: SK908-1874 (File 7), SK908-1875 (File 8)</p>
+<p><strong>Fix</strong>:
+1. <strong>Prompt</strong>: Add: <em>"Reduction of Area must come from the tensile test results, not from wrap test, bend test, or other test sections."</em>
+2. <strong>Longer term</strong>: Set Claude's <code>temperature</code> parameter to 0 for deterministic extraction. Consider dual-extraction (run twice, compare, flag discrepancies).</p>
+<hr />
+<h2 id="tier-3-architecture-gaps-longer-term-features">Tier 3 — Architecture Gaps (Longer-Term Features)</h2>
+<p>These require significant new functionality.</p>
+<hr />
+<h3 id="issue-14-polymer-mtr-support">Issue 14: Polymer MTR Support</h3>
+<p><strong>What happened</strong>: PEEK 450G cert (PO1946, File 2) has 25 test properties (melt viscosity, tensile modulus, flexural strength, HDT, Izod impact, etc.). The system reported null for everything — it only understands metal properties.</p>
+<p><strong>Fix</strong>: New polymer-specific extraction prompt, schema fields, and material-type routing. High effort.</p>
+<h3 id="issue-15-assembly-mtr-splitting">Issue 15: Assembly MTR Splitting</h3>
+<p><strong>What happened</strong>: PO1628 (File 11) is a 30-page bundle with 6 heats across 4+ material grades from 6 different mills. The pipeline assumes one PDF = one heat = one spec.</p>
+<p><strong>Fix</strong>: Document splitter (detect page boundaries by heat number changes), multi-heat processing loop, assembly-level traceability records. Very high effort.</p>
+<h3 id="issue-16-brass-non-ferrous-spec-support">Issue 16: Brass / Non-Ferrous Spec Support</h3>
+<p><strong>What happened</strong>: P406278 (File 12) is C36000 Free-Cutting Brass. No spec YAML exists for brass, and the matcher doesn't handle non-ferrous UNS prefixes.</p>
+<p><strong>Fix</strong>: Author brass spec YAML files, extend matcher for C-series (copper) and A-series (aluminum) UNS prefixes. Medium effort.</p>
+<hr />
+<h2 id="implementation-plan">Implementation Plan</h2>
+<p>Each phase lists the changes to make, then the tests to run. After running the tests for each issue, record a 1–2 sentence verdict before moving on. If a test fails, fix the root cause and re-test before proceeding to the next phase.</p>
+<hr />
+<h3 id="phase-1-prompt-overhaul">Phase 1 — Prompt Overhaul</h3>
+<p><strong>Scope</strong>: Single file change — <code>src/lib/claude_parser.py</code>
+<strong>Effort</strong>: Low (prompt text edits only)
+<strong>Impact</strong>: Fixes or improves extraction for 9 of 12 files</p>
+<p><strong>Changes</strong>:</p>
+<ol>
+<li>Replace the averaging instruction (Issue 1)</li>
+<li>Add <code>temper_temperature_unit</code> and <code>charpy_temperature_unit</code> to schema (Issue 2a)</li>
+<li>Add Cb→Nb instruction (Issue 3a)</li>
+<li>Add blank-cell / null-output instruction (Issue 4)</li>
+<li>Add heat treatment block parsing guidance (Issue 5)</li>
+<li>Add negative temperature preservation (Issue 6)</li>
+<li>Add multi-document preference for mill certs (Issue 7)</li>
+<li>Add S vs Sn clarification (Issue 8a)</li>
+<li>Add <code>chemistry_qualifiers</code> to schema (Issue 9a)</li>
+<li>Add RA source clarification (Issue 13a)</li>
+</ol>
+<h4 id="issue-1-tests-pre-heat-vs-post-heat-averaging">Issue 1 Tests — Pre-Heat vs Post-Heat Averaging</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Re-run SK908-1874</strong> through full extraction pipeline</td>
+<td>Post-HT values used: TS=260 ksi, YS=200 ksi, HRC=51. No averaging across columns.</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Re-run SK908-1875</strong> (same cert, different part number)</td>
+<td>Same post-HT values as test 1. Confirms fix is not document-specific.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Feed a fabricated test cert with 3 specimens under the same condition (YS: 110, 112, 114 ksi)</td>
+<td>Extraction returns the average (112 ksi). Proves same-condition averaging still works.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="issue-2a-tests-temper-temperature-unit-in-schema">Issue 2a Tests — Temper Temperature Unit in Schema</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Re-run 626119</strong> (Gerdau 9Cr cert, temper 720°C)</td>
+<td>Extraction returns <code>temper_temperature: 720</code> AND <code>temper_temperature_unit: "C"</code>.</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Re-run PO1966Li3</strong> (Nucor 4140 cert, temper 1241°F)</td>
+<td>Extraction returns <code>temper_temperature: 1241</code> AND <code>temper_temperature_unit: "F"</code>. Confirms °F certs still work.</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Re-run 472110</strong> (DEW cert, temper embedded in heat treatment block)</td>
+<td>Extraction returns <code>temper_temperature: 715</code> AND <code>temper_temperature_unit: "C"</code>.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="issue-3a-tests-cbnb-prompt-instruction">Issue 3a Tests — Cb→Nb Prompt Instruction</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Re-run SK908-1874</strong> (Gibbs Wire cert with "Cb" column)</td>
+<td>Extraction returns <code>Nb: 0.89</code>. No Cb key in output.</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Re-run B4535</strong> (Central Wire cert with "Nb" column)</td>
+<td>Extraction still returns <code>Nb: 0.89</code>. Confirms certs already labeled "Nb" are unaffected.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="issue-4-tests-blank-cell-handling">Issue 4 Tests — Blank Cell Handling</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Re-run SK908-1874</strong> (V column is blank on cert)</td>
+<td>Extraction returns <code>V: null</code>. Ta returns as its own value (0.0100), not shifted.</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Re-run 472110</strong> (no V column exists on DEW cert)</td>
+<td>V is either <code>null</code> or absent from output. Nb = 0.028. No fabricated V value.</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Re-run PO1966Li3</strong> (all chemistry cells populated)</td>
+<td>All 18 elements extracted correctly. Confirms blank-cell instruction doesn't break populated certs.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="issue-5-tests-heat-treatment-block-parsing">Issue 5 Tests — Heat Treatment Block Parsing</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Re-run 472110</strong> (multi-step: "970°C 1HR + 225°C 2HR + 715°C 2HR")</td>
+<td>Temper extracted as 715 (not null, not 970, not 225).</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Re-run A0959X</strong> (single-step: "Temper at 680°C for 01:30")</td>
+<td>Temper extracted as 680. Confirms simple formats still work.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="issue-6-tests-charpy-temperature-sign">Issue 6 Tests — Charpy Temperature Sign</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Re-run 472110</strong> (Charpy at -40°C)</td>
+<td>Charpy temperature extracted as -40, not +10 or +40. Unit = "C".</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Re-run 626119</strong> (Charpy at 14°F, positive)</td>
+<td>Charpy temperature extracted as 14, unit = "F". Confirms positive temps unaffected.</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Re-run PO1966Li3</strong> (Charpy at -20°F, negative)</td>
+<td>Charpy temperature extracted as -20, unit = "F". Confirms negative °F also works.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="issue-7-tests-multi-document-pdf-handling">Issue 7 Tests — Multi-Document PDF Handling</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Re-run PO1830</strong> (Benteler cert pages 1–4 + Tejas cert page 6)</td>
+<td>Chemistry matches Tejas page 6 values (C=0.420, Mn=0.980). Mechanicals are populated (YS≈91.5, TS≈111.7). Not null.</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Re-run PO1918</strong> (B&amp;T CoC + EMJ CoC + Gerdau mill cert)</td>
+<td>Chemistry matches Gerdau mill cert values exactly. Confirms multi-doc PDFs that were already working don't regress.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="issue-8a-tests-s-vs-sn-clarification">Issue 8a Tests — S vs Sn Clarification</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Re-run A0959X</strong> (Tata Steel cert, S=0.0020, Sn=0.005)</td>
+<td>S extracted as 0.0020, Sn extracted as 0.005. Not swapped.</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Re-run PO1966Li3</strong> (Nucor cert, S=0.012, Sn=0.007)</td>
+<td>S=0.012, Sn=0.007 extracted correctly. Confirms no regression on certs that were already correct.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="issue-9a-tests-less-than-qualifiers">Issue 9a Tests — Less-Than Qualifiers</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Re-run B4535</strong> (Ta &lt;0.002)</td>
+<td>Extraction returns <code>Ta: 0.002</code> AND <code>chemistry_qualifiers: {"Ta": "&lt;"}</code>.</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Re-run SK908-1874</strong> (Ta &lt;0.01)</td>
+<td>Extraction returns <code>Ta: 0.01</code> AND <code>chemistry_qualifiers: {"Ta": "&lt;"}</code>.</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Re-run 626119</strong> (no qualified values)</td>
+<td><code>chemistry_qualifiers</code> is empty <code>{}</code> or absent. Confirms non-qualified certs unaffected.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="issue-13a-tests-ra-source-clarification">Issue 13a Tests — RA Source Clarification</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Re-run SK908-1874</strong> (RA=34% from tensile, RA=20% from wrap test)</td>
+<td>RA extracted as 34.0 (tensile test source), not 20.0.</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Re-run SK908-1875</strong> (identical document, second part number)</td>
+<td>RA also extracted as 34.0. Consistent with test 1 — no more non-deterministic source selection.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="phase-1-regression-check">Phase 1 Regression Check</h4>
+<p>Re-run PO1966Li3 (File 1) and PO1918 (File 3) — the two cleanest files from the original investigation. All previously correct values must remain correct. If any value changed, the prompt edit introduced a regression.</p>
+<p><strong>Phase 1 overall verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<hr />
+<h3 id="phase-2-normalizer-validator-fixes">Phase 2 — Normalizer &amp; Validator Fixes</h3>
+<p><strong>Scope</strong>: <code>src/lib/extractor.py</code>, <code>src/lib/validator.py</code>
+<strong>Effort</strong>: Low (small targeted code changes)
+<strong>Impact</strong>: Completes the temper unit fix chain and element alias normalization</p>
+<p><strong>Changes</strong>:</p>
+<ol>
+<li><code>extractor.py</code>: Preserve <code>temper_temperature_unit</code> through normalization instead of stripping it (Issue 2b)</li>
+<li><code>extractor.py</code>: Add <code>ELEMENT_ALIASES</code> mapping dict for Cb→Nb (Issue 3b)</li>
+<li><code>validator.py</code>: Add °C→°F conversion in <code>_validate_temper()</code> when unit is "C" (Issue 2c)</li>
+</ol>
+<h4 id="issue-2b-tests-normalizer-preserves-temper-unit">Issue 2b Tests — Normalizer Preserves Temper Unit</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Pass <code>{"temper_temperature": "720", "temper_temperature_unit": "C"}</code> through the normalizer</td>
+<td>Output contains <code>temper_temperature: 720.0</code> AND <code>temper_temperature_unit: "C"</code>. Unit not stripped.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Pass <code>{"temper_temperature": "1241°F"}</code> through the normalizer (legacy format, no separate unit field)</td>
+<td>Output contains <code>temper_temperature: 1241.0</code> AND <code>temper_temperature_unit: "F"</code>. Normalizer infers unit from suffix when the new field is absent.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Pass <code>{"temper_temperature": "1340"}</code> through the normalizer (no unit at all)</td>
+<td>Output contains <code>temper_temperature: 1340.0</code> AND <code>temper_temperature_unit: "F"</code> (default assumption).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="issue-2c-tests-validator-c-to-f-conversion">Issue 2c Tests — Validator C-to-F Conversion</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Validate <code>temper_temperature: 720, temper_temperature_unit: "C"</code> against spec min 1200°F</td>
+<td>Validator converts 720°C → 1328°F, result = PASS (1328 ≥ 1200).</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Validate <code>temper_temperature: 500, temper_temperature_unit: "C"</code> against spec min 1200°F</td>
+<td>Validator converts 500°C → 932°F, result = FAIL (932 &lt; 1200). Confirms conversion doesn't force all values to pass.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Validate <code>temper_temperature: 1241, temper_temperature_unit: "F"</code> against spec min 1200°F</td>
+<td>No conversion applied, result = PASS (1241 ≥ 1200). Confirms °F values are not double-converted.</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Re-run 626119 end-to-end</strong> through full pipeline with spec ES-M0004A</td>
+<td>Overall temper result = PASS. Previously was FAIL due to 720 vs 1200 raw comparison.</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>Re-run A0959X end-to-end</strong> through full pipeline with spec ES-M0004A</td>
+<td>Temper result = PASS (680°C = 1256°F ≥ 1200°F).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="issue-3b-tests-element-alias-mapping-in-normalizer">Issue 3b Tests — Element Alias Mapping in Normalizer</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Pass <code>{"chemistry": {"Cb": 0.89, "Ta": 0.01}}</code> through the normalizer</td>
+<td>Output chemistry has <code>Nb: 0.89</code> and <code>Ta: 0.01</code>. No <code>Cb</code> key.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Pass <code>{"chemistry": {"Nb": 0.89, "Ta": 0.01}}</code> through the normalizer</td>
+<td>Output unchanged — <code>Nb: 0.89</code>, <code>Ta: 0.01</code>. Confirms already-correct labels aren't broken.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Pass <code>{"chemistry": {"cb": 0.89}}</code> (lowercase) through the normalizer</td>
+<td>Output has <code>Nb: 0.89</code>. Confirms case-insensitive alias works via capitalize + alias lookup.</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Re-run SK908-1874 end-to-end</strong> against ES-M0009B</td>
+<td>Nb = 0.89, validation PASS for Nb (spec range 0.70–1.00). Previously was MISSING.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="phase-2-regression-check">Phase 2 Regression Check</h4>
+<p>Re-run PO1966Li3 (File 1) end-to-end. All validation results must match previous passing output — no new FAILs, no changed values.</p>
+<p><strong>Phase 2 overall verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<hr />
+<h3 id="phase-3-sanity-checks-audit-trail">Phase 3 — Sanity Checks &amp; Audit Trail</h3>
+<p><strong>Scope</strong>: <code>src/lib/sanity.py</code>, <code>src/lib/history.py</code>, pipeline error handling, approval workflow
+<strong>Effort</strong>: Low–Medium
+<strong>Impact</strong>: Catches data corruption, prevents wrong-spec approvals, eliminates silent failures</p>
+<p><strong>Changes</strong>:</p>
+<ol>
+<li><code>sanity.py</code>: Add S/Sn swap detection (Issue 8b)</li>
+<li>Approval workflow: Add metal-vs-polymer guardrail (Issue 11)</li>
+<li><code>history.py</code>: Add <code>record_error()</code> method for failed extractions (Issue 12)</li>
+<li>Pipeline: Call <code>record_error()</code> in exception handlers</li>
+</ol>
+<h4 id="issue-8b-tests-ssn-sanity-check">Issue 8b Tests — S/Sn Sanity Check</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Pass <code>{"S": 0.005, "Sn": 0.002, "Cr": 9.0}</code> to sanity checker (looks like a swap — S &gt; Sn for a steel)</td>
+<td>Warning emitted: possible S/Sn swap.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Pass <code>{"S": 0.002, "Sn": 0.005, "Cr": 9.0}</code> to sanity checker (correct order)</td>
+<td>No S/Sn warning.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Pass <code>{"S": 0.30, "Cr": 0.0, "Cu": 61.0}</code> to sanity checker (free-cutting brass — high S is normal, not a swap)</td>
+<td>No false S/Sn warning. High S is expected for brass/free-machining alloys. Confirms the check accounts for material type.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="issue-11-tests-metal-vs-polymer-approval-guardrail">Issue 11 Tests — Metal-vs-Polymer Approval Guardrail</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Attempt to approve Inconel X-750 extraction (Ni=72%, Cr=15%) against ES-M2201C (PEEK spec)</td>
+<td>System blocks approval and displays a warning that the material type does not match the spec type.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Attempt to approve Inconel X-750 extraction against ES-M0009B (Inconel spec)</td>
+<td>Approval proceeds normally. No warning.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Attempt to approve PEEK extraction (no metallic elements) against ES-M0001G (4140 steel spec)</td>
+<td>System blocks approval. Confirms guardrail works in both directions.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="issue-12-tests-error-audit-trail">Issue 12 Tests — Error Audit Trail</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Re-run P406278</strong> (brass, no matching spec) through the pipeline</td>
+<td><code>validations.jsonl</code> contains a new record with <code>status: "ERROR"</code>, <code>error_type: "SPEC_NOT_FOUND"</code>, and the source file path.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Feed a deliberately corrupt file (e.g., a 0-byte PDF) through the pipeline</td>
+<td><code>validations.jsonl</code> contains an error record with <code>error_type: "EXTRACTION_FAILED"</code> and a meaningful error message.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>After both tests, count error records in history</td>
+<td>At least 2 error records exist. Previously would have been 0 — both files would have been silently skipped.</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Re-run PO1966Li3</strong> (clean file) through the pipeline</td>
+<td>Normal success record written. Error audit trail did not interfere with the happy path.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="phase-3-regression-check">Phase 3 Regression Check</h4>
+<p>Re-run PO1966Li3 (File 1) and 626119 (File 5) end-to-end. Verify sanity checker runs without false positives on clean data and that validation results are unchanged from Phase 2 output.</p>
+<p><strong>Phase 3 overall verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<hr />
+<h3 id="phase-4-spec-matching-improvements">Phase 4 — Spec Matching Improvements</h3>
+<p><strong>Scope</strong>: Matcher module + spec YAML files
+<strong>Effort</strong>: Medium
+<strong>Impact</strong>: Prevents the 7/10 wrong-spec-first-attempt problem</p>
+<p><strong>Changes</strong>:</p>
+<ol>
+<li>Add confidence threshold — return <code>None</code> below 0.5 instead of guessing</li>
+<li>Add material-type gating (metal chemistry → exclude polymer specs from candidates)</li>
+<li>Expand <code>grades</code> lists in spec YAML files for 9Cr, X-750, L-80, 420</li>
+</ol>
+<h4 id="issue-10-tests-spec-auto-detection">Issue 10 Tests — Spec Auto-Detection</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Re-run 626119</strong> (9Cr 1Mo) with auto-detect</td>
+<td>Matches ES-M0004A (9Cr spec), NOT ES-M2201C (PEEK).</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Re-run SK908-1874</strong> (Inconel X-750) with auto-detect</td>
+<td>Matches ES-M0009B (X-750 spec), NOT ES-M2201C.</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Re-run 472110</strong> (420 Modified) with auto-detect</td>
+<td>Matches ES-M0003E (420 spec), NOT ES-M2201C.</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Feed a fabricated extraction with chemistry <code>{"Cu": 61.0, "Pb": 3.1, "Zn": 35.0}</code> (brass, no spec exists) with auto-detect</td>
+<td>Returns <code>None</code> / "no confident match." Does NOT fall through to a polymer or steel spec.</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>Re-run PO1966Li3</strong> (4140/42) with auto-detect</td>
+<td>Still matches ES-M0001G correctly. Confirms changes don't break the grades that already worked.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="phase-4-regression-check">Phase 4 Regression Check</h4>
+<p>Re-run all 10 processable files (Files 1–10) with auto-detect. Every file must either match the correct spec or return "no confident match." Zero files should match a wrong spec.</p>
+<p><strong>Phase 4 overall verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<hr />
+<h3 id="phase-5-architecture-features">Phase 5 — Architecture Features</h3>
+<p><strong>Scope</strong>: New modules, schema extensions
+<strong>Effort</strong>: High to Very High
+<strong>Impact</strong>: Enables polymer, assembly, and non-ferrous material support</p>
+<p><strong>Changes</strong> (in order):</p>
+<ol>
+<li>Author C36000 brass spec YAML + extend matcher for copper UNS prefixes (Issue 16)</li>
+<li>Polymer extraction path — new prompt, schema fields, material-type routing (Issue 14)</li>
+<li>Assembly MTR splitter — page boundary detection, multi-heat loop, parent record linking (Issue 15)</li>
+</ol>
+<h4 id="issue-16-tests-brass-non-ferrous-support">Issue 16 Tests — Brass / Non-Ferrous Support</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Re-run P406278</strong> (C36000 brass) with the new brass spec</td>
+<td>Chemistry extracted (Cu=61.40, Pb=3.10, Fe=0.15, Zn=remainder). Validation runs against the new brass spec.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Auto-detect on the P406278 extraction</td>
+<td>Matches the new C36000 spec by UNS prefix (C-series).</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Re-run PO1966Li3 (4140 steel) with auto-detect</td>
+<td>Still matches ES-M0001G. Adding copper specs doesn't confuse the steel matcher.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="issue-14-tests-polymer-mtr-support">Issue 14 Tests — Polymer MTR Support</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Re-run PO1946</strong> (PEEK 450G) through the polymer extraction path</td>
+<td>At least 10 of 25 properties extracted (melt viscosity, tensile strength, tensile modulus, flexural strength, flexural modulus, HDT, Izod impact, etc.). Previously all were null.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Route detection: feed PO1946 to the pipeline</td>
+<td>System automatically routes to the polymer extraction path, not the metal path.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Re-run PO1966Li3 (4140 steel) through the pipeline</td>
+<td>System routes to the metal extraction path. Polymer routing doesn't intercept metal certs.</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Validate PO1946 extraction against ES-M2201C (PEEK spec)</td>
+<td>Validation runs and produces meaningful pass/fail results for polymer properties instead of all-MISSING.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="issue-15-tests-assembly-mtr-splitting">Issue 15 Tests — Assembly MTR Splitting</h4>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass Criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Re-run PO1628</strong> (30-page assembly, 6 heats) through the splitter</td>
+<td>System detects at least 4 distinct sub-documents and identifies at least 4 of 6 heat numbers (D1914127, JT707, 5393602, 79018550, 20785750, K31C).</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Process the split sub-documents individually</td>
+<td>At least 3 of the sub-documents produce a successful extraction with correct heat number and chemistry.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Check history after processing</td>
+<td>A parent assembly record exists linking all child validations. Each child has its own validation ID but shares the parent PO reference.</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Feed a single-heat MTR (PO1966Li3) through the same pipeline</td>
+<td>System does NOT attempt to split it. Single-heat documents pass through unchanged.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<h4 id="phase-5-regression-check">Phase 5 Regression Check</h4>
+<p>Re-run PO1966Li3 (File 1), 626119 (File 5), and SK908-1874 (File 7) end-to-end. All must produce identical results to their Phase 4 output. New architecture features must not interfere with the existing metal pipeline.</p>
+<p><strong>Phase 5 overall verdict</strong>: <strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong><strong><em>_</em></strong>_____</p>
+<hr />
+<h2 id="phase-dependency-chart">Phase Dependency Chart</h2>
+<pre><code>Phase 1 (Prompt)
+  ├──&gt; Phase 2 (Normalizer/Validator) ──&gt; Phase 4 (Spec Matching)
+  └──&gt; Phase 3 (Sanity/Audit)
+                                          Phase 5 (Architecture)
+</code></pre>
+<p>Phases 1–3 can overlap. Phase 2 depends on Phase 1 (the schema fields must exist in the prompt before the normalizer can preserve them). Phase 4 is independent but benefits from Phase 1 (better extraction = better auto-detection input). Phase 5 is independent of all others.</p>
+<hr />
+<h2 id="files-changed-per-phase">Files Changed Per Phase</h2>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Files Modified</th>
+<th>New Files</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>src/lib/claude_parser.py</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>src/lib/extractor.py</code>, <code>src/lib/validator.py</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>src/lib/sanity.py</code>, <code>src/lib/history.py</code>, pipeline module</td>
+<td>—</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Matcher module, <code>specs/*.yaml</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Multiple new modules</td>
+<td>Polymer prompt, splitter module, brass spec YAML</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

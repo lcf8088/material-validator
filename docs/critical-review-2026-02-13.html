@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Critical Review of MTR Scan Investigation — February 13, 2026</title>
+
+<style>
+  @media print {
+    body { margin: 0.5in; }
+    h1 { page-break-before: avoid; }
+    table, pre, blockquote { page-break-inside: avoid; }
+  }
+  body {
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #000;
+    background: #fff;
+    max-width: 8.5in;
+    margin: 0 auto;
+    padding: 0.5in;
+  }
+  h1 { font-size: 18pt; border-bottom: 2px solid #000; padding-bottom: 4pt; margin-top: 24pt; }
+  h2 { font-size: 14pt; border-bottom: 1px solid #000; padding-bottom: 3pt; margin-top: 20pt; }
+  h3 { font-size: 12pt; margin-top: 16pt; }
+  h4 { font-size: 11pt; margin-top: 12pt; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12pt 0;
+    font-size: 10pt;
+  }
+  th, td {
+    border: 1px solid #000;
+    padding: 4pt 6pt;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #e0e0e0;
+    font-weight: bold;
+  }
+  tr:nth-child(even) td {
+    background: #f5f5f5;
+  }
+  code {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 10pt;
+    background: #f0f0f0;
+    padding: 1pt 3pt;
+    border: 1px solid #ccc;
+  }
+  pre {
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 8pt;
+    overflow-x: auto;
+    font-size: 9pt;
+    line-height: 1.4;
+  }
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  blockquote {
+    border-left: 3px solid #000;
+    margin: 12pt 0;
+    padding: 4pt 12pt;
+    color: #333;
+    background: #f9f9f9;
+  }
+  hr {
+    border: none;
+    border-top: 1px solid #000;
+    margin: 20pt 0;
+  }
+  strong { font-weight: bold; }
+  ul, ol { margin: 6pt 0; padding-left: 24pt; }
+  li { margin: 3pt 0; }
+  a { color: #000; text-decoration: underline; }
+</style>
+
+</head>
+<body>
+<h1 id="critical-review-of-mtr-scan-investigation-february-13-2026">Critical Review of MTR Scan Investigation — February 13, 2026</h1>
+<blockquote>
+<p>Self-review of the initial investigation findings. PDFs were re-examined directly (rendered via PyMuPDF), validation history re-read line-by-line, and source code (claude_parser.py, validator.py, extractor.py) analyzed for root causes.</p>
+</blockquote>
+<hr />
+<h2 id="errors-and-overstatements-in-the-original-investigation">Errors and Overstatements in the Original Investigation</h2>
+<h3 id="1-wrong-heat-jt707-for-sk908-files-files-7-8">1. WRONG: "Heat JT707" for SK908 files (Files 7, 8)</h3>
+<p>The original investigation implied the actual heat was "JT707" (pulled from the assembly MTR investigation, File 11). This was <strong>wrong</strong> — JT707 is a different heat from a completely different document (the PO1628 assembly MTR).</p>
+<p><strong>Correction</strong>: The Gibbs Wire cert for Files 7/8 clearly labels "Heat Number: SK908" on page 2. <strong>SK908 IS the correct heat number.</strong> The system extracted it correctly. The confusion arose because the assembly MTR (File 11) also contains Gibbs Wire X-750 certs, but for a different heat (JT707).</p>
+<h3 id="2-wrong-810-first-validations-defaulted-to-es-m2201c">2. WRONG: "8/10 first validations defaulted to ES-M2201C"</h3>
+<p>Looking at the actual validation records:
+- Record 1 (heat 4000026033) → ES-M0001G (CORRECT on first attempt)
+- Record 3 (heat 79017611) → ES-M0001G (CORRECT on first attempt)
+- Record 2 (PEEK V105367) → ES-M2201C (correct — it IS PEEK)
+- Records 4-10 (7 files) → ES-M2201C (wrong)</p>
+<p><strong>Correction</strong>: It was <strong>7/10 first attempts</strong> (or 6/8 non-PEEK heats) that defaulted to the wrong spec. Two 4140/42 heats were correctly auto-detected. The matcher works for 4140/42 (grade name matching) but fails for 9Cr, Inconel, L-80, and 420.</p>
+<h3 id="3-overstatement-c-to-f-temperature-conversion-bug">3. OVERSTATEMENT: "C-to-F temperature conversion bug"</h3>
+<p>The validator code (<code>_validate_temper</code>, line 401-422) isn't buggy — it simply doesn't have the temperature unit. The extraction prompt (<code>claude_parser.py</code> line 61) defines <code>"temper_temperature": null</code> with <strong>no companion unit field</strong>. Claude returns the raw number, the normalizer strips any unit suffix (<code>extractor.py</code> line 195), and the validator compares bare numbers.</p>
+<p><strong>Correction</strong>: This is a <strong>missing field in the extraction schema</strong> issue, not a conversion bug. The fix requires:
+1. Add <code>temper_temperature_unit</code> to the extraction prompt schema
+2. Preserve the unit through normalization (currently stripped at line 195)
+3. Add conversion logic in <code>_validate_temper</code></p>
+<h3 id="4-wrong-b4535-ta-001-stored-as-001">4. WRONG: "B4535 — Ta &lt;0.01 stored as 0.01"</h3>
+<p>I re-read the B4535 cert (Central Wire). The document says <strong>Ta: &lt;0.002</strong>, not &lt;0.01. The system stored Ta=0.002.</p>
+<p><strong>Correction</strong>: The qualifier loss is real but the values are different from what was reported. Actual: <code>&lt;0.002</code> → stored as <code>0.002</code>. The &lt;0.01 claim was confused with the SK908 cert (where Ta=0.0100 is a different issue entirely — in SK908, Ta's value was overwritten by Cb's value).</p>
+<h3 id="5-overstatement-ssn-swap-severity-file-6-a0959x">5. OVERSTATEMENT: S/Sn swap severity (File 6, A0959X)</h3>
+<p>The swap is real (S should be 0.0020, Sn should be 0.005), but looking at the ES-M0004A validation (record 14): S has spec_max=0.01, and the extracted value 0.005 passes. The true value 0.0020 would also pass. Sn is not tracked in the spec.</p>
+<p><strong>Correction</strong>: The S/Sn swap is a data integrity issue but <strong>does not affect the validation outcome</strong> for this particular spec. Severity should be downgraded from MEDIUM to LOW for this specific case (though it could matter for specs with tighter S limits).</p>
+<h3 id="6-missed-the-extraction-prompt-instructs-claude-to-average">6. MISSED: The extraction prompt INSTRUCTS Claude to average</h3>
+<p>The original investigation blamed Claude for "averaging pre-heat and post-heat columns." But <code>claude_parser.py</code> line 28 explicitly says:</p>
+<pre><code>- For multiple specimens/tests, use averages for mechanical properties.
+</code></pre>
+<p>Claude is <strong>correctly following the instruction</strong>. The bug is in the prompt, not in Claude's behavior. The instruction is too broad — it should average multiple specimens from the same test condition but NOT average different test conditions (pre-heat vs post-heat).</p>
+<h3 id="7-missed-b4535-uses-after-heat-treat-capabilities-not-actual-test-results">7. MISSED: B4535 uses "After Heat Treat Capabilities" not actual test results</h3>
+<p>Re-reading the B4535 cert directly, the document has:
+- <strong>"As Shipped" section</strong>: Tensile = 192 KSI (actual tested value)
+- <strong>"After Heat Treat Capabilities" section</strong>: Tensile = 236, Yield = 214, EL = 15%, RA = 25%, HRC = 43</p>
+<p>The system extracted the "After Heat Treat" values (236, 214, etc.), which are <strong>capabilities</strong> (what the material can achieve after customer heat treatment), not the current certified condition. The actual as-shipped tensile is only 192 KSI.</p>
+<p>For spring wire, the post-heat-treat properties are arguably what matters for validation against ES-M0009B (the spec expects heat-treated properties). But the distinction between "capabilities" and "certified test results" is important for traceability.</p>
+<h3 id="8-missed-sk908-ra-inconsistency-between-files-7-and-8">8. MISSED: SK908 RA inconsistency between Files 7 and 8</h3>
+<p>Both files are the same document (same heat SK908, same cert). Yet:
+- Record 7 (1874): RA = 34.0 (from tensile test section)
+- Record 8 (1875): RA = 20.0 (from wrap test line: "REDUCTION OF AREA c/k: 20")</p>
+<p>The pipeline extracted RA from different locations on two runs of the same document. This is a <strong>non-deterministic extraction</strong> issue — Claude picked different values on different runs.</p>
+<h3 id="9-missed-472110-charpy-values-are-specimen-set-averages-not-individuals">9. MISSED: 472110 Charpy values are specimen-set averages, not individuals</h3>
+<p>The system stored <code>values_ft_lb: [44.8, 45.2]</code> for heat 472110. But 44.8 and 45.2 are the <strong>averages of two specimen sets</strong> (specimen 78492 avg=44.8, specimen 78493 avg=45.2), not individual impact values. The actual individual values would be 6 numbers (49.4, 46.5, 38.4 for set 1; 50.9, 45.7, 39.1 for set 2).</p>
+<p>The Charpy validation (record 17) status was INCOMPLETE anyway ("Could not parse Charpy value: None"), so the validator never actually used these values.</p>
+<h3 id="10-missed-approval-workflow-allows-wrong-spec-approvals">10. MISSED: Approval workflow allows wrong-spec approvals</h3>
+<p>Record 15 shows SK908-1874 was <strong>approved by Hunter against ES-M2201C (PEEK plastic spec)</strong> with override reason "It picked up the comma as a decimal." A nickel superalloy was signed off against a PEEK polymer spec. The system has no guardrail preventing metal-vs-polymer spec mismatches.</p>
+<p>Record 11 shows heat 79017611 (4140/42 steel) was re-validated against ES-M2201C and approved with tensile override "in tolerance" — again, metal approved against PEEK spec.</p>
+<hr />
+<h2 id="confirmed-findings-verified-by-re-reading-actual-pdfs">Confirmed Findings (verified by re-reading actual PDFs)</h2>
+<h3 id="sk908-18741875-files-7-8-confirmed-with-nuance">SK908-1874/1875 (Files 7, 8) — CONFIRMED with nuance</h3>
+<p>Verified by rendering the actual Gibbs Wire cert:</p>
+<p><strong>Element mapping shift — CONFIRMED:</strong>
+- Document: Cb = 0.89__ (in Cb column), Ta = 0.0100 (in Ta column), V = blank
+- System: Ta = 0.89, V = 0.01, no Cb/Nb
+- The pipeline read Cb's value as Ta, Ta's value as V, and ignored the blank V</p>
+<p><strong>Mechanical averaging — CONFIRMED:</strong>
+- TS: (212,000 + 260,000) / 2 = 236,000 → 236 ksi ✓
+- HRC: (44 + 51) / 2 = 47.5 ✓
+- YS: System = 192. Consistent with (184,000 + 200,000) / 2 = 192,000. The pre-heat yield reads as either 184 or 194 (scan quality ambiguous), but 192 only works with 184.
+- Root cause: Prompt says "For multiple specimens/tests, use averages" — Claude averaged across test conditions</p>
+<p><strong>B4535 correctly maps Nb=0.89</strong> from a Central Wire cert that labels it "Nb". Gibbs Wire uses "Cb" (old notation) which the pipeline doesn't recognize.</p>
+<h3 id="472110-file-9-confirmed">472110 (File 9) — CONFIRMED</h3>
+<p>Verified by rendering the DEW cert:</p>
+<p><strong>Chemistry Nb/V confusion — CONFIRMED:</strong> Page 2 column headers clearly show Ti and Nb as the last two chemistry columns. No V column exists. The system extracted V=0.028 which is actually the Nb value.</p>
+<p><strong>Charpy temperature — CONFIRMED:</strong> Page 3 shows "-40" in the impact test temperature field. System stored +10°C — a 50-degree error plus wrong sign.</p>
+<p><strong>Temper temperature — CONFIRMED:</strong> Page 1 heat treatment block: "970°C 1HR Polymer + 225°C 2HR + 715°C 2HR". The 715°C is clearly the tempering step. System reported null.</p>
+<h3 id="a0959x-file-6-confirmed-with-severity-adjustment">A0959X (File 6) — CONFIRMED with severity adjustment</h3>
+<p>Verified by rendering the Tata Steel cert page 3:</p>
+<p><strong>S/Sn swap — CONFIRMED</strong> but validation-neutral. Both values pass spec limits regardless of which is which.</p>
+<p><strong>Temper = 680°C — CONFIRMED.</strong> Clearly printed: "Temper at 680°C for 01:30; Air Cooled."</p>
+<h3 id="temper-temperature-unit-issue-files-5-6-9-confirmed-as-schema-gap">Temper temperature unit issue (Files 5, 6, 9) — CONFIRMED as schema gap</h3>
+<p>The extraction schema has no <code>temper_temperature_unit</code> field. The normalizer (<code>extractor.py</code> line 192-199) strips unit suffixes. The validator (<code>validator.py</code> line 401-422) compares raw numbers against spec limits defined in °F. This is confirmed by reading all three code files.</p>
+<hr />
+<h2 id="revised-systemic-issues-corrected-priority">Revised Systemic Issues (corrected priority)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Issue</th>
+<th>Root Cause</th>
+<th>Files</th>
+<th>Severity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Prompt instructs averaging across test conditions</strong></td>
+<td><code>claude_parser.py:28</code> says "use averages for mechanical properties" — too broad</td>
+<td>7, 8</td>
+<td><strong>P1 - CRITICAL</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>No temper_temperature_unit in extraction schema</strong></td>
+<td>Prompt has no unit field; normalizer strips units; validator assumes °F</td>
+<td>5, 6, 9</td>
+<td><strong>P1 - HIGH</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Cb element name not normalized to Nb</strong></td>
+<td>Pipeline doesn't map old American "Cb" → modern "Nb"</td>
+<td>7, 8</td>
+<td><strong>P1 - HIGH</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Element grid parsing shifts values</strong></td>
+<td>Claude reads adjacent cells when a cell is blank, shifting the grid</td>
+<td>7, 8, 9</td>
+<td><strong>P1 - HIGH</strong></td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>Multi-document PDF confusion</strong></td>
+<td>No guidance on which document is authoritative when multiple certs bundled</td>
+<td>4</td>
+<td><strong>P2 - MEDIUM</strong></td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>Charpy temperature sign/value error</strong></td>
+<td>Bilingual OCR text confuses negative temperatures</td>
+<td>9</td>
+<td><strong>P2 - MEDIUM</strong></td>
+</tr>
+<tr>
+<td>7</td>
+<td><strong>Heat treatment block not parsed</strong></td>
+<td>Multi-step treatment descriptions not recognized</td>
+<td>9</td>
+<td><strong>P2 - MEDIUM</strong></td>
+</tr>
+<tr>
+<td>8</td>
+<td><strong>Non-deterministic extraction (RA source)</strong></td>
+<td>Same document produces different values on different runs</td>
+<td>7, 8</td>
+<td><strong>P2 - MEDIUM</strong></td>
+</tr>
+<tr>
+<td>9</td>
+<td><strong>Wrong-spec approval without guardrails</strong></td>
+<td>Override workflow allows metal approval against polymer spec</td>
+<td>7, 11</td>
+<td><strong>P2 - MEDIUM</strong></td>
+</tr>
+<tr>
+<td>10</td>
+<td><strong>S/Sn swap</strong></td>
+<td>OCR/Claude confusion between Sulfur and Tin</td>
+<td>6</td>
+<td><strong>P3 - LOW</strong></td>
+</tr>
+<tr>
+<td>11</td>
+<td><strong>Less-than qualifier lost</strong></td>
+<td><code>&lt;0.002</code> stored as <code>0.002</code></td>
+<td>10</td>
+<td><strong>P3 - LOW</strong></td>
+</tr>
+<tr>
+<td>12</td>
+<td><strong>Spec auto-detect fails for non-4140 grades</strong></td>
+<td>Matcher only works for 4140/42 UNS; 9Cr/Inconel/L-80/420 fall through</td>
+<td>6/8 heats</td>
+<td><strong>P2 - MEDIUM</strong></td>
+</tr>
+<tr>
+<td>13</td>
+<td><strong>Polymer/assembly/brass MTR support</strong></td>
+<td>Architecture gaps</td>
+<td>2, 11, 12</td>
+<td><strong>P3 - FEATURE</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="key-takeaway">Key Takeaway</h2>
+<p>The single most impactful root cause is the <strong>extraction prompt instruction</strong> (line 28):</p>
+<pre><code>For multiple specimens/tests, use averages for mechanical properties.
+</code></pre>
+<p>This instruction is correct for multiple specimens from the same test, but causes Claude to average across fundamentally different conditions (pre/post heat treat). Combined with the missing Cb→Nb normalization and the missing temper unit field, the prompt itself is the source of most extraction errors. <strong>Fixing the prompt is the highest-ROI change.</strong></p>
+</body>
+</html>

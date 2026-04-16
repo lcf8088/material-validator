@@ -1,0 +1,39 @@
+## Scope
+
+Yellow Brass (UNS C36000) copper alloy.
+
+## Chemical Composition
+
+| Element | Minimum (%) | Maximum (%) |
+|---------|-------------|-------------|
+| Cu      | 60.0        | 63.0        |
+| Pb      | 2.5         | 3.7         |
+| Fe      | -           | 0.35        |
+| Zn      | Remainder   | Remainder   |
+
+## Heat Treatment Condition
+
+Half Hard (Temper H02).
+
+## Mechanical Properties
+
+Mechanical properties shall be verified by tests conducted on a representative sample from the same heat, size, and heat treat lot, when required by the purchase order. Material stress relieved after cold working in excess of 5% is exempt from re-testing provided the stress relief temperature does not exceed the original tempering temperature.
+
+| Property         | Minimum | Maximum | Test Method    |
+|------------------|---------|---------|----------------|
+| Yield Strength   | 15 ksi  | -       | ASTM B557      |
+| Tensile Strength | 40 ksi  | -       | ASTM B557      |
+| Elongation       | 7%      | -       | ASTM B557      |
+| Hardness         | -       | 80 HRB  | ASTM E18       |
+
+## Receiving
+
+A Certificate of Conformance (CoC) and Material Test Report (MTR) are required; the MTR shall include grade, heat number, chemical analysis, and endorsement by authorized personnel.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 01/21/2008 | Original version, DDIMS80 |
+| - | 0 | 04/01/2024 | Copy to new word format. Change specification number to new style, remove the DDIMS number. Change revision number from letters to numbers. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. No change to acceptance criteria. |

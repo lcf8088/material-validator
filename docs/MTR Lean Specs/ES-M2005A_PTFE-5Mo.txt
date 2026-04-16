@@ -1,0 +1,33 @@
+## Scope
+
+Polytetrafluoroethylene (PTFE), 95% virgin PTFE / 5% molybdenum disulfide filled.
+
+## Chemical Composition
+
+Compound composition is proprietary. Material shall conform to the industry standard for MoS2-filled PTFE per supplier's compound data sheet.
+
+## Heat Treatment Condition
+
+Not applicable (thermoplastic material).
+
+## Mechanical Properties
+
+| Property                  | Minimum    | Maximum | Test Method        |
+|---------------------------|------------|---------|--------------------|
+| Tensile Strength at Break | 24.1 MPa   | -       | ASTM D638          |
+| Elongation at Break       | 350%       | -       | ASTM D638          |
+| Hardness                  | 55         | -       | ASTM D2240 Shore D |
+| Specific Gravity          | 2.15 g/cm³ | -       | ASTM D792          |
+
+Note: PTFE does not exhibit a distinct yield point per ASTM D638; tensile strength and elongation are reported at break only. Modulus of elasticity is excluded per risk assessment — for filled PTFE compounds, modulus is governed by filler content, which is verified by specific gravity and hardness. Anomalous modulus cannot occur when both are in specification.
+
+## Receiving
+
+A Certificate of Conformance (CoC) is required, stating batch number, cure date, and compound identification.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | 0 | 02/24/2026 | Original Version. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Handling, storage, labeling, and shelf life requirements covered by PP.017. Corrected specific gravity unit from "g/l" to "g/cm³". Converted hardness from 100 Shore A to 55 Shore D (correct scale for rigid PTFE). Converted tensile strength from 3,500 psi to 24.1 MPa for consistency with other PTFE specs. Removed yield properties (PTFE has no yield point) and modulus of elasticity per risk assessment (governed by filler content, verified by SG and hardness). |

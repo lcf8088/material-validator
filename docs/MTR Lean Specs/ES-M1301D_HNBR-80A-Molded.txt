@@ -1,0 +1,34 @@
+## Scope
+
+HNBR (Highly Saturated Nitrile) elastomer, 80 durometer, molded.
+
+## Chemical Composition
+
+Compound composition is proprietary. Material shall conform to the industry standard for HNBR (HSN) per supplier's compound data sheet.
+
+## Heat Treatment Condition
+
+Not applicable (elastomer material).
+
+## Mechanical Properties
+
+| Property              | Minimum    | Maximum    | Test Method          |
+|-----------------------|------------|------------|----------------------|
+| Tensile Strength at Break | 2,700 psi  | 3,000 psi  | ASTM D412            |
+| Elongation at Break   | 175%       | 350%       | ASTM D412            |
+| Hardness (Shore A)    | 77         | 85         | ASTM D2240           |
+| Compression Set       | Report     | -          | ASTM D395            |
+| Tensile Modulus (100%) | Report    | -          | ASTM D412            |
+| Specific Gravity      | Report     | -          | ASTM D792            |
+
+## Receiving
+
+A Certificate of Conformance (CoC) is required, stating batch number, cure date, and compound identification.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 01/21/2008 | Original version, DDIMS101A |
+| - | 0 | 04/01/2024 | Copy to new word format. Change specification number to new style, remove the DDIMS number. Change revision number from letters to numbers. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Handling, storage, labeling, and shelf life requirements covered by PP.017. No change to acceptance criteria. |

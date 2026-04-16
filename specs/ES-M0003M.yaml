@@ -3,9 +3,9 @@
 # ============================================================
 
 id: "ES-M0003M"
-revision: 0
-date: "2024-04-01"
-material: "18-8 Stainless Steel"
+revision: 1
+date: "2026-03-25"
+material: "18-8 Stainless Steel (AISI 304 type)"
 grades:
   - "18-8"
   - "304"
@@ -17,18 +17,14 @@ condition: "Per Supplier"
 
 chemistry:
   C:  { max: 0.08 }
-  Mn: { max: 2.00 }
-  P:  { max: 0.045 }
-  S:  { max: 0.030 }
-  Si: { max: 1.00 }
-  Cr: { min: 17.50, max: 20.00 }
+  Cr: { min: 18.00, max: 20.00 }
   Ni: { min: 8.00, max: 11.00 }
+  P:  { max: 0.045 }
+  S:  { max: 0.03 }
 
 mechanical:
   yield_strength:    { min: 25, unit: ksi }
   tensile_strength:  { min: 70, unit: ksi }
   elongation:        { min: 30, unit: '%' }
-  reduction_of_area: { min: 40, unit: '%' }
-  hardness_hbw:      { min: 100 }
 
 special_requirements: []

@@ -1,0 +1,72 @@
+## Scope
+
+API 6A supplement to ES-M0001A (AISI 4130, UNS G41300). This specification adds requirements for materials used in API 6A equipment (blind flanges). All requirements of ES-M0001A apply; this supplement defines additional acceptance criteria per API Specification 6A.
+
+## Base Specification
+
+ES-M0001A — 4130 Low-Alloy Steel. All chemical composition, heat treatment condition, and receiving requirements per the base specification.
+
+## API 6A Material Designation
+
+75K per API 6A Table 7 / Table 8.
+
+## Additional Mechanical Properties
+
+The following properties are required in addition to those in ES-M0001A:
+
+| Property              | Minimum | Maximum | Test Method    |
+|-----------------------|---------|---------|----------------|
+| Reduction in Area     | 35%     | -       | ASTM A370 / E8 |
+| Hardness (Brinell)    | HBW 197 | -       | ASTM E10       |
+
+## Chemical Composition — 6A Additional Limits
+
+In addition to ES-M0001A chemistry, the following API 6A Table 11 / Table 12 limits apply:
+
+| Element | Maximum (%) |
+|---------|-------------|
+| V       | 0.30        |
+
+All other Table 11 and Table 12 PSL 1 limits are satisfied by the base specification.
+
+## Heat Treatment Process
+
+Quenched and Tempered per ANSI/NACE MR0175/ISO 15156.
+
+- Hardening temperature: 850°C to 895°C (1562°F to 1643°F)
+- Soak time: 1/2 hour per inch of maximum through thickness, 1 hour minimum
+- Quench media: Water, oil, or other quenching media
+- Water quench temperature: shall not exceed 38°C (100°F) at start, 49°C (120°F) at completion
+- Tempering temperature: 660°C (1220°F) minimum
+- Temper time: 3/4 hour per inch of maximum through thickness, 1 hour minimum
+
+## Melting Practice
+
+Material shall be produced by Electric Arc Furnace (EAF), Basic Oxygen Furnace (BOF), or equivalent. The MTR shall state the melting practice used.
+
+## Material Qualification
+
+Mechanical properties shall be determined from a qualification test coupon (QTC) from the same heat of material, hot worked and heat treated with the production parts it qualifies. Tensile specimens shall be removed from the center core ¼T envelope. QTC equivalent round shall be equal to or greater than the production part equivalent round. Hardness testing shall be performed on the QTC after final heat treatment.
+
+## Forming Practices
+
+Material shall be produced using hot working practices that produce a wrought structure throughout.
+
+## NDE Requirements
+
+Visual inspection is required for each part and is performed during receiving inspection per FT.021.
+
+## Heat-Treating Equipment
+
+Heat-treating equipment shall be calibrated per FT.103.
+
+## Receiving
+
+In addition to ES-M0001A receiving requirements, the MTR shall include reduction in area, Brinell hardness, and a statement of melting practice.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | 0 | 05/16/2025 | Original Version |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Converted to supplement format referencing ES-M0001A. Relaxed to PSL 1 / temp class U / AA-BB. Removed Charpy (not required at PSL 1 temp U). Removed tightened P/S (PSL 1 = 0.040, covered by base spec). Added 75K designation, RA, min HBW, melting practice. |

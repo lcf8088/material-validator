@@ -1,10 +1,13 @@
 # ============================================================
 # DDIC Material Specification: ES-M0008B
+# Hardness scale is HRA (cemented carbide, per ASTM B294).
+# Note: validator currently lacks a native HRA scale — hardness_hra
+# is recorded here as spec data; MTR parsing updates can map it later.
 # ============================================================
 
 id: "ES-M0008B"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "Tungsten Carbide Balls Grade C2"
 grades:
   - "Tungsten Carbide"
@@ -12,12 +15,17 @@ grades:
   - "Grade C2"
   - "TC Balls"
 uns: null
-condition: "Hardened"
+condition: "Sintered"
 
-chemistry: {}
+# WC (tungsten carbide) is the balance compound; Co is the elemental binder.
+chemistry:
+  Co: { min: 5, max: 7 }
+
+composition:
+  tungsten_carbide: { min: 93, max: 95, unit: '%' }
 
 mechanical:
-  tensile_strength: { min: 220, unit: ksi }
-  hardness_hrc:     { min: 75, max: 80 }
+  transverse_rupture_strength: { min: 220, unit: ksi }
+  hardness_hra:                { min: 90.0, max: 92.5 }
 
 special_requirements: []

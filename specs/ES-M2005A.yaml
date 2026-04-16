@@ -1,0 +1,26 @@
+# ============================================================
+# DDIC Material Specification: ES-M2005A
+# PTFE 5% MoS2 filled — new in Rev 1 lean spec transition.
+# ============================================================
+
+id: "ES-M2005A"
+revision: 1
+date: "2026-03-25"
+material: "PTFE - 5% Molybdenum Disulfide Filled"
+grades:
+  - "PTFE 5% Moly"
+  - "PTFE 5% MoS2"
+  - "95/5 PTFE/MoS2"
+  - "95% Virgin PTFE + 5% MoS2"
+uns: null
+condition: "MoS2 Filled"
+
+chemistry: {}
+
+mechanical:
+  tensile_strength: { min: 24.1, unit: MPa }
+  elongation:       { min: 350, unit: '%' }
+  hardness_shore_d: { min: 55 }
+  specific_gravity: { min: 2.15 }
+
+special_requirements: []

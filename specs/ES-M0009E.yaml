@@ -3,33 +3,28 @@
 # ============================================================
 
 id: "ES-M0009E"
-revision: 0
-date: "2024-04-01"
+revision: 1
+date: "2026-03-25"
 material: "Elgiloy Cobalt-Chromium-Nickel-Molybdenum Alloy"
 grades:
   - "Elgiloy"
   - "R30003"
   - "UNS R30003"
 uns: "R30003"
-condition: "Spring Temper / Aged"
+condition: "Cold Drawn and Aged"
 
 chemistry:
-  C:  { max: 0.15 }
-  Mn: { min: 1.50, max: 2.50 }
-  P:  { max: 0.015 }
+  Co: { min: 39.0, max: 41.0 }
+  Cr: { min: 19.0, max: 21.0 }
+  Ni: { min: 14.0, max: 16.0 }
+  Mo: { min: 6.0, max: 8.0 }
+  Mn: { min: 1.00, max: 2.00 }
   S:  { max: 0.015 }
-  Si: { max: 1.20 }
-  Cr: { min: 19.00, max: 21.00 }
-  Ni: { min: 14.00, max: 16.00 }
-  Co: { min: 39.00, max: 41.00 }
-  Mo: { min: 6.00, max: 8.00 }
 
 mechanical:
-  yield_strength:    { min: 70, unit: ksi }
-  tensile_strength:  { min: 140, unit: ksi }
-  hardness_hrc:      { min: 19 }
+  yield_strength:    { min: 180, unit: ksi }
+  tensile_strength:  { min: 220, unit: ksi }
+  elongation:        { min: 3, unit: '%' }
+  hardness_hrc:      { max: 60 }
 
-special_requirements:
-  - type: nace_compliance
-    required: true
-    note: "ANSI-NACE MR0175-2021-ISO 15156-2020 compliant"
+special_requirements: []

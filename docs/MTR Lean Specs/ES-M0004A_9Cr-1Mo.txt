@@ -1,0 +1,44 @@
+## Scope
+
+9Cr-1Mo (UNS K90941) martensitic steel, suitable for sour service per ANSI/NACE MR0175/ISO 15156.
+
+## Chemical Composition
+
+| Element | Minimum (%) | Maximum (%) |
+|---------|-------------|-------------|
+| C       | -           | 0.15        |
+| Mn      | 0.30        | 0.60        |
+| Cr      | 8.00        | 10.00       |
+| Mo      | 0.90        | 1.10        |
+| Si      | 0.25        | 1.00        |
+| Ni      | -           | 0.50        |
+| P       | -           | 0.020       |
+| S       | -           | 0.010       |
+
+## Heat Treatment Condition
+
+Quenched and Tempered per ANSI/NACE MR0175/ISO 15156.
+
+## Mechanical Properties
+
+Mechanical properties shall be verified by tests conducted on a representative sample from the same heat, size, and heat treat lot. Material stress relieved after cold working in excess of 5% is exempt from re-testing provided the stress relief temperature does not exceed the original tempering temperature.
+
+| Property         | Minimum | Maximum | Test Method    |
+|------------------|---------|---------|----------------|
+| Yield Strength   | 80 ksi  | -       | ASTM A370 / E8 |
+| Tensile Strength | 95 ksi  | -       | ASTM A370 / E8 |
+| Elongation       | 20%     | -       | ASTM A370 / E8 |
+| Hardness         | -       | 22 HRC  | ASTM E18       |
+
+## Receiving
+
+A Certificate of Conformance (CoC) and Material Test Report (MTR) are required; the MTR shall include grade, condition, heat number, chemical analysis, mechanical properties, and endorsement by authorized personnel.
+
+## Revision History
+
+| ECO# | Rev. | Date | Description |
+| --- | --- | --- | --- |
+| - | A | 01/21/2008 | Original version, DDIMS51 |
+| Internal Audit CAR 198 | B | 05/27/2022 | Revised scope - Removed ASTM call outs - Added elongation, reduction of area – revised Quality section. |
+| - | 0 | 04/01/2024 | Change specification number, removed the DDIMS number. Changed revision number sequence from letter to number. Added to new format. |
+| - | 1 | 03/25/2026 | Reformatted to lean material specification. Removed QMS, purchasing, and process content. Removed UNS S50400 (AISI 501) from scope — different material, only K90941 applies. Chemistry reduced to alloy-defining and critical elements only. |

@@ -1,0 +1,39 @@
+# ============================================================
+# DDIC Material Specification: ES-M0009H
+# API 14A supplement to ES-M0009C (MP35N).
+# ============================================================
+
+id: "ES-M0009H"
+revision: 0
+date: "2026-03-25"
+material: "MP35N - API 14A Supplement"
+grades:
+  - "MP35N"
+  - "UNS R30035"
+  - "R30035"
+uns: "R30035"
+condition: "Cold Worked and Age Hardened"
+base_spec: "ES-M0009C"
+api_designation: "14A"
+
+chemistry:
+  Ni: { min: 33.00, max: 37.00 }
+  Cr: { min: 19.00, max: 21.00 }
+  Mo: { min: 9.00, max: 10.50 }
+  Ti: { max: 1.00 }
+  S:  { max: 0.010 }
+
+mechanical:
+  yield_strength:    { min: 180, unit: ksi }
+  tensile_strength:  { min: 190, unit: ksi }
+  elongation:        { min: 5, unit: '%' }
+  hardness_hrc:      { max: 50 }
+
+special_requirements:
+  - type: melt_practice
+    required: true
+    accepted:
+      - "VIM+VAR"
+      - "VIM+ESR"
+      - "AOD+VAR+VAR"
+    note: "Per API 14A; MTR must state melt practice"
