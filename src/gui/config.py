@@ -14,8 +14,7 @@ DEFAULT_CONFIG = {
     'preprocessing_dpi': 300,
     'auto_detect_spec': True,
     'default_spec': '',
-    'tiff_dpi': 300,
-    'tiff_compression': 'lzw',
+    'image_dpi': 300,
     'window_width': 1000,
     'window_height': 700,
     'theme': 'dark',
@@ -53,6 +52,12 @@ class Config:
                 for legacy_key in ('vision_provider', 'vision_api_key', 'vision_model',
                                    'vision_endpoint'):
                     config.pop(legacy_key, None)
+                # Migrate legacy keys
+                old_dpi = config.pop('tiff_dpi', None)
+                if old_dpi and 'image_dpi' not in loaded:
+                    config['image_dpi'] = old_dpi
+                config.pop('tiff_compression', None)
+                config.pop('image_quality', None)
                 # Migrate: output_folder was merged into archive_folder
                 old_output = config.pop('output_folder', '')
                 if old_output and not config.get('archive_folder'):
@@ -108,7 +113,7 @@ class Config:
 
     @property
     def effective_output_folder(self) -> str:
-        """Output/archive folder for approved TIFFs."""
+        """Output/archive folder for approved JPG pages."""
         return self._config.get('archive_folder', '')
 
     @property

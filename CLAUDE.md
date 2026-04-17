@@ -38,7 +38,7 @@ pipeline.process_document()
     |-> matcher.select_best_spec()             # auto-detect spec by UNS/grade/YS (if not manual)
     |-> validator.validate()                   # compare each property against spec min/max
     |-> sanity.run_all_sanity_checks()         # flag impossible values, borderline warnings
-    |-> tiff_export.convert_to_archive()       # CCITT Group 4 TIFF archive
+    |-> image_export.pdf_to_jpgs()             # per-page grayscale JPGs (_page_NN suffix)
     |-> history.record()                       # JSONL audit trail
     |
     v
@@ -63,7 +63,7 @@ material-validator/
 │   │   ├── config.py           # Config persistence (JSON read/write)
 │   │   ├── settings.py         # Embedded settings panel (Pipeline/Archive/General tabs)
 │   │   ├── theme.py            # D&D branded dark theme constants
-│   │   ├── tiff_export.py      # TIFF conversion & archive naming
+│   │   ├── image_export.py     # Per-page JPG export & archive naming
 │   │   ├── override_dialog.py  # Manual override dialog for spec/validation
 │   │   └── logo.jpg            # D&D company logo
 │   │
@@ -109,7 +109,7 @@ material-validator/
 │   ├── test_07_extractor.py    # PDF + normalization
 │   ├── test_08_history.py      # Audit trail
 │   ├── test_09_config.py       # Config persistence
-│   ├── test_10_tiff_export.py  # TIFF naming
+│   ├── test_10_image_export.py # Archive filename generation
 │   ├── test_11_preprocessor.py # Image preprocessing
 │   ├── test_12_paddle_ocr.py   # OCR wrapper
 │   ├── test_13_claude_parser.py# Claude API parsing
@@ -203,6 +203,7 @@ pyinstaller build_exe.spec
 
 ## Recent Changes (latest first)
 
+- Archive output switched from multi-page TIFF to per-page JPG (`_page_NN` suffix); `tiff_export.py` → `image_export.py`; config keys `tiff_dpi`/`tiff_compression` → `image_dpi`/`image_quality` (legacy keys auto-migrate)
 - Re-Extract button to re-run full pipeline on current file
 - Yield strength double-conversion fix + material-aware YS/TS sanity check
 - Split ES-M0003G into 5 supplier-specific Super 13Cr specs

@@ -90,14 +90,41 @@ def fix_rotated_pages(image_paths: List[str]) -> List[str]:
     return result_paths
 
 
+_HAIKU_ORIENT_MAX_LONG_EDGE = 1024  # px — plenty for Haiku orientation decisions
+
+
+def _encode_for_haiku(img) -> Tuple[str, str]:
+    """Downscale image and encode as JPEG base64. Returns (b64, media_type)."""
+    import cv2
+
+    h, w = img.shape[:2]
+    long_edge = max(h, w)
+    if long_edge > _HAIKU_ORIENT_MAX_LONG_EDGE:
+        scale = _HAIKU_ORIENT_MAX_LONG_EDGE / long_edge
+        new_size = (int(w * scale), int(h * scale))
+        img = cv2.resize(img, new_size, interpolation=cv2.INTER_AREA)
+
+    ok, buf = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 80])
+    if not ok:
+        raise RuntimeError("cv2.imencode failed")
+    return base64.b64encode(buf.tobytes()).decode('utf-8'), 'image/jpeg'
+
+
 def fix_upside_down_pages(
     image_paths: List[str],
     api_key: str,
 ) -> Tuple[List[str], List[int]]:
     """Detect and fix 180-degree (upside-down) page rotation using Haiku vision.
 
-    Sends each page image to Haiku and asks if the text is upside down.
-    Rotates any upside-down pages 180 degrees in place.
+    Uses a DIFFERENTIAL check: sends the original and a 180°-rotated copy
+    to Haiku together and asks which orientation is upright. This is far
+    more robust than a one-shot "is this upside-down?" prompt, which gave
+    false positives on pages dominated by stylized/decorative text (logos,
+    stamps, certificate headers) and flipped right-side-up pages the wrong
+    way.
+
+    Images are downscaled to 1024px long-edge JPEG before sending so we
+    never hit the per-image 5MB API limit on dense full-resolution scans.
 
     Args:
         image_paths: List of page image file paths
@@ -119,12 +146,14 @@ def fix_upside_down_pages(
 
     for i, img_path in enumerate(image_paths):
         try:
-            with open(img_path, "rb") as f:
-                img_bytes = f.read()
-            img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+            img = cv2.imread(img_path)
+            if img is None:
+                logger.warning("Could not read page %d for orientation check", i + 1)
+                continue
 
-            suffix = Path(img_path).suffix.lower()
-            media_type = "image/png" if suffix == ".png" else "image/jpeg"
+            flipped = cv2.rotate(img, cv2.ROTATE_180)
+            b64_a, media = _encode_for_haiku(img)
+            b64_b, _ = _encode_for_haiku(flipped)
 
             response = client.messages.create(
                 model="claude-haiku-4-5-20251001",
@@ -132,30 +161,32 @@ def fix_upside_down_pages(
                 messages=[{
                     "role": "user",
                     "content": [
-                        {"type": "image", "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": img_b64,
-                        }},
                         {"type": "text", "text":
-                            "Is the text on this page upside down (rotated 180 degrees)? "
-                            "Answer YES or NO only."},
+                            "Image A and Image B show the same document page in "
+                            "two orientations 180° apart. Which one has upright, "
+                            "readable text (letters and numbers in their natural "
+                            "reading orientation)? Reply with a single letter: A or B."},
+                        {"type": "image", "source": {
+                            "type": "base64", "media_type": media, "data": b64_a,
+                        }},
+                        {"type": "image", "source": {
+                            "type": "base64", "media_type": media, "data": b64_b,
+                        }},
                     ],
                 }],
             )
             answer = response.content[0].text.strip().upper()
-            logger.info("Page %d upside-down check: %s", i + 1, answer)
+            logger.info("Page %d orientation check: %s (A=original, B=flipped)",
+                         i + 1, answer)
 
-            if answer.startswith("YES"):
-                img = cv2.imread(img_path)
-                if img is not None:
-                    flipped = cv2.rotate(img, cv2.ROTATE_180)
-                    out_path = str(Path(img_path).with_name(
-                        Path(img_path).stem + '_flip180.png'))
-                    cv2.imwrite(out_path, flipped)
-                    result_paths[i] = out_path
-                    rotated_indices.append(i)
-                    logger.info("Page %d rotated 180 degrees", i + 1)
+            # Only flip when Haiku confidently picks B; anything else = keep as-is
+            if answer.startswith('B'):
+                out_path = str(Path(img_path).with_name(
+                    Path(img_path).stem + '_flip180.png'))
+                cv2.imwrite(out_path, flipped)
+                result_paths[i] = out_path
+                rotated_indices.append(i)
+                logger.info("Page %d rotated 180 degrees", i + 1)
 
         except Exception as e:
             logger.warning("Upside-down check failed for page %d: %s", i + 1, e)
@@ -167,7 +198,7 @@ def rotate_pages_180(image_paths: List[str], indices: List[int]) -> List[str]:
     """Rotate specific pages 180 degrees.
 
     Applies the same 180-degree rotation detected by fix_upside_down_pages
-    to a different set of images (e.g. enhanced TIFF images, Claude HQ images).
+    to a different set of images (e.g. enhanced archive images, Claude HQ images).
 
     Args:
         image_paths: List of page image file paths

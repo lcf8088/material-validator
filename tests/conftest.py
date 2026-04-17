@@ -46,8 +46,8 @@ def sample_config(tmp_path):
         "paddle_model_path": "",
         "preprocessing_dpi": 300,
         "auto_detect_spec": True,
-        "tiff_dpi": 300,
-        "tiff_compression": "lzw",
+        "image_dpi": 300,
+        "image_quality": 85,
         "theme": "dark",
     }
     config_path = tmp_path / "config.json"

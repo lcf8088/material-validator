@@ -227,13 +227,9 @@ class SettingsPanel:
             font=FONTS['body'],
         ).pack(anchor="w", padx=15, pady=(6, 0))
 
-        self._label(tab, "TIFF DPI").pack(anchor="w", **pad)
+        self._label(tab, "Image DPI").pack(anchor="w", **pad)
         self.dpi_var = ctk.StringVar()
         self._combo(tab, ["150", "200", "300"], self.dpi_var, state="readonly").pack(anchor="w", padx=15, pady=2)
-
-        self._label(tab, "TIFF Compression").pack(anchor="w", **pad)
-        self.compress_var = ctk.StringVar()
-        self._combo(tab, ["lzw", "jpeg", "none", "deflate"], self.compress_var, state="readonly").pack(anchor="w", padx=15, pady=2)
 
     def _build_general_tab_ctk(self, tab):
         pad = {"padx": 15, "pady": (8, 0)}
@@ -352,14 +348,9 @@ class SettingsPanel:
         ttk.Checkbutton(tab, text="Create PO# subfolders", variable=self.organize_by_po_var).grid(row=row, column=0, columnspan=2, sticky="w", pady=4)
 
         row += 1
-        ttk.Label(tab, text="TIFF DPI").grid(row=row, column=0, sticky="w", pady=4)
+        ttk.Label(tab, text="Image DPI").grid(row=row, column=0, sticky="w", pady=4)
         self.dpi_var = tk.StringVar()
         ttk.Combobox(tab, values=["150", "200", "300"], textvariable=self.dpi_var, state="readonly", width=10).grid(row=row, column=1, sticky="w", pady=4)
-
-        row += 1
-        ttk.Label(tab, text="TIFF Compression").grid(row=row, column=0, sticky="w", pady=4)
-        self.compress_var = tk.StringVar()
-        ttk.Combobox(tab, values=["lzw", "jpeg", "none", "deflate"], textvariable=self.compress_var, state="readonly", width=10).grid(row=row, column=1, sticky="w", pady=4)
 
     def _build_general_tab_tk(self, tab):
         row = 0
@@ -399,8 +390,7 @@ class SettingsPanel:
         self.archive_var.set(self.config.get("archive_folder", ""))
         self.organize_by_po_var.set(self.config.get("organize_by_po", False))
         self.watch_auto_process_var.set(self.config.get("watch_auto_process", True))
-        self.dpi_var.set(str(self.config.get("tiff_dpi", 300)))
-        self.compress_var.set(self.config.get("tiff_compression", "lzw"))
+        self.dpi_var.set(str(self.config.get("image_dpi", 300)))
 
         self.theme_var.set(self.config.get("theme", "dark"))
         self.specs_var.set(self.config.get("specs_folder", ""))
@@ -410,7 +400,7 @@ class SettingsPanel:
     def _on_save(self):
         dpi_str = self.dpi_var.get()
         if not dpi_str.isdigit():
-            messagebox.showwarning("Invalid DPI", "TIFF DPI must be a number.")
+            messagebox.showwarning("Invalid DPI", "Image DPI must be a number.")
             return
 
         prep_dpi_str = self.prep_dpi_var.get()
@@ -432,8 +422,7 @@ class SettingsPanel:
             "paddle_model_path": self.paddle_var.get().strip(),
             "archive_folder": self.archive_var.get().strip(),
             "organize_by_po": self.organize_by_po_var.get(),
-            "tiff_dpi": int(dpi_str),
-            "tiff_compression": self.compress_var.get(),
+            "image_dpi": int(dpi_str),
             "theme": self.theme_var.get(),
             "specs_folder": self.specs_var.get().strip(),
             "auto_detect_spec": self.auto_detect_var.get(),

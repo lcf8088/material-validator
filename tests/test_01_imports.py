@@ -35,7 +35,7 @@ NEW_MODULES = [
 
 GUI_MODULES = [
     "gui.config",
-    "gui.tiff_export",
+    "gui.image_export",
     # gui.app and gui.settings require tkinter which may not be available in CI
 ]
 

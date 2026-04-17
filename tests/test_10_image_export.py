@@ -1,10 +1,10 @@
 """
-Test 10: TIFF export - filename generation, sanitization, and input parsing.
+Test 10: Image export - filename generation, sanitization, and input parsing.
 """
 
 import re
 import pytest
-from gui.tiff_export import (
+from gui.image_export import (
     sanitize_filename, generate_archive_filename,
     generate_assembly_archive_filename, parse_input_filename,
 )
@@ -40,23 +40,24 @@ class TestSanitizeFilename:
 
 
 class TestGenerateArchiveFilename:
-    """Tests for YYYY.MM.PO#.LN#.ID.tif naming scheme."""
+    """Tests for YYYY.MM.PO#.LN#.ID.jpg naming scheme."""
 
     def test_full_metal(self):
         result = generate_archive_filename("000254", "01", "D2213660")
-        # Pattern: YYYY.MM.000254.001.D2213660.tif
-        assert result.endswith(".000254.001.D2213660.tif")
+        # Pattern: YYYY.MM.000254.001.D2213660.jpg (base; page suffix appended by caller)
+        assert result.endswith(".000254.001.D2213660.jpg")
         assert re.match(r"\d{4}\.\d{2}\.", result)
 
     def test_assembly_no_identifier(self):
         result = generate_archive_filename("000254", "03")
-        assert result.endswith(".000254.003.tif")
-        # No extra dot before .tif
-        assert not result.endswith("..tif")
+        assert result.endswith(".000254.003.jpg")
+        # No extra dot before .jpg
+        assert not result.endswith("..jpg")
+
 
     def test_none_identifier_omitted(self):
         result = generate_archive_filename("PO123", "05", None)
-        assert result.endswith(".000123.005.tif")
+        assert result.endswith(".000123.005.jpg")
 
     def test_empty_po(self):
         result = generate_archive_filename("", "01", "HEAT1")
@@ -97,7 +98,7 @@ class TestGenerateArchiveFilename:
 class TestGenerateAssemblyArchiveFilename:
     def test_assembly_naming(self):
         result = generate_assembly_archive_filename("000254", "03")
-        assert result.endswith(".000254.003.tif")
+        assert result.endswith(".000254.003.jpg")
 
     def test_assembly_custom_extension(self):
         result = generate_assembly_archive_filename("PO1", "01", extension=".pdf")

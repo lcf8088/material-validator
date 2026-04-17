@@ -1,7 +1,7 @@
 """
 Main OCR pipeline orchestrator.
 
-Ties together: preprocessor -> PaddleOCR -> Claude parser -> validation -> TIFF -> staging.
+Ties together: preprocessor -> PaddleOCR -> Claude parser -> validation -> JPG pages -> staging.
 Single entry point for processing MTR documents end-to-end.
 """
 
@@ -287,7 +287,7 @@ class PipelineResult:
     validation: Optional[CertValidation] = None
     sanity: Dict[str, List] = field(default_factory=dict)
     compliance_flags: List[Dict[str, Any]] = field(default_factory=list)
-    output_tiff_path: Optional[str] = None
+    output_image_paths: List[str] = field(default_factory=list)
     archive_filename: Optional[str] = None
     assembly_result: Optional[AssemblyResult] = None
     errors: List[str] = field(default_factory=list)
@@ -484,8 +484,7 @@ def process_document(
     anthropic_api_key: str = "",
     paddle_model_path: Optional[str] = None,
     preprocessing_dpi: int = 300,
-    tiff_dpi: int = 300,
-    tiff_compression: str = "lzw",
+    image_dpi: int = 300,
     on_progress: Optional[callable] = None,
     po_number: Optional[str] = None,
     organize_by_po: bool = False,
@@ -507,19 +506,18 @@ def process_document(
     7. Auto-detect spec if not provided
     8. Validate against spec
     9. Sanity checks
-    10. PDF -> TIFF to staging directory (for user review before archive)
+    10. PDF -> per-page JPGs in staging directory (for user review before archive)
 
     History recording and final archiving are handled by the GUI approve step.
 
     Args:
         pdf_path: Path to the input PDF or image file.
-        output_dir: Non-empty value triggers TIFF generation to staging.
+        output_dir: Non-empty value triggers JPG generation to staging.
         spec_id: Specification ID to validate against (None for auto-detect).
         anthropic_api_key: Anthropic API key for Claude parsing.
         paddle_model_path: Optional custom PaddleOCR model path.
         preprocessing_dpi: DPI for rendering PDF pages for OCR.
-        tiff_dpi: DPI for TIFF archive output.
-        tiff_compression: TIFF compression method.
+        image_dpi: DPI for per-page JPG archive output.
         on_progress: Optional callback(step: str, pct: float) for progress.
         po_number: Explicit PO override (e.g. from GUI sticky field).
         organize_by_po: If True, create PO subfolder in output_dir.
@@ -573,34 +571,27 @@ def process_document(
             result.errors.append("OCR extracted no text from document.")
             return result
 
-        # --- Render high-quality images at 300 DPI ---
-        # Raw grayscale (no posterize) for Claude — maximum detail for table reading.
-        # Posterized grayscale for TIFF — compact archive output.
-        enhanced_image_paths = None  # posterized, for TIFF
-        claude_hq_paths = None       # raw grayscale, for Claude
+        # --- Render high-quality grayscale images at target DPI ---
+        # Used both for Claude (max detail) and for per-page JPG archive staging.
+        enhanced_image_paths = None
         if is_pdf:
             try:
                 _progress("Rendering enhanced images...", 0.33)
-                from gui.tiff_export import render_enhanced_pages
+                from gui.image_export import render_enhanced_pages
                 t_enhance = time.time()
-                claude_hq_paths = render_enhanced_pages(pdf_path, dpi=tiff_dpi, posterize=False)
-                enhanced_image_paths = render_enhanced_pages(pdf_path, dpi=tiff_dpi, posterize=True)
+                enhanced_image_paths = render_enhanced_pages(pdf_path, dpi=image_dpi)
                 logger.info("[TIMING] %s | render_enhanced_pages@%d: %.1fs (%d pages)",
-                            filename, tiff_dpi, time.time() - t_enhance, len(enhanced_image_paths))
+                            filename, image_dpi, time.time() - t_enhance, len(enhanced_image_paths))
             except Exception as e:
                 logger.warning("Enhanced image rendering failed, using raw images: %s", e)
 
-        # Apply 180-degree rotation corrections to enhanced/HQ images
-        if flipped_indices:
-            if enhanced_image_paths:
-                enhanced_image_paths = rotate_pages_180(enhanced_image_paths, flipped_indices)
-                logger.info("Applied 180° rotation to %d enhanced image(s)", len(flipped_indices))
-            if claude_hq_paths:
-                claude_hq_paths = rotate_pages_180(claude_hq_paths, flipped_indices)
-                logger.info("Applied 180° rotation to %d Claude HQ image(s)", len(flipped_indices))
+        # Apply 180-degree rotation corrections to enhanced images
+        if flipped_indices and enhanced_image_paths:
+            enhanced_image_paths = rotate_pages_180(enhanced_image_paths, flipped_indices)
+            logger.info("Applied 180° rotation to %d enhanced image(s)", len(flipped_indices))
 
-        # Raw 300 DPI for Claude (max detail), fall back to OCR images
-        claude_image_paths = claude_hq_paths or image_paths
+        # High-DPI grayscale for Claude (max detail), fall back to OCR images
+        claude_image_paths = enhanced_image_paths or image_paths
 
         # --- Assembly detection and processing ---
         is_assembly = False
@@ -633,7 +624,7 @@ def process_document(
                 result.assembly_result = assembly_result
                 result.success = True
 
-                # Store key fields for TIFF naming / display
+                # Store key fields for archive naming / display
                 result.extracted_data = {
                     'po_number': assembly_result.po_number,
                     'customer_part_number': assembly_result.customer_part_number,
@@ -643,27 +634,32 @@ def process_document(
                 }
                 result.warnings.extend(assembly_result.warnings)
 
-                # TIFF to staging
+                # Per-page JPGs to staging
                 if output_dir and is_pdf:
-                    _progress("Assembling TIFF (staging)...", 0.90)
+                    _progress("Rendering JPG pages (staging)...", 0.90)
                     staging_dir = Path(tempfile.gettempdir()) / 'material-validator-staging'
                     staging_dir.mkdir(parents=True, exist_ok=True)
                     po = assembly_result.po_number or 'UNKNOWN-PO'
                     safe_po = re.sub(r'[\\/:*?"<>|]', '_', po).strip()
-                    staging_name = f"staging_ASSY_{safe_po}_{int(time.time())}.tif"
-                    staging_path = str(staging_dir / staging_name)
-                    t_tiff = time.time()
+                    staging_base = f"staging_ASSY_{safe_po}_{int(time.time())}"
+                    t_jpg = time.time()
                     if enhanced_image_paths:
-                        from gui.tiff_export import enhanced_images_to_tiff
-                        success_tiff, msg = enhanced_images_to_tiff(enhanced_image_paths, staging_path, dpi=tiff_dpi)
+                        from gui.image_export import enhanced_images_to_jpgs
+                        success_jpg, msg, written = enhanced_images_to_jpgs(
+                            enhanced_image_paths, str(staging_dir), staging_base,
+                            dpi=image_dpi,
+                        )
                     else:
-                        from gui.tiff_export import pdf_to_tiff
-                        success_tiff, msg = pdf_to_tiff(pdf_path, staging_path, tiff_dpi, tiff_compression)
-                    logger.info("[TIMING] %s | TIFF conversion: %.1fs", filename, time.time() - t_tiff)
-                    if success_tiff:
-                        result.output_tiff_path = staging_path
+                        from gui.image_export import pdf_to_jpgs
+                        success_jpg, msg, written = pdf_to_jpgs(
+                            pdf_path, str(staging_dir), staging_base,
+                            dpi=image_dpi,
+                        )
+                    logger.info("[TIMING] %s | JPG conversion: %.1fs", filename, time.time() - t_jpg)
+                    if success_jpg:
+                        result.output_image_paths = written
                     else:
-                        result.warnings.append(f"TIFF conversion failed: {msg}")
+                        result.warnings.append(f"JPG conversion failed: {msg}")
 
                 total_pipeline = time.time() - t_pipeline_start
                 _progress("Assembly validation complete.", 1.0)
@@ -848,31 +844,36 @@ def process_document(
             for item in sanity.get(category, []):
                 result.warnings.append(f"Sanity {category}: {item[0]} = {item[1]} - {item[2]}")
 
-        # Step 10: Assemble TIFF from enhanced images (or fall back to pdf_to_tiff)
+        # Step 10: Render per-page JPGs from enhanced images (or fall back to pdf_to_jpgs)
         if output_dir and is_pdf:
-            _progress("Assembling TIFF (staging)...", 0.85)
+            _progress("Rendering JPG pages (staging)...", 0.85)
 
             staging_dir = Path(tempfile.gettempdir()) / 'material-validator-staging'
             staging_dir.mkdir(parents=True, exist_ok=True)
 
             heat_number = normalized.get('heat_number') or normalized.get('batch_number') or 'UNKNOWN'
             safe_heat = re.sub(r'[\\/:*?"<>|]', '_', heat_number).strip()
-            staging_name = f"staging_{safe_heat}_{int(time.time())}.tif"
-            staging_path = str(staging_dir / staging_name)
+            staging_base = f"staging_{safe_heat}_{int(time.time())}"
 
-            t_tiff = time.time()
+            t_jpg = time.time()
             if enhanced_image_paths:
-                from gui.tiff_export import enhanced_images_to_tiff
-                success, msg = enhanced_images_to_tiff(enhanced_image_paths, staging_path, dpi=tiff_dpi)
+                from gui.image_export import enhanced_images_to_jpgs
+                success, msg, written = enhanced_images_to_jpgs(
+                    enhanced_image_paths, str(staging_dir), staging_base,
+                    dpi=image_dpi,
+                )
             else:
-                from gui.tiff_export import pdf_to_tiff
-                success, msg = pdf_to_tiff(pdf_path, staging_path, tiff_dpi, tiff_compression)
-            logger.info("[TIMING] %s | TIFF assembly: %.1fs", filename, time.time() - t_tiff)
+                from gui.image_export import pdf_to_jpgs
+                success, msg, written = pdf_to_jpgs(
+                    pdf_path, str(staging_dir), staging_base,
+                    dpi=image_dpi,
+                )
+            logger.info("[TIMING] %s | JPG page assembly: %.1fs", filename, time.time() - t_jpg)
             if success:
-                result.output_tiff_path = staging_path
-                logger.info("Staging TIFF saved: %s", staging_path)
+                result.output_image_paths = written
+                logger.info("Staging JPGs saved: %d pages in %s", len(written), staging_dir)
             else:
-                result.warnings.append(f"TIFF conversion failed: {msg}")
+                result.warnings.append(f"JPG conversion failed: {msg}")
 
         result.success = True
         total_pipeline = time.time() - t_pipeline_start

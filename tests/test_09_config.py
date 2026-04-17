@@ -12,7 +12,7 @@ class TestConfigDefaults:
         required = [
             "archive_folder", "anthropic_api_key", "watch_folder",
             "paddle_model_path", "preprocessing_dpi", "auto_detect_spec",
-            "tiff_dpi", "tiff_compression", "theme",
+            "image_dpi", "theme",
         ]
         for key in required:
             assert key in DEFAULT_CONFIG, f"Missing default key: {key}"
@@ -33,7 +33,7 @@ class TestConfigLoadSave:
     def test_load_nonexistent_uses_defaults(self, tmp_path):
         cfg = Config(str(tmp_path / "nonexistent.json"))
         assert cfg.anthropic_api_key == ""
-        assert cfg.get("tiff_dpi") == 300
+        assert cfg.get("image_dpi") == 300
 
     def test_save_and_reload(self, tmp_path):
         path = str(tmp_path / "test_config.json")
@@ -46,8 +46,8 @@ class TestConfigLoadSave:
     def test_update_multiple(self, tmp_path):
         path = str(tmp_path / "test_config.json")
         cfg = Config(path)
-        cfg.update({"tiff_dpi": 200, "theme": "light"})
-        assert cfg.get("tiff_dpi") == 200
+        cfg.update({"image_dpi": 200, "theme": "light"})
+        assert cfg.get("image_dpi") == 200
         assert cfg.get("theme") == "light"
 
 
@@ -69,7 +69,8 @@ class TestLegacyConfigMigration:
     def test_legacy_preserved_values_kept(self, legacy_config):
         """Non-legacy values should be preserved during migration."""
         cfg = Config(legacy_config)
-        assert cfg.get("tiff_dpi") == 150  # From legacy config
+        # Legacy tiff_dpi migrated to image_dpi
+        assert cfg.get("image_dpi") == 150
         assert cfg.get("theme") == "dark"
 
 

@@ -52,7 +52,7 @@ class ValidationHistory:
         spec_data: Dict[str, Any],
         source_file: Optional[str] = None,
         validated_by: str = "",
-        staging_tiff_path: Optional[str] = None,
+        staging_image_paths: Optional[List[str]] = None,
     ) -> str:
         """
         Record a validation result.
@@ -83,7 +83,7 @@ class ValidationHistory:
             'approved': False,
             'approved_by': '',
             'approved_at': '',
-            'staging_tiff_path': staging_tiff_path or '',
+            'staging_image_paths': list(staging_image_paths) if staging_image_paths else [],
         }
         
         # Append to history file
@@ -148,7 +148,7 @@ class ValidationHistory:
             'approved': False,
             'approved_by': '',
             'approved_at': '',
-            'staging_tiff_path': '',
+            'staging_image_paths': [],
         }
 
         # Append to history file

@@ -45,9 +45,9 @@ from lib.pipeline import process_document, pre_extract, PipelineResult
 from lib.watcher import FolderWatcher
 
 from .config import Config
-from .tiff_export import (
+from .image_export import (
     generate_archive_filename, generate_assembly_archive_filename,
-    sanitize_filename, tiff_to_pdf, compress_pdf,
+    sanitize_filename, jpgs_to_pdf, compress_pdf, PAGE_SUFFIX_FMT,
 )
 from .settings import SettingsPanel
 from .override_dialog import OverrideDialog
@@ -111,6 +111,21 @@ def _get_identifier(data: dict) -> tuple:
     return ('Heat', 'N/A')
 
 
+def _read_staging_paths(record: dict) -> List[str]:
+    """Read staging image paths from a history record."""
+    val = record.get('staging_image_paths')
+    if isinstance(val, list):
+        return [p for p in val if p]
+    if isinstance(val, str) and val:
+        return [val]
+    return []
+
+
+def _has_existing_staging(paths: List[str]) -> bool:
+    """True if at least one staged image file still exists on disk."""
+    return bool(paths) and any(Path(p).exists() for p in paths)
+
+
 class MaterialValidatorApp:
     """Main application class with sidebar navigation layout."""
 
@@ -132,7 +147,7 @@ class MaterialValidatorApp:
         # Approval queue state
         self._batch_running = False
         self._approval_queue: List[PipelineResult] = []
-        self.staging_tiff_path: Optional[str] = None
+        self.staging_image_paths: List[str] = []
         self._pipeline_lock = threading.Lock()
         self._override_operator: str = ""
         self._current_history_id: Optional[str] = None
@@ -610,7 +625,7 @@ class MaterialValidatorApp:
             fg_color=COLORS['bg_card'], hover_color=COLORS['surface_hl'],
             border_color=COLORS['border'], border_width=1,
             text_color='#FFFFFF', text_color_disabled=COLORS['btn_disabled_text'],
-            command=self._preview_tiff,
+            command=self._preview_images,
         )
         self.preview_btn.pack(side='left', padx=4)
 
@@ -1306,7 +1321,7 @@ class MaterialValidatorApp:
         self.extracted_data = record.get('mtr_data', {})
         self.current_file = record.get('source_file')
         self._current_history_id = record.get('validation_id')
-        self.staging_tiff_path = record.get('staging_tiff_path') or None
+        self.staging_image_paths = _read_staging_paths(record)
 
         # Switch to validate view
         self._navigate_to('validate')
@@ -1376,7 +1391,7 @@ class MaterialValidatorApp:
                     self.add_heat_btn.pack_forget()
                     self.add_heat_btn.pack(side='left', padx=4, before=self.approve_btn)
                     self._set_button_state(self.add_heat_btn, 'normal')
-                if self.staging_tiff_path and Path(self.staging_tiff_path).exists():
+                if _has_existing_staging(self.staging_image_paths):
                     self._set_button_state(self.preview_btn, 'normal')
 
             self._set_status(f"Reviewing: Assembly PO {assy.po_number} ({overall}) — Approve")
@@ -1400,7 +1415,7 @@ class MaterialValidatorApp:
             self._view_history_report(record)
             # Re-set the history id after _view_history_report
             self._current_history_id = record.get('validation_id')
-            self.staging_tiff_path = record.get('staging_tiff_path') or None
+            self.staging_image_paths = _read_staging_paths(record)
 
         # Update header
         mtr = record.get('mtr_data', {})
@@ -1429,7 +1444,7 @@ class MaterialValidatorApp:
             if self.validation_result:
                 self._set_button_state(self.override_btn, 'normal')
                 self._set_button_state(self.validate_btn, 'normal')
-            if self.staging_tiff_path and Path(self.staging_tiff_path).exists():
+            if _has_existing_staging(self.staging_image_paths):
                 self._set_button_state(self.preview_btn, 'normal')
             else:
                 self._set_button_state(self.preview_btn, 'disabled')
@@ -1782,8 +1797,8 @@ class MaterialValidatorApp:
         # Re-enable fields in case they were set read-only from a history view
         self._set_fields_readonly(False)
 
-        # Don't delete staging TIFF — it's now tracked in history for pending records
-        self.staging_tiff_path = None
+        # Don't delete staging images — they're tracked in history for pending records
+        self.staging_image_paths = []
         self._current_history_id = None
 
         self.current_file = file_path
@@ -1844,7 +1859,7 @@ class MaterialValidatorApp:
                     self.root.after(0, lambda: self._set_progress(pct))
                     self.root.after(0, lambda: self._set_status(f"Pipeline: {step}"))
 
-                # Always generate staging TIFF when archive folder is configured
+                # Always generate staging JPG pages when archive folder is configured
                 output_dir = self.config.effective_output_folder
 
                 # PO from sticky field
@@ -1868,8 +1883,7 @@ class MaterialValidatorApp:
                     anthropic_api_key=self.config.anthropic_api_key,
                     paddle_model_path=self.config.get('paddle_model_path', '') or None,
                     preprocessing_dpi=self.config.get('preprocessing_dpi', 300),
-                    tiff_dpi=self.config.get('tiff_dpi', 300),
-                    tiff_compression=self.config.get('tiff_compression', 'lzw'),
+                    image_dpi=self.config.get('image_dpi', 300),
                     on_progress=on_progress,
                     po_number=po_from_field or None,
                     organize_by_po=self.config.get('organize_by_po', False),
@@ -2017,8 +2031,7 @@ class MaterialValidatorApp:
                         anthropic_api_key=api_key,
                         paddle_model_path=paddle_path,
                         preprocessing_dpi=dpi,
-                        tiff_dpi=self.config.get('tiff_dpi', 300),
-                        tiff_compression=self.config.get('tiff_compression', 'lzw'),
+                        image_dpi=self.config.get('image_dpi', 300),
                         on_progress=on_progress,
                         po_number=po_from_field or None,
                         organize_by_po=self.config.get('organize_by_po', False),
@@ -2052,7 +2065,7 @@ class MaterialValidatorApp:
                                 spec = self.spec_loader.get(r.spec_id) if r.spec_id else {}
                                 vid = self.history.record(
                                     r.validation, ed, spec, fp,
-                                    staging_tiff_path=r.output_tiff_path,
+                                    staging_image_paths=r.output_image_paths,
                                 )
                                 if el > 0:
                                     self.history.update(vid, processing_time=round(el, 1))
@@ -2102,8 +2115,8 @@ class MaterialValidatorApp:
         self.validation_result = result.validation
         self._assembly_result = result.assembly_result
 
-        # Store staging TIFF path for preview/approve
-        self.staging_tiff_path = result.output_tiff_path
+        # Store staging JPG page paths for preview/approve
+        self.staging_image_paths = list(result.output_image_paths or [])
 
         self._set_progress(1.0)
 
@@ -2145,7 +2158,7 @@ class MaterialValidatorApp:
             self._set_button_state(self.reextract_btn, 'normal')
             self._set_button_state(self.validate_btn, 'normal')
             self._set_button_state(self.override_btn, 'normal')
-            if self.staging_tiff_path and Path(self.staging_tiff_path).exists():
+            if _has_existing_staging(self.staging_image_paths):
                 self._set_button_state(self.preview_btn, 'normal')
             self._set_button_state(self.approve_btn, 'normal')
             # Show/hide "Add Missing Heat" button (pack before approve for visibility)
@@ -2175,7 +2188,7 @@ class MaterialValidatorApp:
                         spec_id=assy_validation.spec_id,
                         heat_number=assy_validation.heat_number,
                         material_grade=assy_validation.material_grade,
-                        staging_tiff_path=self.staging_tiff_path or '',
+                        staging_image_paths=list(self.staging_image_paths or []),
                         assembly_data=assy.to_dict(),
                         approved=False,
                         approved_by='',
@@ -2189,7 +2202,7 @@ class MaterialValidatorApp:
                         self.extracted_data,
                         assy_spec,
                         self.current_file,
-                        staging_tiff_path=self.staging_tiff_path,
+                        staging_image_paths=self.staging_image_paths,
                     )
                     self._current_history_id = vid
                     # Store the full assembly result in the validation record
@@ -2292,7 +2305,7 @@ class MaterialValidatorApp:
                     spec_id=spec_id,
                     heat_number=result.validation.heat_number,
                     material_grade=result.validation.material_grade,
-                    staging_tiff_path=self.staging_tiff_path or '',
+                    staging_image_paths=list(self.staging_image_paths or []),
                     summary={
                         'pass_count': result.validation.pass_count,
                         'fail_count': result.validation.fail_count,
@@ -2307,7 +2320,7 @@ class MaterialValidatorApp:
                 vid = self.history.record(
                     result.validation, self.extracted_data, spec,
                     self.current_file,
-                    staging_tiff_path=self.staging_tiff_path,
+                    staging_image_paths=self.staging_image_paths,
                 )
                 self._current_history_id = vid
             # Store processing time in history
@@ -2316,7 +2329,7 @@ class MaterialValidatorApp:
 
         # Enable approve/preview/override buttons for the approval gate
         if ctk:
-            if self.staging_tiff_path and Path(self.staging_tiff_path).exists():
+            if _has_existing_staging(self.staging_image_paths):
                 self._set_button_state(self.preview_btn, 'normal')
             self._set_button_state(self.approve_btn, 'normal')
             if self.validation_result:
@@ -2580,10 +2593,10 @@ class MaterialValidatorApp:
         if not Path(self.current_file).exists():
             messagebox.showwarning("File Not Found", f"Source file no longer exists:\n{self.current_file}")
             return
-        # Clean up old staging TIFF before re-extraction
+        # Clean up old staging JPGs before re-extraction
         self._cleanup_staging()
         # Keep _current_history_id so _on_pipeline_complete updates the existing record
-        self.staging_tiff_path = None
+        self.staging_image_paths = []
         self.pipeline_result = None
         self._assembly_result = None
         # Disable buttons during processing
@@ -2627,15 +2640,16 @@ class MaterialValidatorApp:
                 )
             self._set_status(f"Applied {dialog.override_count} override(s) by {dialog.operator_name}")
 
-    def _preview_tiff(self):
-        """Open the staging TIFF in the system's default viewer."""
-        if self.staging_tiff_path and Path(self.staging_tiff_path).exists():
-            os.startfile(self.staging_tiff_path)
-        else:
-            messagebox.showwarning("No Preview", "No staging TIFF available to preview.")
+    def _preview_images(self):
+        """Open the first staging JPG page in the system's default viewer."""
+        for p in (self.staging_image_paths or []):
+            if Path(p).exists():
+                os.startfile(p)
+                return
+        messagebox.showwarning("No Preview", "No staging image available to preview.")
 
     def _approve(self):
-        """Approve the current result: move staging TIFF to archive, record history, generate report."""
+        """Approve the current result: move staging JPG pages to archive, record history, generate report."""
         if not self.extracted_data:
             return
 
@@ -2731,27 +2745,42 @@ class MaterialValidatorApp:
         effective_output_dir = Path(archive_folder)
         effective_output_dir.mkdir(parents=True, exist_ok=True)
 
-        final_path = effective_output_dir / archive_name
+        # Strip page/extension to get the base name used for all output files.
+        archive_base = Path(archive_name).stem
+        existing_staged = [p for p in (self.staging_image_paths or []) if Path(p).exists()]
+        page_count = len(existing_staged)
 
-        # Handle filename conflicts
-        if final_path.exists():
-            base = final_path.stem
-            ext = final_path.suffix
+        def _page_candidates(base: str) -> List[Path]:
+            return [effective_output_dir / f"{base}{PAGE_SUFFIX_FMT.format(i)}.jpg"
+                    for i in range(1, page_count + 1)]
+
+        # Resolve collisions by bumping a numeric suffix on the base name.
+        final_base = archive_base
+        if page_count > 0:
             counter = 1
-            while final_path.exists():
-                final_path = effective_output_dir / f"{base}_{counter}{ext}"
+            while any(p.exists() for p in _page_candidates(final_base)):
+                final_base = f"{archive_base}_{counter}"
+                counter += 1
+        else:
+            # No pages staged — still bump collisions for the companion PDF/report.
+            counter = 1
+            while (effective_output_dir / f"{final_base}.pdf").exists():
+                final_base = f"{archive_base}_{counter}"
                 counter += 1
 
-        # Move staging TIFF to archive
-        if self.staging_tiff_path and Path(self.staging_tiff_path).exists():
-            shutil.move(self.staging_tiff_path, str(final_path))
-            self.staging_tiff_path = None
-            logger.info("Approved: %s -> %s", archive_name, final_path)
+        final_paths: List[Path] = _page_candidates(final_base)
 
-            # Generate compressed PDF alongside TIFF (background — don't block GUI)
-            pdf_path = final_path.with_suffix('.pdf')
+        # Move each staging JPG page to the archive
+        if existing_staged:
+            for src, dst in zip(existing_staged, final_paths):
+                shutil.move(src, str(dst))
+            self.staging_image_paths = []
+            logger.info("Approved: %s (%d page(s))", final_base, len(final_paths))
+
+            # Generate compressed PDF alongside JPGs (background — don't block GUI)
+            pdf_path = effective_output_dir / f"{final_base}.pdf"
             source_pdf = self.current_file
-            tiff_path_str = str(final_path)
+            archived_jpgs = [str(p) for p in final_paths]
             if (source_pdf
                     and Path(source_pdf).suffix.lower() == '.pdf'
                     and Path(source_pdf).exists()):
@@ -2762,21 +2791,19 @@ class MaterialValidatorApp:
                     daemon=True,
                 ).start()
             else:
-                # Original missing/renamed or non-PDF input — convert from archived TIFF
+                # Original missing/renamed or non-PDF input — assemble PDF from archived JPGs
                 if source_pdf and Path(source_pdf).suffix.lower() == '.pdf':
-                    logger.warning("Source PDF missing, falling back to TIFF->PDF: %s", source_pdf)
+                    logger.warning("Source PDF missing, falling back to JPGs->PDF: %s", source_pdf)
                 threading.Thread(
-                    target=tiff_to_pdf, args=(tiff_path_str, str(pdf_path)),
+                    target=jpgs_to_pdf, args=(archived_jpgs, str(pdf_path)),
                     daemon=True,
                 ).start()
         else:
-            # No staging TIFF (e.g. non-PDF input) — nothing to move
-            logger.info("Approved (no TIFF): %s", archive_name)
+            # No staging JPGs (e.g. non-PDF input) — nothing to move
+            logger.info("Approved (no JPG pages): %s", final_base)
 
-        # Generate verification report alongside the TIFF
-        report_path = final_path.with_suffix('').with_name(
-            final_path.stem + '_APPROVAL REPORT.txt'
-        )
+        # Generate verification report alongside the archive
+        report_path = effective_output_dir / f"{final_base}_APPROVAL REPORT.txt"
         try:
             from lib.report import generate_verification_report
             report_text = generate_verification_report(
@@ -2837,10 +2864,11 @@ class MaterialValidatorApp:
             )
             self.history.approve(vid, approved_by)
 
-        # Update UI
-        self._set_status(f"Approved: {final_path.name}")
+        # Update UI — button disable + status line is the normal approval signal
+        page_count = len(final_paths)
+        self._set_status(f"Approved: {final_base} ({page_count} page(s))")
         if ctk:
-            self._update_header_status('PASS', f"Approved: {final_path.name}")
+            self._update_header_status('PASS', f"Approved: {final_base}")
             self._set_button_state(self.approve_btn, 'disabled')
             self._set_button_state(self.override_btn, 'disabled')
             self._set_button_state(self.preview_btn, 'disabled')
@@ -2877,14 +2905,15 @@ class MaterialValidatorApp:
                 self.queue_label.configure(text="")
 
     def _cleanup_staging(self):
-        """Remove the current staging TIFF if it exists (unapproved)."""
-        if self.staging_tiff_path and Path(self.staging_tiff_path).exists():
+        """Remove the current staging JPG pages if they exist (unapproved)."""
+        for p in (self.staging_image_paths or []):
             try:
-                os.remove(self.staging_tiff_path)
-                logger.info("Cleaned up staging TIFF: %s", self.staging_tiff_path)
+                if Path(p).exists():
+                    os.remove(p)
+                    logger.info("Cleaned up staging image: %s", p)
             except OSError:
                 pass
-        self.staging_tiff_path = None
+        self.staging_image_paths = []
 
     def _prompt_for_po(self) -> Optional[str]:
         """Prompt user for PO number."""
@@ -3114,8 +3143,7 @@ class MaterialValidatorApp:
                             anthropic_api_key=api_key,
                             paddle_model_path=paddle_path,
                             preprocessing_dpi=dpi,
-                            tiff_dpi=self.config.get('tiff_dpi', 300),
-                            tiff_compression=self.config.get('tiff_compression', 'lzw'),
+                            image_dpi=self.config.get('image_dpi', 300),
                             on_progress=on_progress,
                             po_number=po_from_field or None,
                             organize_by_po=self.config.get('organize_by_po', False),
@@ -3145,7 +3173,7 @@ class MaterialValidatorApp:
                                     spec = self.spec_loader.get(r.spec_id) if r.spec_id else {}
                                     vid = self.history.record(
                                         r.validation, ed, spec, fp,
-                                        staging_tiff_path=r.output_tiff_path,
+                                        staging_image_paths=r.output_image_paths,
                                     )
                                     if el > 0:
                                         self.history.update(vid, processing_time=round(el, 1))
@@ -3312,21 +3340,22 @@ class MaterialValidatorApp:
     def _on_close(self):
         """Handle window close.
 
-        Staging TIFFs for pending history records are kept — they'll be needed
-        when the user reviews them later.  Only TIFFs that were never recorded
+        Staging JPGs for pending history records are kept — they'll be needed
+        when the user reviews them later.  Only images that were never recorded
         to history (e.g. error cases with no _current_history_id) are removed.
         """
         if self.watcher.is_watching():
             self.watcher.stop_watching()
-        # Only clean up staging TIFF if it was never persisted to history
-        if self.staging_tiff_path and not self._current_history_id:
-            try:
-                if Path(self.staging_tiff_path).exists():
-                    os.remove(self.staging_tiff_path)
-            except OSError:
-                pass
-        self.staging_tiff_path = None
-        # Queued items are already in history — don't delete their TIFFs
+        # Only clean up staging images if they were never persisted to history
+        if self.staging_image_paths and not self._current_history_id:
+            for p in self.staging_image_paths:
+                try:
+                    if Path(p).exists():
+                        os.remove(p)
+                except OSError:
+                    pass
+        self.staging_image_paths = []
+        # Queued items are already in history — don't delete their staged JPGs
         self._approval_queue.clear()
         self.config.update({
             'window_width': self.root.winfo_width(),
@@ -3377,7 +3406,7 @@ class MaterialValidatorApp:
         self.override_btn = ttk.Button(frame, text="Override", command=self._open_override_dialog, state='disabled')
         self.override_btn.pack(side='left', padx=5)
 
-        self.preview_btn = ttk.Button(frame, text="Preview", command=self._preview_tiff, state='disabled')
+        self.preview_btn = ttk.Button(frame, text="Preview", command=self._preview_images, state='disabled')
         self.preview_btn.pack(side='left', padx=5)
 
         self.approve_btn = ttk.Button(frame, text="Approve", command=self._approve, state='disabled')

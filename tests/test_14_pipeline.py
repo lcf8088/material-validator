@@ -185,9 +185,9 @@ class TestProcessDocumentMocked:
     @patch("lib.pipeline.parse_and_validate")
     @patch("lib.pipeline.is_digital_native")
     @patch("lib.pipeline.pdf_to_images")
-    @patch("gui.tiff_export.pdf_to_tiff")
-    def test_pipeline_with_tiff_output(
-        self, mock_tiff, mock_pdf2img, mock_is_digital, mock_claude, mock_ocr, tmp_path
+    @patch("gui.image_export.pdf_to_jpgs")
+    def test_pipeline_with_jpg_output(
+        self, mock_jpgs, mock_pdf2img, mock_is_digital, mock_claude, mock_ocr, tmp_path
     ):
         import fitz
         doc = fitz.open()
@@ -208,7 +208,7 @@ class TestProcessDocumentMocked:
             "chemistry": {"C": 0.42},
             "mechanical": {"yield_strength": 90},
         }
-        mock_tiff.return_value = (True, "Saved 1 page")
+        mock_jpgs.return_value = (True, "Saved 1 page", [str(tmp_path / "stub_page_01.jpg")])
 
         output_dir = str(tmp_path / "archive")
         result = process_document(

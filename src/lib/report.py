@@ -1,5 +1,5 @@
 """
-Verification report generator — plain-text report saved alongside archived TIFFs.
+Verification report generator — plain-text report saved alongside archived images.
 
 Produces an audit-ready document with validation results, override annotations,
 and approval signature.
