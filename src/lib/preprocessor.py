@@ -314,7 +314,9 @@ def _fix_page_rotation(image):
     horizontal_count = 0
     vertical_count = 0
     for line in lines:
-        x1, y1, x2, y2 = line[0]
+        # OpenCV 4.x returns each line as shape (1, 4); OpenCV 5.x as (4,).
+        # ravel() flattens both to a 4-vector so unpacking works either way.
+        x1, y1, x2, y2 = np.ravel(line)[:4]
         angle = abs(np.degrees(np.arctan2(y2 - y1, x2 - x1)))
         if angle < 20:
             horizontal_count += 1
@@ -351,7 +353,9 @@ def _deskew(image):
     # Calculate median angle from detected lines
     angles = []
     for line in lines:
-        x1, y1, x2, y2 = line[0]
+        # OpenCV 4.x returns each line as shape (1, 4); OpenCV 5.x as (4,).
+        # ravel() flattens both to a 4-vector so unpacking works either way.
+        x1, y1, x2, y2 = np.ravel(line)[:4]
         angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
         # Only consider near-horizontal lines (within 15 degrees)
         if abs(angle) < 15:
